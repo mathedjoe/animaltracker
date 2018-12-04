@@ -1,0 +1,18 @@
+Package: instamap
+Title: US National & State Map Generator
+Version: 1.0.0
+Authors@R: 
+    person(given = "Thea",
+           family = "Sukianto",
+           role = c("aut", "cre"),
+           email = "twotailstatistics@gmail.com")
+Description: The instamap package contains capabilities to generate 
+US national (lower 48 states) and individual state choropleths 
+from the ggplot2 and maps libraries in one-line statements. Variables
+are visualized as a color gradient by state/county on generated 
+choropleths. 
+Depends: R (>= 3.5.0), ggplot2 (>= 3.1.0), maps (>= 3.3.0), dplyr (>= 0.7.5)
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.1.1
