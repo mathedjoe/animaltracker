@@ -1,0 +1,52 @@
+,,1.5IQR Test upper bound,Outlier?
+Alabama,121,113.4,TRUE
+Alaska,58.9,,FALSE
+Arizona,70.2,,FALSE
+Arkansas,114.6,58.65,TRUE
+California,44.8,80.55,FALSE
+Colorado,59.8,21.9,FALSE
+Connecticut,55.9,32.85,FALSE
+Delaware,79.2,,FALSE
+District of Columbia,32.5,,FALSE
+Florida,66.6,,FALSE
+Georgia,77.8,,FALSE
+Hawaii,41.9,,FALSE
+Idaho,77.6,,FALSE
+Illinois,56.8,,FALSE
+Indiana,83.9,,FALSE
+Iowa,64,,FALSE
+Kansas,76.9,,FALSE
+Kentucky,97.2,,FALSE
+Louisiana,98.1,,FALSE
+Maine,66.9,,FALSE
+Maryland,58.7,,FALSE
+Massachusetts,47.1,,FALSE
+Michigan,84.9,,FALSE
+Minnesota,46.9,,FALSE
+Mississippi,105.6,,FALSE
+Missouri,80.4,,FALSE
+Montana,69.8,,FALSE
+Nebraska,62.8,,FALSE
+Nevada,80.7,,FALSE
+New Hampshire,64.3,,FALSE
+New Jersey,52.6,,FALSE
+New Mexico,65.1,,FALSE
+New York,42.7,,FALSE
+North Carolina,82.5,,FALSE
+North Dakota,47.8,,FALSE
+Ohio,75.3,,FALSE
+Oklahoma,97.9,,FALSE
+Oregon,76.3,,FALSE
+Pennsylvania,69.5,,FALSE
+Rhode Island,60.3,,FALSE
+South Carolina,89.4,,FALSE
+South Dakota,54.8,,FALSE
+Tennessee,107.5,,FALSE
+Texas,57.6,,FALSE
+Utah,70.4,,FALSE
+Vermont,58.6,,FALSE
+Virginia,63.4,,FALSE
+Washington,64.9,,FALSE
+West Virginia,96,,FALSE
+Wisconsin,62.2,,FALSE
+Wyoming,71.1,,FALSE
