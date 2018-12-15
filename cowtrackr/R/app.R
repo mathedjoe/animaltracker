@@ -1,14 +1,10 @@
 #'
-#'This is a Shiny web application. You can run the application by 
-#'calling this function.
+#'You can run the cowtrackr Shiny application by calling this function.
 #'
-#'Find out more about building applications with Shiny here:
+#'@param rds_path Path of cow data file to input
 #'
-#' http://shiny.rstudio.com/
-#'
-run_shiny_cowtrackr <- function() {
-
-  suppressWarnings( cows <- bind_rows(readRDS("cow_data.rds")) )
+run_shiny_cowtrackr <- function(rds_path) {
+  suppressWarnings(cows <- bind_rows(readRDS(rds_path)))
   
   # Define UI for application that draws a histogram
   ui <- fluidPage(
@@ -23,14 +19,14 @@ run_shiny_cowtrackr <- function() {
              plotOutput("plot2")
       )
     )
-   
+    
   )
   
   # Define server logic required to draw a histogram
   server <- function(input, output, session) {
     
     # print("got here")
-  
+    
     # Drop-down selection box for which data set
     output$choose_data<- renderUI({
       checkboxGroupInput("selected_cows", "Cows", choices = as.list(unique(cows$Cow)), selected = unique(cows$Cow)[1])
@@ -39,15 +35,15 @@ run_shiny_cowtrackr <- function() {
     
     # date range
     output$choose_dates <- renderUI({
-     
+      
       # If missing input, return to avoid error later in function
       if(is.null(input$selected_cows))
         return()
       
       # Get the data set with the appropriate name
-  
+      
       dates <- cows %>% 
-                  filter(Cow %in% input$selected_cows) 
+        filter(Cow %in% input$selected_cows) 
       
       dates <- dates$Date
       
@@ -118,7 +114,7 @@ run_shiny_cowtrackr <- function() {
         ylim(1000,2000)+geom_line() + 
         geom_point() + 
         theme_minimal()
-  
+      
       
     })
     
@@ -134,9 +130,11 @@ run_shiny_cowtrackr <- function() {
       
       
     })
-    
-    # Run the application 
-    shinyApp(ui = ui, server = server)
-    
-    runApp()
+  }
+  # Run the application 
+  shinyApp(ui = ui, server = server)
+  
 }
+
+    
+   

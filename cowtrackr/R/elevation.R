@@ -24,7 +24,6 @@ source(system.file("tests","testing.R",package="geonames"),echo=TRUE) # FAILS
 #### add elevation data via Digital Elevation Model (DEM)
 
 # read geoTIFF elevation map
-using("raster", "sp", "rgdal")
 dem_file <- list.files("data/elevation", pattern=".tif", full.names = T)
 
 DEM <- raster(dem_file)
