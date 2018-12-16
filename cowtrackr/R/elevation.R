@@ -24,21 +24,21 @@ estimate_elevation_usgs <- function(rds_path) {
   return(elev_points)
 }
 
+#'
+#'Estimate elevation data via Digital Elevation Model (DEM) from existing GPS data (.rds)
+#'
+#'@param rds_path path of GPS data
+#'@param tif_dir local directory path of DEM files (.tif)
+#'@return projection of elevation points on spatial points from GPS data
+#'
+estimate_elevation_dem <- function(rds_path, tif_dir) {
+  spdf <- get_spdf(rds_path)
+  dem_file <- list.files(tif_dir, pattern=".tif", full.names = T)
+  DEM <- raster(dem_file)
+  DEM.gps <- projectRaster(DEM, crs = crs(spdf))
+  return(DEM.gps)
+}
 
-#### add elevation data via Digital Elevation Model (DEM)
 
-
-# read geoTIFF elevation map
-# dem_file <- list.files(tif_dir, pattern=".tif", full.names = T)
-
-# DEM <- raster(dem_file)
-# plot(DEM, main="Digital Elevation Model for U.S.")
-
-# extent(DEM)
-# crs(DEM)
-
-# DEM.spf <- as(DEM,"SpatialPixelsDataFrame") # takes a long time?
-
-# DEM.gps <- projectRaster(DEM, crs = crs(spdf))
 
 
