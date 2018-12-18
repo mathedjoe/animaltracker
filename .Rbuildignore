@@ -1,2 +1,5 @@
-^cowtrackr\.Rproj$
+^.*\.Rproj$
 ^\.Rproj\.user$
+^README\.md$
+^data$
+^resources$
