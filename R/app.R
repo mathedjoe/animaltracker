@@ -1,5 +1,5 @@
 #'
-#'You can run the cowtrackr Shiny application by calling this function.
+#'You can run the animaltracker Shiny app by calling this function.
 #'
 #'@param rds_path Path of cow data file to input
 #'
