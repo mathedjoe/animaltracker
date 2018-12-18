@@ -1,5 +1,5 @@
 Package: animaltracker
-Title: 
+Title: Animal Tracker
 Version: 0.0.1.9000
 Authors@R: c( person("Joe", "Champion", email = "joechampion@boisestate.edu", role = c("aut", "cre")), person("Thea", "Sukian", email = "TheophiliaSukian@u.boisestate.edu", role=c("aut")), person("Chithkala", "Dhulipati", email = "chithkaladhulipa@u.boisestate.edu", role=c("aut")) )
 Description: Import, visualize, and analyze GPS and accelerometer data for spatial-temporal tracking of animals (e.g., cows). 
