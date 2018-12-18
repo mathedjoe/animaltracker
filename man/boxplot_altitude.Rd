@@ -8,7 +8,7 @@ by GPS.}
 boxplot_altitude(rds_path)
 }
 \arguments{
-\item{rds_path}{Path of .rds cow data file to read in}
+\item{rds_path}{Path of .rds animal data file to read in}
 }
 \value{
 overall boxplot of altitude by GPS

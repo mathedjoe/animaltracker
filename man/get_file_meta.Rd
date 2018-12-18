@@ -2,16 +2,16 @@
 % Please edit documentation in R/data_cleaning.R
 \name{get_file_meta}
 \alias{get_file_meta}
-\title{Generate metadata for a directory of cow data files}
+\title{Generate metadata for a directory of animal data files}
 \usage{
 get_file_meta(data_dir)
 }
 \arguments{
-\item{data_dir}{directory of cow data files}
+\item{data_dir}{directory of animal data files}
 }
 \value{
-list of data info as a list of cow IDs and GPS units
+list of data info as a list of animal IDs and GPS units
 }
 \description{
-Generate metadata for a directory of cow data files
+Generate metadata for a directory of animal data files
 }

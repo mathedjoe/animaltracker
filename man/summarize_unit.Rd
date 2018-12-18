@@ -10,7 +10,7 @@ summarize_unit(rds_path)
 \item{rds_path}{Path of .rds cow data file to read in}
 }
 \value{
-summary statistics for cows by GPS unit
+summary statistics for animals by GPS unit
 }
 \description{
 Summarize by GPS unit

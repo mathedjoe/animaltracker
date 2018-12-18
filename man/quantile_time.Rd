@@ -8,7 +8,7 @@ roughly corresponding to quantiles with .05 intervals.}
 quantile_time(rds_path)
 }
 \arguments{
-\item{rds_path}{Path of .rds cow data file to read in}
+\item{rds_path}{Path of .rds animal data file to read in}
 }
 \value{
 approximate time difference values corresponding to quantiles (.05 intervals)

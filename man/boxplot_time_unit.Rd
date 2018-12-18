@@ -8,7 +8,7 @@ GPS measurements by GPS unit.}
 boxplot_time_unit(rds_path)
 }
 \arguments{
-\item{rds_path}{Path of .rds cow data file to read in}
+\item{rds_path}{Path of .rds animal data file to read in}
 }
 \value{
 distribution of time between GPS measurements by GPS unit, as a boxplot

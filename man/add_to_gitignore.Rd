@@ -7,7 +7,7 @@
 add_to_gitignore(data_dir)
 }
 \arguments{
-\item{data_dir}{directory of cow data files}
+\item{data_dir}{directory of animal data files}
 }
 \description{
 Add big files to a .gitignore file
