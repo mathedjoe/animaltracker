@@ -80,10 +80,14 @@ clean_export_files <- function(data_dir, out_path, processed_dir = "data/process
     print(paste("...", nstart - nrow(df), "points removed"))
     print(paste("...total distance traveled =", round(sum(df$DistGeo)/1000, 1), "km"))
     print(paste("...saving", nrow(df), "good data points"))
+    
+    # write the data to csv
     if(!dir.exists(processed_dir)){
       dir.create(processed_dir, recursive = TRUE)
     }
     write.csv(df, paste0(processed_dir,aniid,".csv"), row.names=F)
+    
+    # add df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df
 }
   saveRDS(data_sets, out_path)

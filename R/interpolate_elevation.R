@@ -52,9 +52,9 @@ model_animal_elevation <- function(csv_path) {
 
 
 #'
-#'Export modeled elevation data from existing cow data file
+#'Export modeled elevation data from existing animal data file
 #'
-#'@param rds_path cow data file to model elevation from
+#'@param rds_path animal tracking data file to model elevation from
 #'@param out_path exported file path
 #'
 export_animal_elevation <- function(rds_path, out_path) {
