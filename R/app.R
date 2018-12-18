@@ -3,12 +3,12 @@
 #'
 #'@param rds_path Path of cow data file to input
 #'
-run_shiny_cowtrackr <- function(rds_path) {
-  suppressWarnings(cows <- bind_rows(readRDS(rds_path)))
+run_shiny_animaltracker <- function(rds_path) {
+  suppressWarnings(ani <- bind_rows(readRDS(rds_path)))
   
   # Define UI for application that draws a histogram
   ui <- fluidPage(
-    h1("Cow Tracker"),
+    h1("Animal Tracker"),
     fluidRow(
       column(4, 
              uiOutput("choose_dates"),
@@ -29,7 +29,7 @@ run_shiny_cowtrackr <- function(rds_path) {
     
     # Drop-down selection box for which data set
     output$choose_data<- renderUI({
-      checkboxGroupInput("selected_cows", "Cows", choices = as.list(unique(cows$Cow)), selected = unique(cows$Cow)[1])
+      checkboxGroupInput("selected_ani", "ani", choices = as.list(unique(ani$Cow)), selected = unique(ani$Cow)[1])
     })
     
     
@@ -37,13 +37,13 @@ run_shiny_cowtrackr <- function(rds_path) {
     output$choose_dates <- renderUI({
       
       # If missing input, return to avoid error later in function
-      if(is.null(input$selected_cows))
+      if(is.null(input$selected_ani))
         return()
       
       # Get the data set with the appropriate name
       
-      dates <- cows %>% 
-        filter(Cow %in% input$selected_cows) 
+      dates <- ani %>% 
+        filter(Cow %in% input$selected_ani) 
       
       dates <- dates$Date
       
@@ -53,12 +53,12 @@ run_shiny_cowtrackr <- function(rds_path) {
     })
     
     dat <- reactive({
-      if(is.null(input$selected_cows) || is.null(input$dates))
+      if(is.null(input$selected_ani) || is.null(input$dates))
         return()
       
-      cows %>% 
+      ani %>% 
         filter(
-          Cow %in% input$selected_cows,
+          Cow %in% input$selected_ani,
           Date >= input$dates[1], 
           Date <= input$dates[2])
       
@@ -66,7 +66,7 @@ run_shiny_cowtrackr <- function(rds_path) {
     
     points <- reactive({
       # If missing input, return to avoid error later in function
-      if(is.null(input$selected_cows) || is.null(input$dates) )
+      if(is.null(input$selected_ani) || is.null(input$dates) )
         return()
       
       SpatialPointsDataFrame(coords = dat()[c("Longitude", "Latitude")], data = dat(),
@@ -78,10 +78,10 @@ run_shiny_cowtrackr <- function(rds_path) {
       
       
       
-      if(is.null(input$selected_cows) || is.null(input$dates) )
+      if(is.null(input$selected_ani) || is.null(input$dates) )
         return()
       
-      factpal <- colorFactor(hue_pal()(length(input$selected_cows)), input$selected_cows)
+      factpal <- colorFactor(hue_pal()(length(input$selected_ani)), input$selected_ani)
       
       leaflet() %>%  # Add tiles
         addTiles() %>%
@@ -92,7 +92,7 @@ run_shiny_cowtrackr <- function(rds_path) {
         
         addCircleMarkers(data = points(), radius=6, fillOpacity = .6, stroke=F,
                          color = ~ factpal(Cow), 
-                         popup = ~ paste(paste("<h4>",paste("Cow ID:", points()$Cow), "</h4>"),
+                         popup = ~ paste(paste("<h4>",paste("Animal ID:", points()$Cow), "</h4>"),
                                          paste("Date/Time:", points()$DateTime),
                                          paste("Altitude:", points()$Altitude),
                                          paste("Elevation:", points()$Elevation),
@@ -105,7 +105,7 @@ run_shiny_cowtrackr <- function(rds_path) {
     })
     
     output$plot1 <- renderPlot({
-      if(is.null(input$selected_cows) || is.null(input$dates))
+      if(is.null(input$selected_ani) || is.null(input$dates))
         return()
       
       # hist(dat()$TimeDiffMin [dat()$TimeDiffMin < 100], main = "Distribution of Time Between GPS Measurements" )
@@ -119,7 +119,7 @@ run_shiny_cowtrackr <- function(rds_path) {
     })
     
     output$plot2 <- renderPlot({
-      if(is.null(input$selected_cows) || is.null(input$dates))
+      if(is.null(input$selected_ani) || is.null(input$dates))
         return()
       
       ggplot(dat(), aes(x=TimeDiffMins, fill=Cow))+

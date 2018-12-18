@@ -1,16 +1,16 @@
 # # Creating a new database - provide the filename to dbConnect()
 #
-# CowGPS <- dbConnect (RSQLite::SQLite(), dbname = "CowGPS.sqlite")
+# animaldb <- dbConnect (RSQLite::SQLite(), dbname = "animaldb.sqlite")
 #
 # # Loading data
 #
-# CowGPS <- dbSendQuery(conn = CowGPS,
+# animaldb <- dbSendQuery(conn = animaldb,
 #                       "CREATE TABLE MetaData   # The name of the table is MetaData
 #                       (File NULL,              # Not sure about the data type of file, so named it NULL
-#                       Cow INTEGER?,            # The column/ field named cow - is it the collar id, or some text?
+#                       Animal CHAR,            # The column/ field named Animal - is it the collar id, or some text?
 #                       Date DATETIME)")         # DATETIME is the data type for Date field.
 #
-# CowGPS <- dbSendQuery(conn = CowGPS,
+# animaldb <- dbSendQuery(conn = animaldb,
 #                       "CREATE TABLE Data
 #                       Files...") # Yet to complete the code!
 #
