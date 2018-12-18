@@ -12,7 +12,7 @@ get_file_meta <- function(data_dir){
   ani_ids <- gsub("(.*)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.csv)","\\5",data_files)
   
   # assign random ids to missing animal ids
-  ani_ids_na <- ani_ids == "cowxxxx"
+  ani_ids_na <- ani_ids == "anixxxx"
   ani_ids[ani_ids_na] <- sample(1000:9999, size=sum(ani_ids_na), replace=F)
   ani_ids[ani_ids_na] <- paste0("R", ani_ids[ani_ids_na])
   
