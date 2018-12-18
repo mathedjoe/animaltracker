@@ -37,6 +37,15 @@ clean_export_files <- function(data_dir, out_path, processed_dir = "data/process
   window <- list(latmax = 43.3464, lonmin = -117.2305, latmin = 43.2472, lonmax=-117.101 )
     
   data_sets <- list()
+  
+  # create empty folder to save processed data
+  if(!dir.exists(processed_dir)){
+    dir.create(processed_dir, recursive = TRUE)
+  }
+  else{
+    unlink(file.path(processed_dir, "*"))
+  }
+  
   for (i in 1:length(data_files) ){
     df <- read.csv(data_files[i], skipNul = T)
     aniid <- data_info$ani[i]
@@ -81,11 +90,8 @@ clean_export_files <- function(data_dir, out_path, processed_dir = "data/process
     print(paste("...total distance traveled =", round(sum(df$DistGeo)/1000, 1), "km"))
     print(paste("...saving", nrow(df), "good data points"))
     
-    # write the data to csv
-    if(!dir.exists(processed_dir)){
-      dir.create(processed_dir, recursive = TRUE)
-    }
-    write.csv(df, paste0(processed_dir,aniid,".csv"), row.names=F)
+    
+    write.csv(df, file.path(processed_dir, paste0(aniid,".csv")), row.names=F)
     
     # add df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df
