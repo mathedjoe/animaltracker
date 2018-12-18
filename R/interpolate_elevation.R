@@ -33,7 +33,7 @@ export_elevation <- function(out_path) {
 #'@param csv_path path of csv GPS data
 #'@return modeled elevation data
 #'
-model_cow_elevation <- function(csv_path) {
+model_animal_elevation <- function(csv_path) {
   datapts <- read.csv(csv_path) %>%
     select(lon = Longitude, lat = Latitude, alt = Altitude )
 
@@ -57,26 +57,26 @@ model_cow_elevation <- function(csv_path) {
 #'@param rds_path cow data file to model elevation from
 #'@param out_path exported file path
 #'
-export_cow_elevation <- function(rds_path, out_path) {
-  cowdata <- readRDS(rds_path)
+export_animal_elevation <- function(rds_path, out_path) {
+  anidata <- readRDS(rds_path)
 
-  for ( i in 1:length(cowdata) ){
-    cowdf <- cowdata[[i]]
-    datapts <- as.matrix(cowdf[c("Longitude", "Latitude")] )
+  for ( i in 1:length(anidata) ){
+    anidf <- anidata[[i]]
+    datapts <- as.matrix(anidf[c("Longitude", "Latitude")] )
     colnames(datapts) <- c("x","y")
     datapts <- rgdal::project(as.matrix(datapts), "+proj=utm +zone=11 ellps=WGS84")
     datapts <- as.data.frame(datapts)
-    datapts$alt <- cowdf$Altitude
+    datapts$alt <- anidf$Altitude
     coordinates(datapts) <- ~x+y
 
     datapts_elev <- nabor::knn(coordinates(elevpts), coordinates(datapts), k=1)
 
-    cowdf$Elevation <- elevpts$layer[ datapts_elev$nn.idx]
+    anidf$Elevation <- elevpts$layer[ datapts_elev$nn.idx]
 
-    cowdata[[i]]<- cowdf
+    anidata[[i]]<- anidf
 
   }
-  saveRDS(cowdata, out_path)
+  saveRDS(anidata, out_path)
 }
 
 #'
@@ -85,8 +85,8 @@ export_cow_elevation <- function(rds_path, out_path) {
 #'@param csv_path path of csv GPS data to model elevation from
 #'@return histogram of the distribution of modeled elevation - measured altitude
 #'
-histogram_cow_elevation <- function(csv_path) {
-  datapts <- model_cow_elevation(csv_path)
+histogram_animal_elevation <- function(csv_path) {
+  datapts <- model_animal_elevation(csv_path)
   histogram <- ggplot(as.data.frame(datapts), aes(x = elev - alt)) +
     xlim(-100,100)+
     geom_histogram(aes(y=..density..), colour="blue", fill="lightblue", binwidth = 2 )+

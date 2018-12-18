@@ -1,14 +1,19 @@
 #'
 #'You can run the animaltracker Shiny app by calling this function.
 #'
-#'@param rds_path Path of cow data file to input
+#'@param rds_path Path of Animal data file to input
 #'
 run_shiny_animaltracker <- function(rds_path) {
-  suppressWarnings(ani <- bind_rows(readRDS(rds_path)))
+  require("shiny")
+  require("leaflet")
+  require("ggplot2")
+  
+  # Load data
+  suppressWarnings(ani <- dplyr::bind_rows(readRDS(rds_path)))
   
   # Define UI for application that draws a histogram
   ui <- fluidPage(
-    h1("Animal Tracker"),
+    h1("Animal Tracker App"),
     fluidRow(
       column(4, 
              uiOutput("choose_dates"),
@@ -29,7 +34,7 @@ run_shiny_animaltracker <- function(rds_path) {
     
     # Drop-down selection box for which data set
     output$choose_data<- renderUI({
-      checkboxGroupInput("selected_ani", "ani", choices = as.list(unique(ani$Cow)), selected = unique(ani$Cow)[1])
+      checkboxGroupInput("selected_ani", "ani", choices = as.list(unique(ani$Animal)), selected = unique(ani$Animal)[1])
     })
     
     
@@ -43,7 +48,7 @@ run_shiny_animaltracker <- function(rds_path) {
       # Get the data set with the appropriate name
       
       dates <- ani %>% 
-        filter(Cow %in% input$selected_ani) 
+        filter(Animal %in% input$selected_ani) 
       
       dates <- dates$Date
       
@@ -58,7 +63,7 @@ run_shiny_animaltracker <- function(rds_path) {
       
       ani %>% 
         filter(
-          Cow %in% input$selected_ani,
+          Animal %in% input$selected_ani,
           Date >= input$dates[1], 
           Date <= input$dates[2])
       
@@ -91,8 +96,8 @@ run_shiny_animaltracker <- function(rds_path) {
         # addProviderTiles("OpenStreetMap.Mapnik", group = "Road map") %>%
         
         addCircleMarkers(data = points(), radius=6, fillOpacity = .6, stroke=F,
-                         color = ~ factpal(Cow), 
-                         popup = ~ paste(paste("<h4>",paste("Animal ID:", points()$Cow), "</h4>"),
+                         color = ~ factpal(Animal), 
+                         popup = ~ paste(paste("<h4>",paste("Animal ID:", points()$Animal), "</h4>"),
                                          paste("Date/Time:", points()$DateTime),
                                          paste("Altitude:", points()$Altitude),
                                          paste("Elevation:", points()$Elevation),
@@ -109,7 +114,7 @@ run_shiny_animaltracker <- function(rds_path) {
         return()
       
       # hist(dat()$TimeDiffMin [dat()$TimeDiffMin < 100], main = "Distribution of Time Between GPS Measurements" )
-      ggplot(dat(), aes(x=DateTime, y=Elevation, group=Cow, color=Cow)) + 
+      ggplot(dat(), aes(x=DateTime, y=Elevation, group=Animal, color=Animal)) + 
         labs( title = "Elevation (meters) during Data Collection")+
         ylim(1000,2000)+geom_line() + 
         geom_point() + 
@@ -122,9 +127,9 @@ run_shiny_animaltracker <- function(rds_path) {
       if(is.null(input$selected_ani) || is.null(input$dates))
         return()
       
-      ggplot(dat(), aes(x=TimeDiffMins, fill=Cow))+
+      ggplot(dat(), aes(x=TimeDiffMins, fill=Animal))+
         geom_histogram(  col="White", breaks = seq(0,40, 2)) +
-        facet_wrap(~Cow, ncol=2)+
+        facet_wrap(~Animal, ncol=2)+
         labs( title = "Distribution of Time between GPS Readings, by GPS Unit" )+ 
         theme_minimal()
       
