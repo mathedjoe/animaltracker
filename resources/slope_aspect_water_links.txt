@@ -1,0 +1,15 @@
+From Dylan Mikesell (Oct 2018)
+
+The following links may help in adding slope (gradient), aspect, and water layers to the cow tracker app:
+
+https://gis.stackexchange.com/questions/230094/terrain-function-for-computing-slope-and-aspect-from-elevation-data-always-ret
+
+computing distance to point...they even use a water example after the road example
+http://www.mikemeredith.net/blog/1212_GIS_layer_for_Distance_from.htm
+
+I think you do something like this.
+library(rgdal)
+streams.v <- readOGR("data", "streams")
+
+library(maptools) 
+then you can use their distance() function
