@@ -24,14 +24,11 @@ save_gps_to_database<- function(gpsdata, datasite, dbfile, overwrite = TRUE){
   for (dataname in names(gpsdata)){
     
     # get the data frame
-    df<- gpsdata[[dataname]]
-    
-    
-      
-      # add the data source
-      df %>% 
-        mutate(data_site = datasite,
-               data_src = dataname)
+
+      df<- gpsdata[[dataname]] %>% 
+              mutate(data_site = datasite,      # add the data site
+                     data_src = dataname        # add the data source
+                     ) 
       
       # save to database
       RSQLite::dbWriteTable(db, "gps", df, append=TRUE, row.names = FALSE)
@@ -62,9 +59,11 @@ get_gps_data<- function(dbfile, query = 'SELECT * FROM gps LIMIT 100'){
 }
 
 df<- get_gps_data(dbfile = "data/animaldb.sqlite", 
-             query = 'SELECT * FROM gps WHERE "data_src" == "cow1149"')
+             query = 'SELECT "data_src", "Cow","GPS" FROM gps WHERE "data_src" == "cow1149"
+             ')
 
 summary(df)
+get_gps_data(dbfile = "data/animaldb.sqlite", query = 'SELECT * FROM gps LIMIT 5')
 
 ## save all gps data files to the animaldb in a gps table
 # 
