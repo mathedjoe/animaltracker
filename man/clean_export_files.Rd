@@ -10,6 +10,8 @@ clean_export_files(data_dir, out_path, processed_dir = "data/processed")
 \item{data_dir}{directory of GPS tracking files (in csv)}
 
 \item{out_path}{name of output file, must end in .rds}
+
+\item{processed_dir}{directory of processed GPS datasets}
 }
 \description{
 Cleans all animal GPS datasets in a chosen directory and exports them as a single .rds file

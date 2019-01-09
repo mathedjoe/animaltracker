@@ -9,6 +9,7 @@
 #'@param zoom level of zoom, defaults to 12
 #'@param zone geographic zone, defaults to 11
 #'@return elevation data as spatial points
+#'@export
 #'
 get_elevation <- function(latmin, latmax, lonmin, lonmax, out_dir, zoom = 12, zone =11) {
   
@@ -39,6 +40,7 @@ get_elevation <- function(latmin, latmax, lonmin, lonmax, out_dir, zoom = 12, zo
 #'
 #'@param csv_path path of csv GPS data
 #'@return modeled elevation data
+#'@export
 #'
 model_animal_elevation <- function(csv_path) {
   datapts <- read.csv(csv_path) %>%
@@ -64,6 +66,8 @@ model_animal_elevation <- function(csv_path) {
 #'@param rds_path animal tracking data file to model elevation from
 #'@param out_path exported file path
 #'@return list of data frames with gps data augmented by elevation
+#'@export
+#'
 export_animal_elevation <- function(rds_path, out_path) {
   anidata <- readRDS(rds_path)
   
@@ -92,6 +96,7 @@ export_animal_elevation <- function(rds_path, out_path) {
 #'
 #'@param csv_path path of csv GPS data to model elevation from
 #'@return histogram of the distribution of modeled elevation - measured altitude
+#'@export
 #'
 histogram_animal_elevation <- function(csv_path) {
   datapts <- model_animal_elevation(csv_path)
@@ -106,10 +111,10 @@ histogram_animal_elevation <- function(csv_path) {
 }
 
 
-#'
-#'Clean and merge GPS data, add elevation data, save to rds for use in a shiny app
-#'
-#'@param gps_data_dir directory for raw gps animal data files
-#'@param dem_data_dir directory for elevation data file (.tif)
-#'@return list of data frames containing gps and elevation data augmented
-#'
+#
+#Clean and merge GPS data, add elevation data, save to rds for use in a shiny app
+#
+#@param gps_data_dir directory for raw gps animal data files
+#@param dem_data_dir directory for elevation data file (.tif)
+#@return list of data frames containing gps and elevation data augmented
+#

@@ -3,6 +3,7 @@
 #'
 #'@param data_dir directory of animal data files
 #'@return list of data info as a list of animal IDs and GPS units
+#'@export
 #'
 get_file_meta <- function(data_dir){
   data_files <- list.files(data_dir, pattern="*.csv") 
@@ -19,16 +20,18 @@ get_file_meta <- function(data_dir){
   return(list(ani = ani_ids, gps = gps_units))
 }
 
+# example usage:
+# clean_export_files( "C:/Users/joechampion/Google Drive/Research/GPS_Arispe_2018/data/to_process", "data/cowGPS.rds")
+
+
 #'
 #'Cleans all animal GPS datasets in a chosen directory and exports them as a single .rds file
 #'
 #'@param data_dir directory of GPS tracking files (in csv)
 #'@param out_path name of output file, must end in .rds
+#'@param processed_dir directory of processed GPS datasets
+#'@export
 #'
-# 
-# example usage:
-# clean_export_files( "C:/Users/joechampion/Google Drive/Research/GPS_Arispe_2018/data/to_process", "data/cowGPS.rds")
-
 clean_export_files <- function(data_dir, out_path, processed_dir = "data/processed") {
   data_files <- list.files(data_dir, pattern="*.csv", full.names=T)
   data_info <- get_file_meta(data_dir)
@@ -103,6 +106,7 @@ clean_export_files <- function(data_dir, out_path, processed_dir = "data/process
 #'Add big files to a .gitignore file
 #'
 #'@param data_dir directory of animal data files
+#'@export
 #'
 add_to_gitignore <- function(data_dir) {
   allfiles <- list.files(data_dir, full.names = TRUE, recursive=T)

@@ -4,7 +4,7 @@
 \alias{run_shiny_animaltracker}
 \title{You can run the animaltracker Shiny app by calling this function.}
 \usage{
-run_shiny_animaltracker(rds_path)
+run_shiny_animaltracker()
 }
 \arguments{
 \item{rds_path}{Path of Animal data file to input}

@@ -6,6 +6,7 @@
 #'
 #'@param rds_path Path of .rds cow data file to read in
 #'@return summary statistics for animals by GPS unit
+#'@export
 #'
 summarize_unit <- function(rds_path) {
   ani <- readRDS(rds_path)
@@ -26,6 +27,7 @@ summarize_unit <- function(rds_path) {
 #'
 #'@param rds_path Path of .rds animal data file to read in
 #'@return approximate time difference values corresponding to quantiles (.05 intervals)
+#'@export
 #'
 quantile_time <- function(rds_path) {
   ani <- readRDS(rds_path)
@@ -42,6 +44,7 @@ quantile_time <- function(rds_path) {
 #'
 #'@param rds_path Path of .rds animal data file to read in
 #'@return overall boxplot of altitude by GPS
+#'@export
 #'
 boxplot_altitude <- function(rds_path) {
   ani <- readRDS(rds_path)
@@ -59,6 +62,7 @@ boxplot_altitude <- function(rds_path) {
 #'
 #'@param rds_path Path of .rds cow data file to read in
 #'@return distribution of time between GPS measurements, as a histogram
+#'@export
 #'
 histogram_time <- function(rds_path) {
   ani <- readRDS(rds_path)
@@ -76,6 +80,7 @@ histogram_time <- function(rds_path) {
 #'
 #'@param rds_path Path of .rds animal data file to read in
 #'@return distribution of time between GPS measurements by GPS unit, as a histogram
+#'@export
 #'
 histogram_time_unit <- function(rds_path) {
   ani <- readRDS(rds_path)
@@ -94,6 +99,7 @@ histogram_time_unit <- function(rds_path) {
 #'
 #'@param rds_path Path of .rds animal data file to read in
 #'@return distribution of time between GPS measurements by GPS unit, as a boxplot
+#'@export
 #'
 boxplot_time_unit <- function(rds_path) {
   ani <- readRDS(rds_path)
@@ -111,7 +117,8 @@ boxplot_time_unit <- function(rds_path) {
 #' 
 #'@param rds_path Path of .rds animal data file to read in
 #'@return quantile-quantile plot to show distribution of time between GPS measurements
-#'    
+#'@export
+#'
 qqplot_time <- function(rds_path) {
   ani <- readRDS(rds_path)
   anidata <- bind_rows(ani) 

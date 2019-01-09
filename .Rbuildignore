@@ -3,4 +3,5 @@
 ^README\.md$
 ^data$
 ^resources$
-^R/sratch$
+^R/scratch$
+^manual\.pdf$
