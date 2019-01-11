@@ -33,11 +33,14 @@ clean_batch <- function(data_dir) {
   meta_cols <- c("file_id", "file_name", "site", "ani_id", "min_date", "max_date", "min_lat", "max_lat", "storage")
   colnames(meta_df) <- meta_cols
   
-  data_files <- unzip(data_dir$datapath, list=T)
-  data_files <- data_files$Name
+  dir_name <- gsub(".zip", "", data_dir$name)
+  
+  data_files <- unzip(data_dir$datapath, exdir="temp")
+  data_files <- list.files("temp", pattern ="*.csv", recursive = T, full.names = T)
+  
   data_sets <- list()
   num_saved_rds <- 0
-  dir_name <- gsub(".zip", "", data_dir$name)
+ 
   rds_name <- paste0(dir_name, ".rds")
   
   gps_units <- gsub("(.*)(20)([0-9]{2}\\_)(.*)(\\_{1}.*)(\\.csv)","\\4",data_files)
@@ -50,7 +53,7 @@ clean_batch <- function(data_dir) {
   ani_ids[ani_ids_na] <- paste0("R", ani_ids[ani_ids_na])
   
   data_info <- list(ani = ani_ids, gps = gps_units)
-  
+
   for(i in 1:length(data_files)) {
     filestr <- gsub(paste0(dir_name,"(\\/)"), "", data_files[i])
     site <- tolower(gsub("(\\_)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.csv)","", filestr))
@@ -75,9 +78,11 @@ clean_batch <- function(data_dir) {
     meta_df <- save_meta(meta_df, file_meta)
     # add cleaned df to the list of data
     data_sets[[paste0("ani",aniid)]] <- cleaned_df
+    
   } #for loop
   #save remaining data files
   saveRDS(data_sets, rds_name)
+  unlink("temp", recursive = T)
   return(meta_df)
 }
 

@@ -7,6 +7,7 @@ run_shiny_animaltracker <- function() {
   require("shiny")
   require("leaflet")
   require("ggplot2")
+  require("shinyWidgets")
   
   options(shiny.maxRequestSize=30*1024^2) 
   
@@ -71,7 +72,9 @@ run_shiny_animaltracker <- function() {
       if(is.null(input$selected_site)) {
         return()
       }
-      meta <- meta()
+      meta <- meta() %>%
+        dplyr::filter(site %in% input$selected_site) 
+      
       checkboxGroupInput("selected_ani", "Animal", choices = as.list(unique(meta$ani_id)), selected = unique(meta$ani_id)[1])
     })
     
@@ -86,11 +89,11 @@ run_shiny_animaltracker <- function() {
       # Get the data set with the appropriate name
       
       meta <- meta() %>%
-        filter(site %in% input$selected_site) %>%
-        filter(ani_id %in% input$selected_ani)
+        dplyr::filter(site %in% input$selected_site) %>%
+        dplyr::filter(ani_id %in% input$selected_ani)
       
-      max_dates <- current_meta$max_date
-      min_dates <- current_meta$min_date
+      max_dates <- meta$max_date
+      min_dates <- meta$min_date
       
       sliderInput("dates", "Date Range", min = min(min_dates),
                   max = max(max_dates), value = c(min(min_dates), max(max_dates)), step = 1,
@@ -113,7 +116,7 @@ run_shiny_animaltracker <- function() {
       if(is.null(input$selected_ani) || is.null(input$dates) || is.null(input$times))
         return()
       meta <- meta() %>%
-        filter(ani_id %in% selected_ani)
+        dplyr::filter(ani_id %in% selected_ani)
     
       current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2], input$times[1], input$times[2])
       
