@@ -4,7 +4,7 @@ Version: 0.0.1.9000
 Authors@R: c( person("Joe", "Champion", email = "joechampion@boisestate.edu", role = c("aut", "cre")), person("Thea", "Sukianto", email = "TheophiliaSukian@u.boisestate.edu", role=c("aut")), person("Chithkala", "Dhulipati", email = "chithkaladhulipa@u.boisestate.edu", role=c("aut")) )
 Description: Import, visualize, and analyze GPS and accelerometer data for spatial-temporal tracking of animals (e.g., cows). 
 Depends: R (>= 3.3)
-Imports: shiny (>= 1.2.0), shinyWidgets (>= 0.4.4), shinycssloaders (>= 0.2.0), xts (>= 0.11.2), leaflet (>= 2.0.2), dplyr (>= 0.7.5), sp (>= 1.3.1), ggplot2 (>= 3.1.0), scales (>= 1.0.0), tidyr (>= 0.8.2), sp (>= 1.3.1), rgdal (>= 1.3.6),  raster(>= 2.7.15), nabor(>= 0.5.0), elevatr (>= 0.2.0), geosphere (>= 1.5.7), RSQLite(>= 2.1.1) 
+Imports: shiny (>= 1.2.0)
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
