@@ -8,6 +8,7 @@ run_shiny_animaltracker <- function() {
   require("leaflet")
   require("ggplot2")
   require("shinyWidgets")
+  require("shinycssloaders")
   
   options(shiny.maxRequestSize=30*1024^2) 
   
@@ -22,10 +23,10 @@ run_shiny_animaltracker <- function() {
                              fileInput("zipInput", "Compressed Folder", accept=c(".zip", ".7z"))
                              ),
                     tabPanel("Choose Data", 
-                             uiOutput("choose_site"),
-                             uiOutput("choose_data"),
-                             uiOutput("choose_dates"),
-                             uiOutput("choose_times")
+                             uiOutput("choose_site") %>% withSpinner(),
+                             uiOutput("choose_data") %>% withSpinner(),
+                             uiOutput("choose_dates") %>% withSpinner(),
+                             uiOutput("choose_times") %>% withSpinner()
                     )
         )#sidebarPanel
       ),#sidebarLayout
@@ -38,7 +39,7 @@ run_shiny_animaltracker <- function() {
                              plotOutput("plot2")
                       )
                     )),
-                    tabPanel("Statistics")
+                    tabPanel("Statistics", tableOutput("stats"))
         ) 
       ) #mainPanel
     ) #sidebarLayout
@@ -52,10 +53,8 @@ run_shiny_animaltracker <- function() {
         return()
       }
       clean_batch(input$zipInput) 
-    })
+    }) 
     
-    # Load data
-
     
     # Drop-down selection box for which sites
     output$choose_site <- renderUI({
@@ -63,8 +62,12 @@ run_shiny_animaltracker <- function() {
         return()
       }
       meta <- meta()
-      checkboxGroupInput("selected_site", "Site", choices = as.list(unique(meta$site)), selected = unique(meta$site)[1])
-    })
+      pickerInput("selected_site", "Filter by Site",
+                  choices = as.list(as.character(unique(meta$site))),
+                  multiple = TRUE,
+                  inline = FALSE, options = list(`actions-box` = TRUE)
+      ) 
+    }) 
     
     
     # Drop-down selection box for which animals
@@ -74,8 +77,12 @@ run_shiny_animaltracker <- function() {
       }
       meta <- meta() %>%
         dplyr::filter(site %in% input$selected_site) 
-      
-      checkboxGroupInput("selected_ani", "Animal", choices = as.list(unique(meta$ani_id)), selected = unique(meta$ani_id)[1])
+    
+      pickerInput("selected_ani", "Filter by Animal ID",
+                  choices = as.list(as.character(unique(meta$ani_id))),
+                  multiple = TRUE, 
+                  inline = FALSE, options = list(`actions-box` = TRUE)
+      )
     })
     
     
@@ -89,7 +96,6 @@ run_shiny_animaltracker <- function() {
       # Get the data set with the appropriate name
       
       meta <- meta() %>%
-        dplyr::filter(site %in% input$selected_site) %>%
         dplyr::filter(ani_id %in% input$selected_ani)
       
       max_dates <- meta$max_date
@@ -106,20 +112,35 @@ run_shiny_animaltracker <- function() {
       if(is.null(input$selected_ani))
         return()
       
-      sliderInput("times", "Time Range", min = as.POSIXct("0:00:00"),
-                  max = as.POSIXct("23:59:59"), value = c(min, max), step = 1,
+      dat_no_time <- dat_no_time()
+      
+      min_times <- min(dat_no_time$DateTime)
+      max_times <- max(dat_no_time$DateTime)
+        
+      sliderInput("times", "Time Range", min = min_times,
+                  max = max_times, value = c(min_times, max_times), step = 1,
                   animate = animationOptions(loop = FALSE, interval = 1000))
     })
     
     
-    dat <- reactive({
-      if(is.null(input$selected_ani) || is.null(input$dates) || is.null(input$times))
+    dat_no_time <- reactive({
+      if(is.null(input$selected_ani) || is.null(input$dates))
         return()
       meta <- meta() %>%
-        dplyr::filter(ani_id %in% selected_ani)
+        dplyr::filter(ani_id %in% input$selected_ani)
     
-      current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2], input$times[1], input$times[2])
+      current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
       
+    })
+    
+    dat <- reactive({
+      if(is.null(input$times)) {
+        return()
+      }
+      current_df <- dat_no_time() %>%
+        dplyr::filter(DateTime >= input$times[1],
+                      DateTime <= input$times[2])
+        
     })
     
     points <- reactive({
@@ -188,6 +209,27 @@ run_shiny_animaltracker <- function() {
         
         
       })
+      
+      stats <- reactive({
+        if(is.null(input$selected_ani) || is.null(input$dates)) 
+          return()
+        
+        summary <- dat() %>% 
+          dplyr::group_by(Animal) %>%
+          dplyr::summarize(meanAlt = mean(Altitude),
+                     sdAlt = sd(Altitude),
+                     minAlt = min(Altitude),
+                     maxAlt = max(Altitude),
+                     meanSpeed = mean(Speed),
+                     sdSpeed = sd(Speed),
+                     minSpeed = min(Speed),
+                     maxSpeed = max(Speed))
+  
+      })
+      
+      output$stats <- renderTable(stats())
+      
+      session$onSessionEnded(stopApp)
     
   }
   # Run the application 

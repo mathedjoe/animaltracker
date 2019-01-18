@@ -55,7 +55,7 @@ clean_batch <- function(data_dir) {
   data_info <- list(ani = ani_ids, gps = gps_units)
 
   for(i in 1:length(data_files)) {
-    filestr <- gsub(paste0(dir_name,"(\\/)"), "", data_files[i])
+    filestr <- gsub(paste0("(temp)(\\/)", dir_name, "(\\/)"), "", data_files[i])
     site <- tolower(gsub("(\\_)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.csv)","", filestr))
   
     df <- read.csv(data_files[i], skipNul = T)
@@ -73,7 +73,7 @@ clean_batch <- function(data_dir) {
     # clean df
     cleaned_df <- clean_df(df, aniid, gpsid)
     # get meta from df
-    file_meta <- get_meta(df, i, data_files[i], site, aniid, rds_name)
+    file_meta <- get_meta(cleaned_df, i, data_files[i], site, aniid, rds_name)
     # save meta to the designated meta df
     meta_df <- save_meta(meta_df, file_meta)
     # add cleaned df to the list of data
@@ -129,6 +129,39 @@ clean_df <- function(df, ani_id, gps_id) {
                   Latitude >= window$latmin,  Latitude <= window$latmax,
                   Longitude >= window$lonmin,  Longitude <= window$lonmax,
                   !DistanceFlag ) 
+  
+  #Find outliers for lat/long (1.5IQR method)
+  
+  iqr_lat <- IQR(df$Latitude)
+  iqr_long <- IQR(df$Longitude)
+  upper_bound_lat <- quantile(df$Latitude, 0.75) + iqr_lat*1.5
+  lower_bound_lat <- quantile(df$Latitude, 0.25) - iqr_lat*1.5
+  upper_bound_long <- quantile(df$Longitude, 0.75) + iqr_long*1.5
+  lower_bound_long <- quantile(df$Longitude, 0.25) - iqr_long*1.5
+  df <- df %>% dplyr::filter(!(Latitude < lower_bound_lat),
+                             !(Latitude > upper_bound_lat),
+                             !(Longitude < lower_bound_long),
+                             !(Longitude > upper_bound_long))
+  #Get elevation
+
+  #data_region <- sp::bbox(cbind(c(window$lonmin, window$lonmax), c(window$latmin, window$latmax))) # set a bounding box for retrieval of elev data
+  
+  #elev <- elevatr::get_aws_terrain( data_region, z=12, prj = "+proj=longlat") # retrieve high res elev data
+  
+  #elev2 <- projectRaster(elev, crs = "+proj=utm +zone=11 ellps=WGS84")
+  
+  #elevpts <- raster::rasterToPoints(elev2, spatial=TRUE) # convert to spatial pts
+  #datapts <- as.matrix(df[c("Longitude", "Latitude")] )
+  #colnames(datapts) <- c("x","y")
+  #datapts <- rgdal::project(as.matrix(datapts), "+proj=utm +zone=11 ellps=WGS84")
+  #datapts <- as.data.frame(datapts)
+  #datapts$alt <- df$Altitude
+  #coordinates(datapts) <- ~x+y
+  
+  #datapts_elev <- nabor::knn(coordinates(elevpts), coordinates(datapts), k=1) 
+  
+  #df$Elevation <- elevpts$layer[ datapts_elev$nn.idx]
+ 
   return(df)
 }
 
@@ -143,7 +176,6 @@ clean_df <- function(df, ani_id, gps_id) {
 #'@param storage_loc .rds storage location of animal data frame
 #'@return df of metadata for animal data frame 
 get_meta <- function(df, file_id, file_name, site, ani_id, storage_loc) {
-  df$Date <- as.Date(df$Date, format = "%Y/%m/%d")
    return(data.frame(file_id = file_id, 
             file_name = file_name, 
             site = site, 
@@ -174,20 +206,20 @@ save_meta <- function(meta_df, file_meta) {
 #'@param meta_df data frame of specified meta
 #'@param min_date minimum date specified by user
 #'@param max_date maximum date specified by user
-#'@param min_time minimum time specified by user
-#'@param max_time maximum time specified by user 
 #'
-get_data_from_meta <- function(meta_df, min_date, max_date, min_time, max_time) {
+get_data_from_meta <- function(meta_df, min_date, max_date) {
+  meta_df$storage <- as.character(meta_df$storage)
   rds_files <- list(unique(meta_df$storage))
   current_df <- data.frame()
   for(file_name in rds_files) {
-    current_df <- rbind(current_df, readRDS(rds_files))
+    current_rds <- readRDS(file_name)
+    for(df in current_rds) {
+      current_df <- rbind(current_df, df)
+    }
   }
   current_df <- current_df %>%
-    filter(Animal %in% list(meta_df$ani_id),
+    dplyr::filter(Animal %in% meta_df$ani_id,
            Date <= max_date,
-           Date >= min_date,
-           Time <= max_time,
-           Time >= min_time)
+           Date >= min_date)
   return(current_df)
 }

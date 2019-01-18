@@ -39,10 +39,20 @@ get_elevation <- function(latmin, latmax, lonmin, lonmax, out_dir, zoom = 12, zo
 #'Model elevation from GPS data (provided csv)
 #'
 #'@param csv_path path of csv GPS data
+#'@param latmin minimum latitude for bounding box (degrees)
+#'@param latmax maximum latitude for bounding box (degrees)
+#'@param lonmin minimum longitude for bounding box (degrees)
+#'@param lonmax maximum longitude for bounding box (degrees)
+#'@param zoom level of zoom, defaults to 12
+#'@param zone geographic zone, defaults to 11
 #'@return modeled elevation data
 #'@export
 #'
-model_animal_elevation <- function(csv_path) {
+model_animal_elevation <- function(csv_path, latmin, latmax, lonmin, lonmax, zoom = 12, zone = 11) {
+  data_region <- sp::bbox(cbind(c(lonmin, lonmax), c(latmin,latmax))) 
+  elev <- elevatr::get_aws_terrain( data_region, z=zoom, prj = "+proj=longlat")
+  elev2 <- raster::projectRaster(elev, crs = paste0("+proj=utm +zone=", zone, " ellps=WGS84") )
+  elevpts <- raster::rasterToPoints(elev2, spatial=TRUE)
   datapts <- read.csv(csv_path) %>%
     select(lon = Longitude, lat = Latitude, alt = Altitude )
   
@@ -65,12 +75,21 @@ model_animal_elevation <- function(csv_path) {
 #'
 #'@param rds_path animal tracking data file to model elevation from
 #'@param out_path exported file path
+#'@param latmin minimum latitude for bounding box (degrees)
+#'@param latmax maximum latitude for bounding box (degrees)
+#'@param lonmin minimum longitude for bounding box (degrees)
+#'@param lonmax maximum longitude for bounding box (degrees)
+#'@param zoom level of zoom, defaults to 12
+#'@param zone geographic zone, defaults to 11
 #'@return list of data frames with gps data augmented by elevation
 #'@export
 #'
-export_animal_elevation <- function(rds_path, out_path) {
+export_animal_elevation <- function(rds_path, out_path, latmin, latmax, lonmin, lonmax, out_dir, zoom = 12, zone =11) {
   anidata <- readRDS(rds_path)
-  
+  data_region <- sp::bbox(cbind(c(lonmin, lonmax), c(latmin,latmax))) # set a bounding box for retrieval of elev data
+  elev <- elevatr::get_aws_terrain( data_region, z=zoom, prj = "+proj=longlat") # retrieve high res elev data
+  elev2 <- raster::projectRaster(elev, crs = paste0("+proj=utm +zone=", zone, " ellps=WGS84") )
+  elevpts <- raster::rasterToPoints(elev2, spatial=TRUE) # convert to spatial pts
   for ( i in 1:length(anidata) ){
     anidf <- anidata[[i]]
     datapts <- as.matrix(anidf[c("Longitude", "Latitude")] )

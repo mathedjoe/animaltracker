@@ -4,12 +4,25 @@
 \alias{export_animal_elevation}
 \title{Export modeled elevation data from existing animal data file}
 \usage{
-export_animal_elevation(rds_path, out_path)
+export_animal_elevation(rds_path, out_path, latmin, latmax, lonmin, lonmax,
+  out_dir, zoom = 12, zone = 11)
 }
 \arguments{
 \item{rds_path}{animal tracking data file to model elevation from}
 
 \item{out_path}{exported file path}
+
+\item{latmin}{minimum latitude for bounding box (degrees)}
+
+\item{latmax}{maximum latitude for bounding box (degrees)}
+
+\item{lonmin}{minimum longitude for bounding box (degrees)}
+
+\item{lonmax}{maximum longitude for bounding box (degrees)}
+
+\item{zoom}{level of zoom, defaults to 12}
+
+\item{zone}{geographic zone, defaults to 11}
 }
 \value{
 list of data frames with gps data augmented by elevation

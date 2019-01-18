@@ -4,7 +4,7 @@
 \alias{get_data_from_meta}
 \title{Get animal data set from specified meta}
 \usage{
-get_data_from_meta(meta_df, min_date, max_date, min_time, max_time)
+get_data_from_meta(meta_df, min_date, max_date)
 }
 \arguments{
 \item{meta_df}{data frame of specified meta}
@@ -12,10 +12,6 @@ get_data_from_meta(meta_df, min_date, max_date, min_time, max_time)
 \item{min_date}{minimum date specified by user}
 
 \item{max_date}{maximum date specified by user}
-
-\item{min_time}{minimum time specified by user}
-
-\item{max_time}{maximum time specified by user}
 }
 \description{
 Get animal data set from specified meta

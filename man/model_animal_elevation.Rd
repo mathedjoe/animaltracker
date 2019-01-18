@@ -4,10 +4,23 @@
 \alias{model_animal_elevation}
 \title{Model elevation from GPS data (provided csv)}
 \usage{
-model_animal_elevation(csv_path)
+model_animal_elevation(csv_path, latmin, latmax, lonmin, lonmax,
+  zoom = 12, zone = 11)
 }
 \arguments{
 \item{csv_path}{path of csv GPS data}
+
+\item{latmin}{minimum latitude for bounding box (degrees)}
+
+\item{latmax}{maximum latitude for bounding box (degrees)}
+
+\item{lonmin}{minimum longitude for bounding box (degrees)}
+
+\item{lonmax}{maximum longitude for bounding box (degrees)}
+
+\item{zoom}{level of zoom, defaults to 12}
+
+\item{zone}{geographic zone, defaults to 11}
 }
 \value{
 modeled elevation data
