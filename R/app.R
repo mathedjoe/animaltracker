@@ -160,7 +160,7 @@ run_shiny_animaltracker <- function() {
         if(is.null(input$selected_ani) || is.null(input$dates) )
           return()
         
-        factpal <- colorFactor(hue_pal()(length(input$selected_ani)), input$selected_ani)
+        factpal <- colorFactor(scales::hue_pal()(length(input$selected_ani)), input$selected_ani)
         
         leaflet() %>%  # Add tiles
           addTiles() %>%
