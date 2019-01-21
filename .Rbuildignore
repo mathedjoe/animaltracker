@@ -1,8 +1,6 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^README\.md$
-^data$
 ^resources$
 ^R/scratch$
 ^manual\.pdf$
-^demo\.zip$

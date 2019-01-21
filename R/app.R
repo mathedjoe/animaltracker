@@ -70,15 +70,11 @@ run_shiny_animaltracker <- function() {
       }
       clean_batch(input$zipInput) 
     }) 
-        
-    default_meta <- reactive({
-      clean_batch(list(datapath = "demo.zip", name = "demo"))
-    })
-    
+   
     # Drop-down selection box for which sites
     output$choose_site <- renderUI({
       if(is.null(input$zipInput)) {
-        meta <- default_meta()
+        meta <- demo_meta
       }
       else {
         meta <- meta()
@@ -97,7 +93,7 @@ run_shiny_animaltracker <- function() {
         return()
       }
       if(is.null(input$zipInput)) {
-        meta <- default_meta()
+        meta <- demo_meta
       }
       else {
         meta <- meta()
@@ -152,7 +148,7 @@ run_shiny_animaltracker <- function() {
       # Get the data set with the appropriate name
       
       if(is.null(input$zipInput)) {
-        meta <- default_meta()
+        meta <- demo_meta
       }
       else {
         meta <- meta()
@@ -191,16 +187,20 @@ run_shiny_animaltracker <- function() {
         return()
       
       if(is.null(input$zipInput)) {
-        meta <- default_meta()
+        meta <- demo_meta
+        meta <- meta %>%
+          dplyr::filter(ani_id %in% input$selected_ani)
+        current_df <- demo %>%
+          dplyr::filter(Animal %in% meta$ani_id,
+                        Date <= input$dates[2],
+                        Date >= input$dates[1])
       }
       else {
         meta <- meta()
+        meta <- meta %>%
+          dplyr::filter(ani_id %in% input$selected_ani)
+        current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
       }
-      meta <- meta %>%
-        dplyr::filter(ani_id %in% input$selected_ani)
-    
-      current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
-      
     })
     
     dat <- reactive({
