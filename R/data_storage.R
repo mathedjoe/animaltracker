@@ -34,7 +34,7 @@ clean_batch <- function(data_dir) {
   colnames(meta_df) <- meta_cols
   
   dir_name <- gsub(".zip", "", data_dir$name)
-  
+
   data_files <- unzip(data_dir$datapath, exdir="temp")
   data_files <- list.files("temp", pattern ="*.csv", recursive = T, full.names = T)
   
@@ -129,19 +129,7 @@ clean_df <- function(df, ani_id, gps_id) {
                   Latitude >= window$latmin,  Latitude <= window$latmax,
                   Longitude >= window$lonmin,  Longitude <= window$lonmax,
                   !DistanceFlag ) 
-  
-  #Find outliers for lat/long (1.5IQR method)
-  
-  iqr_lat <- IQR(df$Latitude)
-  iqr_long <- IQR(df$Longitude)
-  upper_bound_lat <- quantile(df$Latitude, 0.75) + iqr_lat*1.5
-  lower_bound_lat <- quantile(df$Latitude, 0.25) - iqr_lat*1.5
-  upper_bound_long <- quantile(df$Longitude, 0.75) + iqr_long*1.5
-  lower_bound_long <- quantile(df$Longitude, 0.25) - iqr_long*1.5
-  df <- df %>% dplyr::filter(!(Latitude < lower_bound_lat),
-                             !(Latitude > upper_bound_lat),
-                             !(Longitude < lower_bound_long),
-                             !(Longitude > upper_bound_long))
+ 
   #Get elevation
 
   #data_region <- sp::bbox(cbind(c(window$lonmin, window$lonmax), c(window$latmin, window$latmax))) # set a bounding box for retrieval of elev data
@@ -172,6 +160,7 @@ clean_df <- function(df, ani_id, gps_id) {
 #'@param df clean animal data frame 
 #'@param file_id ID number of .csv source of animal data frame
 #'@param file_name .csv source of animal data frame
+#'@param site physical source of animal data
 #'@param ani_id ID of animal found in data frame
 #'@param storage_loc .rds storage location of animal data frame
 #'@return df of metadata for animal data frame 
@@ -222,4 +211,28 @@ get_data_from_meta <- function(meta_df, min_date, max_date) {
            Date <= max_date,
            Date >= min_date)
   return(current_df)
+}
+
+#'
+#'Get summary statistics for a single column in an animal data frame
+#'
+#'@param df animal data frame
+#'@param col column to get summary stats for, as a string
+#'@return data frame of summary stats for col
+summarize_col <- function(df, col) {
+  summary <- df %>%
+    dplyr::group_by(Animal) %>%
+    dplyr::summarise(
+      Mean = mean(!! sym(col)),
+      Median = median(!! sym(col)),
+      SD = sd(!! sym(col)),
+      Variance = var(!! sym(col)),
+      Q1 = quantile(!! sym(col), 0.25),
+      Q3 = quantile(!! sym(col), 0.75),
+      IQR = IQR(!! sym(col)),
+      Range = (max(!! sym(col))-min(!! sym(col))),
+      Min = min(!! sym(col)),
+      Max = max(!! sym(col))
+    )
+  return(summary)
 }

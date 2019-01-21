@@ -5,7 +5,7 @@
 \title{Export modeled elevation data from existing animal data file}
 \usage{
 export_animal_elevation(rds_path, out_path, latmin, latmax, lonmin, lonmax,
-  out_dir, zoom = 12, zone = 11)
+  zoom = 12, zone = 11)
 }
 \arguments{
 \item{rds_path}{animal tracking data file to model elevation from}

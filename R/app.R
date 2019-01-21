@@ -1,7 +1,6 @@
 #'
 #'You can run the animaltracker Shiny app by calling this function.
 #'
-#'@param rds_path Path of Animal data file to input
 #'@export
 run_shiny_animaltracker <- function() {
   require("shiny")
@@ -19,13 +18,15 @@ run_shiny_animaltracker <- function() {
     sidebarLayout(
       sidebarPanel(
         tabsetPanel(type="tabs",
-                    tabPanel("Upload Data",
-                             fileInput("zipInput", "Compressed Folder", accept=c(".zip", ".7z"))
+                    tabPanel("Choose Data",
+                             fileInput("zipInput", "Upload Archived Folder (Defaults to demo dataset if no input)", accept=c(".zip", ".7z"))
                              ),
-                    tabPanel("Choose Data", 
+                    tabPanel("Filter Data", 
                              uiOutput("choose_site") %>% withSpinner(),
-                             uiOutput("choose_data") %>% withSpinner(),
-                             uiOutput("choose_dates") %>% withSpinner(),
+                             uiOutput("choose_ani"),
+                             uiOutput("choose_cols"),
+                             uiOutput("choose_stats"),
+                             uiOutput("choose_dates"),
                              uiOutput("choose_times") %>% withSpinner()
                     )
         )#sidebarPanel
@@ -39,8 +40,23 @@ run_shiny_animaltracker <- function() {
                              plotOutput("plot2")
                       )
                     )),
-                    tabPanel("Statistics", tableOutput("stats"))
-        ) 
+                    tabPanel("Statistics",
+                             uiOutput("timediff_title"),
+                             uiOutput("timediff"),
+                             uiOutput("altitude_title"),
+                             uiOutput("altitude"),
+                             uiOutput("speed_title"),
+                             uiOutput("speed"),
+                             uiOutput("course_title"),
+                             uiOutput("course"),
+                             uiOutput("coursediff_title"),
+                             uiOutput("coursediff"),
+                             uiOutput("distance_title"),
+                             uiOutput("distance"),
+                             uiOutput("rate_title"),
+                             uiOutput("rate")
+                             )
+        ) #tabsetPanel
       ) #mainPanel
     ) #sidebarLayout
   ) #fluidPage
@@ -54,14 +70,19 @@ run_shiny_animaltracker <- function() {
       }
       clean_batch(input$zipInput) 
     }) 
-    
+        
+    default_meta <- reactive({
+      clean_batch(list(datapath = "demo.zip", name = "demo"))
+    })
     
     # Drop-down selection box for which sites
     output$choose_site <- renderUI({
-      if(nrow(meta()) == 0) {
-        return()
+      if(is.null(input$zipInput)) {
+        meta <- default_meta()
       }
-      meta <- meta()
+      else {
+        meta <- meta()
+      }
       pickerInput("selected_site", "Filter by Site",
                   choices = as.list(as.character(unique(meta$site))),
                   multiple = TRUE,
@@ -71,11 +92,17 @@ run_shiny_animaltracker <- function() {
     
     
     # Drop-down selection box for which animals
-    output$choose_data <- renderUI({
+    output$choose_ani <- renderUI({
       if(is.null(input$selected_site)) {
         return()
       }
-      meta <- meta() %>%
+      if(is.null(input$zipInput)) {
+        meta <- default_meta()
+      }
+      else {
+        meta <- meta()
+      }
+      meta <- meta %>%
         dplyr::filter(site %in% input$selected_site) 
     
       pickerInput("selected_ani", "Filter by Animal ID",
@@ -84,6 +111,35 @@ run_shiny_animaltracker <- function() {
                   inline = FALSE, options = list(`actions-box` = TRUE)
       )
     })
+    
+    # Which cols for stats?
+    
+    output$choose_cols <- renderUI({
+      if(is.null(input$selected_ani)) {
+        return()
+      }
+      cols <- c("TimeDiffMins", "Altitude", "Course", "CourseDiff", "Distance", "Rate")
+      pickerInput("selected_cols", "Filter Variables for Statistics",
+                  choices = cols,
+                  multiple = TRUE,
+                  inline = FALSE, options = list(`actions-box` = TRUE)
+      )
+    })
+    
+    # Which summary stats?
+    
+    output$choose_stats <- renderUI({
+      if(is.null(input$selected_ani)) {
+        return()
+      }
+      stats <- c("Mean", "SD", "Variance", "Range", "IQR", "Min", "Q1", "Median", "Q3", "Max")
+      pickerInput("selected_stats", "Filter Summary Statistics",
+                  choices = stats,
+                  multiple = TRUE,
+                  inline = FALSE, options = list(`actions-box` = TRUE)
+                  )
+    })
+    
     
     
     # date range
@@ -95,7 +151,14 @@ run_shiny_animaltracker <- function() {
       
       # Get the data set with the appropriate name
       
-      meta <- meta() %>%
+      if(is.null(input$zipInput)) {
+        meta <- default_meta()
+      }
+      else {
+        meta <- meta()
+      }
+      
+      meta <- meta %>%
         dplyr::filter(ani_id %in% input$selected_ani)
       
       max_dates <- meta$max_date
@@ -126,7 +189,14 @@ run_shiny_animaltracker <- function() {
     dat_no_time <- reactive({
       if(is.null(input$selected_ani) || is.null(input$dates))
         return()
-      meta <- meta() %>%
+      
+      if(is.null(input$zipInput)) {
+        meta <- default_meta()
+      }
+      else {
+        meta <- meta()
+      }
+      meta <- meta %>%
         dplyr::filter(ani_id %in% input$selected_ani)
     
       current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
@@ -210,24 +280,140 @@ run_shiny_animaltracker <- function() {
         
       })
       
-      stats <- reactive({
-        if(is.null(input$selected_ani) || is.null(input$dates)) 
+      # Summary Statistics
+      
+      # Time Difference
+      
+      output$timediff_title <- renderUI({
+        if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("TimeDiffMins" %in% input$selected_cols)) 
+          return()
+        h4("Time Difference (minutes) Between GPS Measurements")
+      })
+      
+      timediff_stats <- reactive({
+        if(!("TimeDiffMins" %in% input$selected_cols) | is.null(input$selected_stats)) 
           return()
         
-        summary <- dat() %>% 
-          dplyr::group_by(Animal) %>%
-          dplyr::summarize(meanAlt = mean(Altitude),
-                     sdAlt = sd(Altitude),
-                     minAlt = min(Altitude),
-                     maxAlt = max(Altitude),
-                     meanSpeed = mean(Speed),
-                     sdSpeed = sd(Speed),
-                     minSpeed = min(Speed),
-                     maxSpeed = max(Speed))
+        summary <- summarize_col(dat(), "TimeDiffMins") 
+        subset(summary, select=c("Animal", input$selected_stats))
   
       })
       
-      output$stats <- renderTable(stats())
+      output$timediff <- renderTable(timediff_stats())
+      
+      # Altitude
+      
+      output$altitude_title <- renderUI({
+        if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Altitude" %in% input$selected_cols)) 
+          return()
+        h4("Altitude")
+      })
+      
+      altitude_stats <- reactive({
+        if(!("Altitude" %in% input$selected_cols) | is.null(input$selected_stats)) 
+          return()
+        
+        summary <- summarize_col(dat(), "Altitude") 
+        subset(summary, select=c("Animal", input$selected_stats))
+        
+      })
+      
+      output$altitude <- renderTable(altitude_stats())
+      
+      # Speed
+      
+      output$speed_title <- renderUI({
+        if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Speed" %in% input$selected_cols)) 
+          return()
+        h4("Speed")
+      })
+      
+      speed_stats <- reactive({
+        if(!("Speed" %in% input$selected_cols) | is.null(input$selected_stats)) 
+          return()
+        
+        summary <- summarize_col(dat(), "Speed") 
+        subset(summary, select=c("Animal", input$selected_stats))
+        
+      })
+      
+      output$speed <- renderTable(speed_stats())
+      
+      # Course
+      
+      output$course_title <- renderUI({
+        if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Course" %in% input$selected_cols)) 
+          return()
+        h4("Course")
+      })
+      
+      course_stats <- reactive({
+        if(!("Course" %in% input$selected_cols) | is.null(input$selected_stats)) 
+          return()
+        
+        summary <- summarize_col(dat(), "Course") 
+        subset(summary, select=c("Animal", input$selected_stats))
+        
+      })
+      
+      output$course <- renderTable(course_stats())
+      
+      # Course Difference
+      
+      output$coursediff_title <- renderUI({
+        if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("CourseDiff" %in% input$selected_cols)) 
+          return()
+        h4("Course Difference Between GPS Measurements")
+      })
+      
+      coursediff_stats <- reactive({
+        if(!("CourseDiff" %in% input$selected_cols) | is.null(input$selected_stats)) 
+          return()
+        
+        summary <- summarize_col(dat(), "CourseDiff") 
+        subset(summary, select=c("Animal", input$selected_stats))
+        
+      })
+      
+      output$coursediff <- renderTable(coursediff_stats())
+      
+      # Distance
+      
+      output$distance_title <- renderUI({
+        if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Distance" %in% input$selected_cols)) 
+          return()
+        h4("Distance")
+      })
+      
+      distance_stats <- reactive({
+        if(!("Distance" %in% input$selected_cols) | is.null(input$selected_stats)) 
+          return()
+        
+        summary <- summarize_col(dat(), "Distance") 
+        subset(summary, select=c("Animal", input$selected_stats))
+        
+      })
+      
+      output$distance <- renderTable(distance_stats())
+      
+      # Rate
+      
+      output$rate_title <- renderUI({
+        if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Rate" %in% input$selected_cols)) 
+          return()
+        h4("Rate")
+      })
+      
+      rate_stats <- reactive({
+        if(!("Rate" %in% input$selected_cols) | is.null(input$selected_stats)) 
+          return()
+        
+        summary <- summarize_col(dat(), "Rate") 
+        subset(summary, select=c("Animal", input$selected_stats))
+        
+      })
+      
+      output$rate <- renderTable(rate_stats())
       
       session$onSessionEnded(stopApp)
     

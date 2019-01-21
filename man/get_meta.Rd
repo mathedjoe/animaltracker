@@ -14,6 +14,8 @@ get_meta(df, file_id, file_name, site, ani_id, storage_loc)
 
 \item{file_name}{.csv source of animal data frame}
 
+\item{site}{physical source of animal data}
+
 \item{ani_id}{ID of animal found in data frame}
 
 \item{storage_loc}{.rds storage location of animal data frame}

@@ -84,7 +84,7 @@ model_animal_elevation <- function(csv_path, latmin, latmax, lonmin, lonmax, zoo
 #'@return list of data frames with gps data augmented by elevation
 #'@export
 #'
-export_animal_elevation <- function(rds_path, out_path, latmin, latmax, lonmin, lonmax, out_dir, zoom = 12, zone =11) {
+export_animal_elevation <- function(rds_path, out_path, latmin, latmax, lonmin, lonmax, zoom = 12, zone =11) {
   anidata <- readRDS(rds_path)
   data_region <- sp::bbox(cbind(c(lonmin, lonmax), c(latmin,latmax))) # set a bounding box for retrieval of elev data
   elev <- elevatr::get_aws_terrain( data_region, z=zoom, prj = "+proj=longlat") # retrieve high res elev data

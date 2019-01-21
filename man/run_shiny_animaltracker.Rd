@@ -6,9 +6,6 @@
 \usage{
 run_shiny_animaltracker()
 }
-\arguments{
-\item{rds_path}{Path of Animal data file to input}
-}
 \description{
 You can run the animaltracker Shiny app by calling this function.
 }
