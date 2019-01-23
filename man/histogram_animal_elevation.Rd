@@ -4,14 +4,18 @@
 \alias{histogram_animal_elevation}
 \title{Generate a histogram of the distribution of modeled elevation - measured altitude}
 \usage{
-histogram_animal_elevation(csv_path)
+histogram_animal_elevation(datapts)
 }
 \arguments{
-\item{csv_path}{path of csv GPS data to model elevation from}
+\item{datapts}{GPS data with measured Altitude and computed Elevation data}
 }
 \value{
 histogram of the distribution of modeled elevation - measured altitude
 }
 \description{
 Generate a histogram of the distribution of modeled elevation - measured altitude
+}
+\examples{
+xelev <- lookup_elevations(demo, zoom = 10)
+histogram_animal_elevation(xelev)
 }

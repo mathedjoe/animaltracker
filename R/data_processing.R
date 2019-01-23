@@ -4,18 +4,18 @@
 #'@param anidf animal tracking dataframe
 #'@param zoom level of zoom, defaults to 12
 #'@return original data frame, with Elevation column appended
-#'@export
 #'@examples 
 #' data(demo)
 #' xelev <- lookup_elevation(demo, zoom = 12)
 #' plot(xelev$Altitude, xelev$Elevation)
+#' @export
 lookup_elevation <- function(anidf, zoom = 12) {
   
   # extract coordinates from the animal data
   locations <- anidf %>% dplyr::select(x = Longitude, y = Latitude)
   
   # retrieve terrain data for the region containing the animal data
-  ## DEM source = Amazon Web Services (https://aws.amazon.com/public-datasets/terrain/) terrain tiles.
+  ## USGS DEM source = Amazon Web Services (https://aws.amazon.com/public-datasets/terrain/) terrain tiles.
   elev <- elevatr::get_elev_raster(locations, prj = "+proj=longlat", z=zoom)
   
   # convert terrain data to spatial pts
@@ -36,10 +36,10 @@ lookup_elevation <- function(anidf, zoom = 12) {
 #'
 #'@param datapts GPS data with measured Altitude and computed Elevation data
 #'@return histogram of the distribution of modeled elevation - measured altitude
-#'@export
 #'@examples 
 #' xelev <- lookup_elevations(demo, zoom = 10)
 #' histogram_animal_elevation(xelev)
+#' @export
 histogram_animal_elevation <- function(datapts) {
  require(ggplot2)
   histogram <- ggplot(datapts, aes(x = Elevation - Altitude)) +

@@ -18,7 +18,9 @@ run_shiny_animaltracker <- function() {
     sidebarLayout(
       sidebarPanel(
         tabsetPanel(type="tabs",
-                    tabPanel("Filter Data (defaults to demo data)", 
+                    
+                    tabPanel("Filter Data", 
+                             helpText("This app comes with demo data; use the Choose Data tab to upload your own data."),
                              uiOutput("choose_site") %>% withSpinner(),
                              uiOutput("choose_ani"),
                              uiOutput("choose_cols"),

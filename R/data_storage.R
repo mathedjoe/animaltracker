@@ -73,9 +73,6 @@ clean_batch <- function(data_dir) {
     # clean df
     df_out <- clean_df(df, aniid, gpsid)
     
-    # add elevation data
-    df_out <- lookup_elevation(df_out)
-    
     # get meta from df
     file_meta <- get_meta(df_out, i, data_files[i], site, aniid, rds_name)
     # save meta to the designated meta df
@@ -132,27 +129,10 @@ clean_df <- function(df, ani_id, gps_id) {
                   Altitude > 2700/3.3, Altitude< 6000/3.3, # lower and upper limits (converted from feet to meters)
                   Latitude >= window$latmin,  Latitude <= window$latmax,
                   Longitude >= window$lonmin,  Longitude <= window$lonmax,
-                  !DistanceFlag ) 
- 
-  #Get elevation
+                  !DistanceFlag )
 
-  #data_region <- sp::bbox(cbind(c(window$lonmin, window$lonmax), c(window$latmin, window$latmax))) # set a bounding box for retrieval of elev data
-  
-  #elev <- elevatr::get_aws_terrain( data_region, z=12, prj = "+proj=longlat") # retrieve high res elev data
-  
-  #elev2 <- projectRaster(elev, crs = "+proj=utm +zone=11 ellps=WGS84")
-  
-  #elevpts <- raster::rasterToPoints(elev2, spatial=TRUE) # convert to spatial pts
-  #datapts <- as.matrix(df[c("Longitude", "Latitude")] )
-  #colnames(datapts) <- c("x","y")
-  #datapts <- rgdal::project(as.matrix(datapts), "+proj=utm +zone=11 ellps=WGS84")
-  #datapts <- as.data.frame(datapts)
-  #datapts$alt <- df$Altitude
-  #coordinates(datapts) <- ~x+y
-  
-  #datapts_elev <- nabor::knn(coordinates(elevpts), coordinates(datapts), k=1) 
-  
-  #df$Elevation <- elevpts$layer[ datapts_elev$nn.idx]
+  # add elevation data
+  df <- lookup_elevation()
  
   return(df)
 }
