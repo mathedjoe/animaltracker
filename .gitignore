@@ -1,2 +1,7 @@
-.Rproj.user
-resources*
+**/elevation/**
+*.zip
+*.tar
+*.tar.gz
+data/animal_data.rds
+data/animal_data_with_elev.rds
+data/animaldb.sqlite
