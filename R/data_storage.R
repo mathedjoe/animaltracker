@@ -71,13 +71,17 @@ clean_batch <- function(data_dir) {
       data_sets <- list()
     }
     # clean df
-    cleaned_df <- clean_df(df, aniid, gpsid)
+    df_out <- clean_df(df, aniid, gpsid)
+    
+    # add elevation data
+    df_out <- lookup_elevation(df_out)
+    
     # get meta from df
-    file_meta <- get_meta(cleaned_df, i, data_files[i], site, aniid, rds_name)
+    file_meta <- get_meta(df_out, i, data_files[i], site, aniid, rds_name)
     # save meta to the designated meta df
     meta_df <- save_meta(meta_df, file_meta)
     # add cleaned df to the list of data
-    data_sets[[paste0("ani",aniid)]] <- cleaned_df
+    data_sets[[paste0("ani",aniid)]] <- df_out
     
   } #for loop
   #save remaining data files

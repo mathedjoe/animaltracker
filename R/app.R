@@ -18,17 +18,18 @@ run_shiny_animaltracker <- function() {
     sidebarLayout(
       sidebarPanel(
         tabsetPanel(type="tabs",
-                    tabPanel("Choose Data",
-                             fileInput("zipInput", "Upload Archived Folder (Defaults to demo dataset if no input)", accept=c(".zip", ".7z"))
-                             ),
-                    tabPanel("Filter Data", 
+                    tabPanel("Filter Data (defaults to demo data)", 
                              uiOutput("choose_site") %>% withSpinner(),
                              uiOutput("choose_ani"),
                              uiOutput("choose_cols"),
                              uiOutput("choose_stats"),
                              uiOutput("choose_dates"),
                              uiOutput("choose_times") %>% withSpinner()
-                    )
+                    ),
+                    tabPanel("Choose Data",
+                             fileInput("zipInput", "Upload Archived Folder", accept=c(".zip", ".7z"))
+                             )
+                    
         )#sidebarPanel
       ),#sidebarLayout
       mainPanel(
