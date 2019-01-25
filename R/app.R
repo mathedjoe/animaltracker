@@ -38,7 +38,7 @@ run_shiny_animaltracker <- function() {
         tabsetPanel(type = "tabs",
                     tabPanel("Plots",  fluidRow(
                       column(8, 
-                             leafletOutput("mainmap", height = 640),
+                             leafletOutput("mainmap", height = 640) %>% withSpinner(),
                              plotOutput("plot1"),
                              plotOutput("plot2")
                       )
