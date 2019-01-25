@@ -96,4 +96,5 @@ to_process <- list.files("data/temp", full.names=T)
 dfs <- lapply(to_process, function(filename){
   df <- read.csv(filename, skipNul = T)
   clean_locations_auto(df)
+  # here's a note!
 })
