@@ -119,3 +119,4 @@ add_to_gitignore <- function(data_dir) {
   writeLines(fileignore, fileConn)
   close(fileConn)
 }
+
