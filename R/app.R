@@ -5,6 +5,7 @@
 run_shiny_animaltracker <- function() {
   require("shiny")
   require("leaflet")
+  require("dplyr")
   require("ggplot2")
   require("shinyWidgets")
   require("shinycssloaders")

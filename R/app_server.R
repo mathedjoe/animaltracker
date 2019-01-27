@@ -56,7 +56,7 @@ app_server <- function(input, output, session) {
       meta <- meta()
     }
     meta <- meta %>%
-      dplyr::filter(site %in% input$selected_site) 
+      filter(site %in% input$selected_site) 
     
     ani_choices <- as.list(as.character(unique(meta$ani_id)))
     
@@ -85,7 +85,7 @@ app_server <- function(input, output, session) {
     }
     
     meta <- meta %>%
-      dplyr::filter(ani_id %in% input$selected_ani)
+      filter(ani_id %in% input$selected_ani)
     
     max_dates <- meta$max_date
     min_dates <- meta$min_date
@@ -140,17 +140,17 @@ app_server <- function(input, output, session) {
   ## DYNAMIC DATA
   
   # main dynamic data set
-  dat <- reactive({
+  dat_main <- reactive({
     if(is.null(input$selected_ani) || is.null(input$dates))
       return()
     
     # if no user provided data, use demo data
     if(is.null(input$zipInput)) {
       meta <- demo_meta %>%
-        dplyr::filter(ani_id %in% input$selected_ani)
+        filter(ani_id %in% input$selected_ani)
       
       current_df <- demo %>%
-        dplyr::filter(Animal %in% meta$ani_id,
+        filter(Animal %in% meta$ani_id,
                       Date <= input$dates[2],
                       Date >= input$dates[1])
     }
@@ -158,30 +158,63 @@ app_server <- function(input, output, session) {
     # if user provided data, get it
     else {
       meta <- meta() %>%
-        dplyr::filter(ani_id %in% input$selected_ani)
+        filter(ani_id %in% input$selected_ani)
+      
       current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
     }
     
     if( !is.null(input$times) ) {
       
       current_df <- current_df %>%
-        dplyr::filter(DateTime >= input$times[1],
+        filter(DateTime >= input$times[1],
                       DateTime <= input$times[2])
     }
+    
+    # add LocationID column to the restricted data set
+    current_df <- current_df %>% 
+      mutate(LocationID = 1:n())
     
     return(current_df)
     
   })
   
-  
   # spatial points for maps
+  points_main <- reactive({
+    # If missing input, return to avoid error later in function
+    if( is.null(dat_main()) )
+      return()
+    SpatialPointsDataFrame(coords = dat_main()[c("Longitude", "Latitude")], 
+                           data = dat_main(),
+                           proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+    
+    
+  })
+  
+  ### Subseted data set
+  dat <- reactive({
+    # subset data if user has defined selected locations
+    if(is.null(selected_locations())){
+      return(dat_main())
+    }
+  
+    else{
+      dat_main() %>%
+        filter(LocationID %in% selected_locations())
+    }
+   
+      
+  })
+  
+  # subsetted spatial points for maps
   points <- reactive({
     # If missing input, return to avoid error later in function
     if( is.null(dat()) )
       return()
-
-    SpatialPointsDataFrame(coords = dat()[c("Longitude", "Latitude")], data = dat(),
+    SpatialPointsDataFrame(coords = dat()[c("Longitude", "Latitude")], 
+                           data = dat(),
                            proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+ 
+  
   })
   
   ######################################
@@ -209,9 +242,10 @@ app_server <- function(input, output, session) {
                        fillOpacity = .3, fillColor = ~ factpal(Animal),
                        popup = ~ paste(paste("<h4>",paste("Animal ID:", pts$Animal), "</h4>"),
                                        paste("Date/Time:", pts$DateTime),
-                                       paste("Altitude:", pts$Altitude),
                                        paste("Elevation:", pts$Elevation),
                                        paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep=", ")),
+                                       paste("LocationID:", pts$LocationID),
+                                  
                                        sep="<br/>")
       ) %>%
       
@@ -221,7 +255,25 @@ app_server <- function(input, output, session) {
         # intensity = pts$Elevation,
         blur = 20, max = 0.05, radius = 15
       ) %>% 
-      hideGroup("heatmap") %>% # turn off heatmap by default
+      hideGroup("heat map") %>% # turn off heatmap by default
+      
+      addDrawToolbar(
+        polylineOptions=FALSE,
+        markerOptions = FALSE,
+        circleOptions = FALSE,
+        polygonOptions = drawPolygonOptions(
+            shapeOptions=drawShapeOptions(
+              fillOpacity = .2
+              ,color = 'white'
+              , fillColor = "mediumseagreen"
+              ,weight = 3)),
+        rectangleOptions = drawRectangleOptions(
+          shapeOptions=drawShapeOptions(
+            fillOpacity = .2
+            ,color = 'white'
+            , fillColor = "mediumseagreen"
+            ,weight = 3)),
+        editOptions = editToolbarOptions(edit = FALSE, selectedPathOptions = selectedPathOptions())) %>%
       
       addLayersControl(
         baseGroups = c("satellite", "street map"),
@@ -388,6 +440,35 @@ app_server <- function(input, output, session) {
     
   })
   output$rate <- renderTable(rate_stats())
+  
+  ##############################################################
+  # SUBSET DATA VIA MAP
+  selected_locations <- reactive({
+    
+    if(is.null(input$mainmap_draw_new_feature) | is.null(points_main())){
+      return()
+    }
+    #Only add new layers for bounded locations
+    
+    # transform into a spatial polygon
+    drawn_polygon <- sp::Polygon(
+                        do.call(rbind,
+                                lapply(input$mainmap_draw_new_feature$geometry$coordinates[[1]],
+                                   function(x){
+                                     c(x[[1]][1],x[[2]][1])
+                                     })
+                        )
+                      )
+    drawn_polys <-  sp::SpatialPolygons(list(sp::Polygons(list(drawn_polygon),"drawn_polygon")))
+    crs(drawn_polys) <- crs(points_main())
+    
+    # identify selected locations
+    selected_locs <- sp::over(points_main(),drawn_polys)
+    
+    # get location ids
+    as.character( points_main()[["LocationID"]][which(!is.na(selected_locs))] )
+    
+  })
   
   
   ######################################
