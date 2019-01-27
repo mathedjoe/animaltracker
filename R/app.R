@@ -10,6 +10,7 @@ run_shiny_animaltracker <- function() {
   require("shinycssloaders")
   require("leaflet.extras")
   require("shinythemes")
+  require("sp")
   
   options(shiny.maxRequestSize=30*1024^2) 
  
