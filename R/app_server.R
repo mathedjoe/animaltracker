@@ -99,11 +99,13 @@ app_server <- function(input, output, session) {
   output$choose_times <- renderUI({
     
     # If missing input, return to avoid error later in function
-    if( is.null(dat()) | is.null(input$times) ) 
+    if( is.null(dat()) | is.null(input$dates) ) 
       return()
-    
-    sliderInput("times", "Time Range", min = min(dat()$DateTime),
-                max = max(dat()$DateTime), value = c(min_times, max_times), step = 1,
+    min_times <- min(dat()$DateTime)
+    max_times <- max(dat()$DateTime)
+    sliderInput("times", "Time Range", 
+                min = min_times, max =max_times, value = c(min_times, max_times), 
+                step = 1,
                 animate = animationOptions(loop = FALSE, interval = 1000))
   })
   

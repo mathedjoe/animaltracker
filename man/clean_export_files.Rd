@@ -2,17 +2,22 @@
 % Please edit documentation in R/data_cleaning.R
 \name{clean_export_files}
 \alias{clean_export_files}
-\title{Cleans all animal GPS datasets in a chosen directory and exports them as a single .rds file}
+\title{Cleans all animal GPS datasets (in .csv format) in a chosen directory. Optionally exports the clean data as spreadsheets, a single .rds data file, or as a list of data frames}
 \usage{
-clean_export_files(data_dir, out_path, processed_dir = "data/processed")
+clean_export_files(data_dir, cleaned_filename = "data/animal_data.rds",
+  cleaned_dir = "data/processed")
 }
 \arguments{
 \item{data_dir}{directory of GPS tracking files (in csv)}
 
-\item{out_path}{name of output file, must end in .rds}
+\item{out_path}{full name of output file (ending in .rds)}
 
-\item{processed_dir}{directory of processed GPS datasets}
+\item{processed_dir}{optional directory to save the processed GPS datasets as spreadsheets (.csv)}
+
+\item{saveRDS}{logical, whether to save the processed data to a single R object (.rds)}
+
+\item{saveCSV}{logical, whether to save the processed data to spreadsheets in}
 }
 \description{
-Cleans all animal GPS datasets in a chosen directory and exports them as a single .rds file
+Cleans all animal GPS datasets (in .csv format) in a chosen directory. Optionally exports the clean data as spreadsheets, a single .rds data file, or as a list of data frames
 }

@@ -28,13 +28,19 @@
 #'@return df of metadata for animal file directory
 #'
 clean_batch <- function(data_dir) {
+  
+  print("cleaning batch")
+  
   #initialize empty meta
   meta_df <- data.frame(matrix(ncol = 9, nrow = 0))
   meta_cols <- c("file_id", "file_name", "site", "ani_id", "min_date", "max_date", "min_lat", "max_lat", "storage")
   colnames(meta_df) <- meta_cols
   
+  # unpack documents in the .zip file to a temp folder
   dir_name <- gsub(".zip", "", data_dir$name)
-
+  
+  unlink(file.path("temp"), recursive=TRUE)
+  
   data_files <- unzip(data_dir$datapath, exdir="temp")
   data_files <- list.files("temp", pattern ="*.csv", recursive = T, full.names = T)
   
@@ -76,7 +82,10 @@ clean_batch <- function(data_dir) {
       data_sets <- list()
     }
     # clean df
-    df_out <- clean_df(df, aniid, gpsid)
+    df_out<- clean_location_data(df, 
+                             aniid = aniid, 
+                             gpsid = gpsid, 
+                             maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC")
     
     # get meta from df
     file_meta <- get_meta(df_out, i, data_files[i], site, aniid, rds_name)
@@ -92,52 +101,6 @@ clean_batch <- function(data_dir) {
   return(meta_df)
 }
 
-#'
-#'Clean animal data frame
-#'
-#'@param df raw input data frame
-#'@param ani_id animal ID (from meta) 
-#'@param gps_id GPS ID (from meta)
-#'@return cleaned data frame
-#'
-clean_df <- function(df, ani_id, gps_id) {
-  timezone <- "UTC"
-  window <- list(latmax = 43.3464, lonmin = -117.2305, latmin = 43.2472, lonmax=-117.101 )
-  nstart <- nrow(df)
-  ### REMOVE BAD DATA POINTS (as described on pages 26-39 of Word Doc)
-  df<- df %>% 
-    tibble::add_column(Order = df$Index, .before="Index")%>%  # add Order column
-    tibble::add_column(Animal = ani_id, .after="Index") %>%      # add Animal column 
-    tibble::add_column(GPS = gps_id, .after="Animal") %>%      # add Animal column 
-    tibble::add_column(DateTime = NA, .after="GPS") %>%      # add Date/Time column
-    tibble::add_column(TimeDiff = NA, .after="DateTime") %>% 
-    tibble::add_column(TimeDiffMins = NA, .after="TimeDiff") %>%
-    tibble::add_column(Rate = NA, .after="Distance") %>%
-    tibble::add_column(CourseDiff = NA, .after="Course") %>%
-    dplyr::mutate(Animal = as.factor(Animal))  %>%                     # reclassify Animal column as a categorical (factor) variable
-    dplyr::mutate(DateTime = as.POSIXct(paste(Date, Time), "%Y/%m/%d %H:%M:%S", tz=timezone)) %>%  # reclassify Date as a Date variable
-    dplyr::mutate(Date = as.Date(Date, "%Y/%m/%d"))  %>%            # reclassify Date as a Date variable
-    dplyr::mutate(TimeDiff = as.numeric(DateTime - dplyr::lag(DateTime,1))) %>%  # compute sequential time differences (in seconds)
-    dplyr::mutate(TimeDiffMins = as.numeric(difftime(DateTime,dplyr::lag(DateTime,1), units="mins")))  %>% # compute sequential time differences (in mins)
-    dplyr::mutate(Rate = Distance/TimeDiffMins) %>% # compute rate of travel (meters/min)
-    dplyr::mutate(CourseDiff = abs(Course - dplyr::lag(Course,1))) %>%
-    dplyr::mutate(DistGeo = geosphere::distGeo(cbind(Longitude, Latitude), 
-                                               cbind(dplyr::lag(Longitude,1), dplyr::lag(Latitude, 1))
-    ) ) %>% #compute geodesic distance between points
-    dplyr::mutate(RateFlag = 1*(Rate > 84)) %>%  # flag any data points representing too fast travel
-    dplyr::mutate(CourseFlag = 1*(CourseDiff >= 100) ) %>%
-    dplyr::mutate(DistanceFlag = 1*(DistGeo >= 840 )) %>%
-    dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistanceFlag) %>%
-    dplyr::filter(!is.na(DateTime), TotalFlags < 2, 
-                  Latitude!=0, Longitude !=0,
-                  TimeDiffMins < 100,
-                  Altitude > 2700/3.3, Altitude< 6000/3.3, # lower and upper limits (converted from feet to meters)
-                  Latitude >= window$latmin,  Latitude <= window$latmax,
-                  Longitude >= window$lonmin,  Longitude <= window$lonmax,
-                  !DistanceFlag )
- 
-  return(df)
-}
 
 #'
 #'Generate metadata for an animal data frame -

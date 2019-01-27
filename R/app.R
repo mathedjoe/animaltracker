@@ -1,8 +1,8 @@
 #'
 #'You can run the animaltracker Shiny app by calling this function.
-#'
+#'@param launch.browser logical, whether to launch the app in your default browser (defaults to FALSE)
 #'@export
-run_shiny_animaltracker <- function() {
+run_shiny_animaltracker <- function( launch.browser = TRUE) {
   require("shiny")
   require("leaflet")
   require("dplyr")
@@ -17,5 +17,5 @@ run_shiny_animaltracker <- function() {
  
   # Run the application (see associated functions, defined separately)
   runApp(shinyApp(ui = app_ui, server = app_server), 
-         launch.browser=TRUE)
+         launch.browser=launch.browser)
 }
