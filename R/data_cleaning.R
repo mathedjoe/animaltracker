@@ -49,6 +49,7 @@ clean_location_data<- function (df, aniid = NA, gpsid = NA, maxrate = 84, maxcou
       Animal = as.factor(Animal), # reclassify Animal column as a categorical (factor) variable
       DateTime = as.POSIXct(paste(Date, Time), "%Y/%m/%d %H:%M:%S", tz=timezone), # reclassify Date as a Date variable
       Date = as.Date(Date, "%Y/%m/%d"), # reclassify Date as a Date variable
+      Time = as.POSIXct(Time, format = "%H:%M:%S"), #restructure Time data
       TimeDiff = as.numeric(DateTime - dplyr::lag(DateTime,1)), # compute sequential time differences (in seconds)
       TimeDiffMins = as.numeric(difftime(DateTime,dplyr::lag(DateTime,1), units="mins")), # compute sequential time differences (in mins)
       Rate = Distance/TimeDiffMins, # compute rate of travel (meters/min),
@@ -61,7 +62,9 @@ clean_location_data<- function (df, aniid = NA, gpsid = NA, maxrate = 84, maxcou
       DistanceFlag = 1*(DistGeo >= maxdist ),
       TotalFlags = RateFlag + CourseFlag + DistanceFlag
     ) %>%
-    dplyr::filter(!is.na(DateTime), TotalFlags < 2,
+    dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time), !is.na(Longitude), !is.na(Latitude),
+                  Latitude != 0, Longitude !=0,
+                  TotalFlags < 2,
                   TimeDiffMins < maxtime,
                   !DistanceFlag )
 }

@@ -29,9 +29,9 @@
 #'
 clean_batch <- function(data_dir) {
   
-  print("cleaning batch")
-  
-  #initialize empty meta
+  # print("cleaning batch")
+
+    #initialize empty meta
   meta_df <- data.frame(matrix(ncol = 9, nrow = 0))
   meta_cols <- c("file_id", "file_name", "site", "ani_id", "min_date", "max_date", "min_lat", "max_lat", "storage")
   colnames(meta_df) <- meta_cols
@@ -42,7 +42,8 @@ clean_batch <- function(data_dir) {
   unlink(file.path("temp"), recursive=TRUE)
   
   data_files <- unzip(data_dir$datapath, exdir="temp")
-  data_files <- list.files("temp", pattern ="*.csv", recursive = T, full.names = T)
+  data_files <- list.files("temp", pattern ="*.csv", recursive = TRUE, full.names = T)
+  
   
   data_sets <- list()
   num_saved_rds <- 0
@@ -86,7 +87,7 @@ clean_batch <- function(data_dir) {
                              aniid = aniid, 
                              gpsid = gpsid, 
                              maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC")
-    
+
     # get meta from df
     file_meta <- get_meta(df_out, i, data_files[i], site, aniid, rds_name)
     # save meta to the designated meta df
@@ -146,6 +147,7 @@ save_meta <- function(meta_df, file_meta) {
 #'@param max_date maximum date specified by user
 #'
 get_data_from_meta <- function(meta_df, min_date, max_date) {
+  
   meta_df$storage <- as.character(meta_df$storage)
   rds_files <- list(unique(meta_df$storage))
   current_df <- data.frame()
@@ -155,12 +157,14 @@ get_data_from_meta <- function(meta_df, min_date, max_date) {
       current_df <- rbind(current_df, df)
     }
   }
+  
   current_df <- current_df %>%
     dplyr::filter(Animal %in% meta_df$ani_id,
-           Date <= max_date,
-           Date >= min_date)
-  
+                  Date <= max_date,
+                  Date >= min_date)
+  # print( paste("nrows =", nrow(current_df) ) )
   # add elevation data
+  
   current_df <- lookup_elevation(current_df)
   
   return(current_df)

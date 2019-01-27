@@ -23,7 +23,7 @@ app_ui <- function(){
                           uiOutput("choose_site") %>% withSpinner(),
                           uiOutput("choose_ani"),
                           uiOutput("choose_dates"),
-                          uiOutput("choose_times") %>% withSpinner(),
+                          # uiOutput("choose_times") %>% withSpinner(),
                           
                           hr(),
                           
@@ -47,18 +47,10 @@ app_ui <- function(){
              
              ## PLOTS PANEL
              tabPanel("Plots",
-                      sidebarLayout(
+                      plotOutput("plot1"),
+                      plotOutput("plot2")
                         
-                        sidebarPanel(
-                          h4("Select Plots")
-                        ),
-                        
-                        mainPanel(
-                          plotOutput("plot1"),
-                          plotOutput("plot2")
-                          
-                        )
-                      )         
+                         
              ),# end plots panel
              ## ANALYSIS PANEL
              tabPanel("Analysis",

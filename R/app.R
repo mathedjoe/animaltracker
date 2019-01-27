@@ -16,6 +16,7 @@ run_shiny_animaltracker <- function( launch.browser = TRUE) {
   options(shiny.maxRequestSize=30*1024^2) 
  
   # Run the application (see associated functions, defined separately)
-  runApp(shinyApp(ui = app_ui, server = app_server), 
-         launch.browser=launch.browser)
+  # runApp(shinyApp(ui = app_ui, server = app_server), 
+  #        launch.browser=launch.browser)
+  shinyApp(ui = app_ui, server = app_server)
 }

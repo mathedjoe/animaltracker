@@ -13,25 +13,70 @@
 # Define server logic for the shiny app
 app_server <- function(input, output, session) {
   
+
   # initialize list of datasets
   meta <- reactive({ 
     if(is.null(input$zipInput)) {
-      return()
+      return(demo_meta)
     }
-    clean_batch(input$zipInput) 
-  }) 
+      return(clean_batch(input$zipInput))
+  })
+  
+  ######################################
+  ## DYNAMIC DATA
+  
+  # main dynamic data set
+  dat_main <- reactive({
+    req(input$selected_ani, input$dates, meta)
+    
+    meta <- meta()
+    
+    if(any(meta$ani_id  %in% input$selected_ani) ){
+      meta <- meta%>%
+        filter(ani_id %in% input$selected_ani)
+    }
+    
+    
+    # if(is.null(input$selected_ani) | is.null(input$dates) | is.null(meta)  )
+    #   return()
+    
+    # if no user provided data, use demo data
+    if(is.null(input$zipInput)) {
+      
+      current_df <- demo %>%
+        filter(Animal %in% meta$ani_id,
+               Date <= input$dates[2],
+               Date >= input$dates[1])
+    }
+    
+    # if user provided data, get it
+    else {
+      print(paste("Animals =", input$selected_ani) )
+      if(any(meta$ani_id  %in% input$selected_ani) ){
+        current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
+      }
+      
+      
+    }
+    
+    # add LocationID column to the restricted data set
+    current_df <- current_df %>% 
+      mutate(LocationID = 1:n())
+    
+    return(current_df)
+    
+  })
+  
+  
   
   ######################################
   ## DYNAMIC USER INTERFACE
   
   # select data sites
   output$choose_site <- renderUI({
-    if(is.null(input$zipInput)) {
-      meta <- demo_meta
-    }
-    else {
-      meta <- meta()
-    }
+    req(meta)
+    
+    meta <- meta()
     
     site_choices <- as.list(as.character(unique(meta$site)))
     
@@ -46,16 +91,10 @@ app_server <- function(input, output, session) {
   
   # select animals
   output$choose_ani <- renderUI({
-    if(is.null(input$selected_site)) {
-      return()
-    }
-    if(is.null(input$zipInput)) {
-      meta <- demo_meta
-    }
-    else {
-      meta <- meta()
-    }
-    meta <- meta %>%
+    
+    req(meta, input$selected_site)
+    
+    meta <- meta() %>%
       filter(site %in% input$selected_site) 
     
     ani_choices <- as.list(as.character(unique(meta$ani_id)))
@@ -71,50 +110,40 @@ app_server <- function(input, output, session) {
   # select dates
   output$choose_dates <- renderUI({
     
-    # If missing input, return to avoid error later in function
-    if(is.null(input$selected_ani))
-      return()
+    req(meta, input$selected_ani)
     
     # Get the data set with the appropriate name
     
-    if(is.null(input$zipInput)) {
-      meta <- demo_meta
-    }
-    else {
-      meta <- meta()
-    }
-    
-    meta <- meta %>%
+    meta <- meta() %>%
       filter(ani_id %in% input$selected_ani)
     
-    max_dates <- meta$max_date
-    min_dates <- meta$min_date
+    max_date <- max( meta$max_date, na.rm=T)
+    min_date <- min( meta$min_date, na.rm=T)
     
-    sliderInput("dates", "Date Range", min = min(min_dates),
-                max = max(max_dates), value = c(min(min_dates), max(max_dates)), step = 1,
+    sliderInput("dates", "Date Range", min = min_date,
+                max = max_date, value = c(min_date, max_date), step = 1,
                 animate = animationOptions(loop = FALSE, interval = 1000))
   })
   
-  # select times
-  output$choose_times <- renderUI({
-    
-    # If missing input, return to avoid error later in function
-    if( is.null(dat()) | is.null(input$dates) ) 
-      return()
-    min_times <- min(dat()$DateTime)
-    max_times <- max(dat()$DateTime)
-    sliderInput("times", "Time Range", 
-                min = min_times, max =max_times, value = c(min_times, max_times), 
-                step = 1,
-                animate = animationOptions(loop = FALSE, interval = 1000))
-  })
+  # # select times
+  # output$choose_times <- renderUI({
+  #   
+  #   # If missing input, return to avoid error later in function
+  #   if( is.null(dat()) | is.null(input$dates) ) 
+  #     return()
+  #   min_times <- min(dat()$Time)
+  #   max_times <- max(dat()$Time)
+  #   sliderInput("times", "Time Range", 
+  #               min = min_times, max =max_times, value = c(min_times, max_times), 
+  #               step = 1,
+  #               animate = animationOptions(loop = FALSE, interval = 1000))
+  # })
   
   
   # select variables to compute statistics
   output$choose_cols <- renderUI({
-    if(is.null(input$selected_ani)) {
-      return()
-    }
+    req(input$selected_ani) 
+    
     var_choices <- c("TimeDiffMins", "Altitude", "Course", "CourseDiff", "Distance", "Rate")
     pickerInput("selected_cols", "Choose Variables for Statistics",
                 choices = var_choices,
@@ -126,9 +155,8 @@ app_server <- function(input, output, session) {
   
   # select summary statistics
   output$choose_stats <- renderUI({
-    if(is.null(input$selected_ani)) {
-      return()
-    }
+    req(input$selected_ani)
+    
     stats_choices <- c("N", "Mean", "SD", "Variance", "Min", "Max", "Range", "IQR",  "Q1", "Median", "Q3" )
     pickerInput("selected_stats", "Choose Summary Statistics",
                 choices = stats_choices,
@@ -138,53 +166,12 @@ app_server <- function(input, output, session) {
     )
   })
   
-  ######################################
-  ## DYNAMIC DATA
-  
-  # main dynamic data set
-  dat_main <- reactive({
-    if(is.null(input$selected_ani) || is.null(input$dates))
-      return()
-    
-    # if no user provided data, use demo data
-    if(is.null(input$zipInput)) {
-      meta <- demo_meta %>%
-        filter(ani_id %in% input$selected_ani)
-      
-      current_df <- demo %>%
-        filter(Animal %in% meta$ani_id,
-                      Date <= input$dates[2],
-                      Date >= input$dates[1])
-    }
-    
-    # if user provided data, get it
-    else {
-      meta <- meta() %>%
-        filter(ani_id %in% input$selected_ani)
-      
-      current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
-    }
-    
-    if( !is.null(input$times) ) {
-      
-      current_df <- current_df %>%
-        filter(DateTime >= input$times[1],
-                      DateTime <= input$times[2])
-    }
-    
-    # add LocationID column to the restricted data set
-    current_df <- current_df %>% 
-      mutate(LocationID = 1:n())
-    
-    return(current_df)
-    
-  })
   
   # spatial points for maps
   points_main <- reactive({
     # If missing input, return to avoid error later in function
-    if( is.null(dat_main()) )
-      return()
+    req(dat_main)
+    
     SpatialPointsDataFrame(coords = dat_main()[c("Longitude", "Latitude")], 
                            data = dat_main(),
                            proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
@@ -194,24 +181,26 @@ app_server <- function(input, output, session) {
   
   ### Subseted data set
   dat <- reactive({
+    req(dat_main)
     # subset data if user has defined selected locations
     if(is.null(selected_locations())){
       return(dat_main())
     }
   
     else{
-      dat_main() %>%
+      return(
+        dat_main() %>%
         filter(LocationID %in% selected_locations())
+      )
     }
-   
       
   })
   
   # subsetted spatial points for maps
   points <- reactive({
     # If missing input, return to avoid error later in function
-    if( is.null(dat()) )
-      return()
+    req(dat )
+
     SpatialPointsDataFrame(coords = dat()[c("Longitude", "Latitude")], 
                            data = dat(),
                            proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
@@ -223,8 +212,11 @@ app_server <- function(input, output, session) {
   ## DYNAMIC DISPLAYS
   output$mainmap <- renderLeaflet({
     
-    if( is.null(points()) )
-      return()
+    req(points, input$selected_ani ) 
+    if(length(input$selected_ani) ==0 ){
+      return(  leaflet() %>%  # Add tiles
+               addTiles(group="street map"))
+    }
     
     factpal <- colorFactor(scales::hue_pal()(length(input$selected_ani)), input$selected_ani)
     
