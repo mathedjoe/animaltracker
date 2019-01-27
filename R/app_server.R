@@ -471,6 +471,17 @@ app_server <- function(input, output, session) {
   })
   
   
+  ##############################################################
+  # DOWNLOAD DATA
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      paste0("data_export_", format(Sys.time(), "%Y-%m-%d_%H-%M-%p"), ".csv")
+    },
+    content = function(file) {
+      write.csv(dat(), file, row.names = FALSE)
+    }
+  )
+  
   ######################################
   ## END CODE
   session$onSessionEnded(stopApp)

@@ -29,7 +29,13 @@ app_ui <- function(){
                           
                           h4("Upload Data"),
                           helpText("Select a zip folder on your computer containing .csv files."),
-                          fileInput("zipInput", "Upload zip file", accept=c(".zip"))
+                          fileInput("zipInput", "Upload zip file", accept=c(".zip")),
+                          
+                          hr(),
+                          h4("Download Data"),
+                          helpText("Save currently selected data to a (potentially large) .csv file."),
+                          # Button
+                          downloadButton("downloadData", "Download")
                           
                         ),#sidebarPanel
                         mainPanel(
