@@ -12,7 +12,8 @@
 #'
 # Define server logic for the shiny app
 app_server <- function(input, output, session) {
-
+  
+  # initialize list of datasets
   meta <- reactive({ 
     if(is.null(input$zipInput)) {
       return()
@@ -20,7 +21,10 @@ app_server <- function(input, output, session) {
     clean_batch(input$zipInput) 
   }) 
   
-  # Drop-down selection box for which sites
+  ######################################
+  ## DYNAMIC USER INTERFACE
+  
+  # select data sites
   output$choose_site <- renderUI({
     if(is.null(input$zipInput)) {
       meta <- demo_meta
@@ -40,7 +44,7 @@ app_server <- function(input, output, session) {
   }) 
   
   
-  # Drop-down selection box for which animals
+  # select animals
   output$choose_ani <- renderUI({
     if(is.null(input$selected_site)) {
       return()
@@ -64,39 +68,7 @@ app_server <- function(input, output, session) {
     )
   })
   
-  # Which cols for stats?
-  
-  output$choose_cols <- renderUI({
-    if(is.null(input$selected_ani)) {
-      return()
-    }
-    var_choices <- c("TimeDiffMins", "Altitude", "Course", "CourseDiff", "Distance", "Rate")
-    pickerInput("selected_cols", "Choose Variables for Statistics",
-                choices = var_choices,
-                selected = var_choices[c(1,2,3)],
-                multiple = TRUE,
-                inline = FALSE, options = list(`actions-box` = TRUE)
-    )
-  })
-  
-  # Which summary stats?
-  
-  output$choose_stats <- renderUI({
-    if(is.null(input$selected_ani)) {
-      return()
-    }
-    stats_choices <- c("N", "Mean", "SD", "Variance", "Min", "Max", "Range", "IQR",  "Q1", "Median", "Q3" )
-    pickerInput("selected_stats", "Choose Summary Statistics",
-                choices = stats_choices,
-                selected = stats_choices[1:6],
-                multiple = TRUE,
-                inline = FALSE, options = list(`actions-box` = TRUE)
-    )
-  })
-  
-  
-  
-  # date range
+  # select dates
   output$choose_dates <- renderUI({
     
     # If missing input, return to avoid error later in function
@@ -123,54 +95,86 @@ app_server <- function(input, output, session) {
                 animate = animationOptions(loop = FALSE, interval = 1000))
   })
   
+  # select times
   output$choose_times <- renderUI({
     
     # If missing input, return to avoid error later in function
-    if(is.null(dat_no_time()))
+    if( is.null(dat()) | is.null(input$times) ) 
       return()
     
-    dat_no_time <- dat_no_time()
-    
-    min_times <- min(dat_no_time$DateTime)
-    max_times <- max(dat_no_time$DateTime)
-    
-    sliderInput("times", "Time Range", min = min_times,
-                max = max_times, value = c(min_times, max_times), step = 1,
+    sliderInput("times", "Time Range", min = min(dat()$DateTime),
+                max = max(dat()$DateTime), value = c(min_times, max_times), step = 1,
                 animate = animationOptions(loop = FALSE, interval = 1000))
   })
   
   
-  dat_no_time <- reactive({
+  # select variables to compute statistics
+  output$choose_cols <- renderUI({
+    if(is.null(input$selected_ani)) {
+      return()
+    }
+    var_choices <- c("TimeDiffMins", "Altitude", "Course", "CourseDiff", "Distance", "Rate")
+    pickerInput("selected_cols", "Choose Variables for Statistics",
+                choices = var_choices,
+                selected = var_choices[c(1,2,3)],
+                multiple = TRUE,
+                inline = FALSE, options = list(`actions-box` = TRUE)
+    )
+  })
+  
+  # select summary statistics
+  output$choose_stats <- renderUI({
+    if(is.null(input$selected_ani)) {
+      return()
+    }
+    stats_choices <- c("N", "Mean", "SD", "Variance", "Min", "Max", "Range", "IQR",  "Q1", "Median", "Q3" )
+    pickerInput("selected_stats", "Choose Summary Statistics",
+                choices = stats_choices,
+                selected = stats_choices[1:6],
+                multiple = TRUE,
+                inline = FALSE, options = list(`actions-box` = TRUE)
+    )
+  })
+  
+  ######################################
+  ## DYNAMIC DATA
+  
+  # main dynamic data set
+  dat <- reactive({
     if(is.null(input$selected_ani) || is.null(input$dates))
       return()
     
+    # if no user provided data, use demo data
     if(is.null(input$zipInput)) {
-      meta <- demo_meta
-      meta <- meta %>%
+      meta <- demo_meta %>%
         dplyr::filter(ani_id %in% input$selected_ani)
+      
       current_df <- demo %>%
         dplyr::filter(Animal %in% meta$ani_id,
                       Date <= input$dates[2],
                       Date >= input$dates[1])
     }
+    
+    # if user provided data, get it
     else {
-      meta <- meta()
-      meta <- meta %>%
+      meta <- meta() %>%
         dplyr::filter(ani_id %in% input$selected_ani)
       current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
     }
-  })
-  
-  dat <- reactive({
-    if( is.null(input$times) ) {
-      return()
+    
+    if( !is.null(input$times) ) {
+      
+      current_df <- current_df %>%
+        dplyr::filter(DateTime >= input$times[1],
+                      DateTime <= input$times[2])
     }
-    current_df <- dat_no_time() %>%
-      dplyr::filter(DateTime >= input$times[1],
-                    DateTime <= input$times[2])
+    
+    return(current_df)
     
   })
   
+  
+  # spatial points for maps
   points <- reactive({
     # If missing input, return to avoid error later in function
     if( is.null(dat()) )
@@ -180,7 +184,8 @@ app_server <- function(input, output, session) {
                            proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
   })
   
-  
+  ######################################
+  ## DYNAMIC DISPLAYS
   output$mainmap <- renderLeaflet({
     
     if( is.null(points()) )
@@ -255,10 +260,11 @@ app_server <- function(input, output, session) {
     
   })
   
+  ######################################
+  ## DYNAMIC STATISTICS
   # Summary Statistics
   
   # Time Difference
-  
   output$timediff_title <- renderUI({
     if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("TimeDiffMins" %in% input$selected_cols)) 
       return()
@@ -277,7 +283,6 @@ app_server <- function(input, output, session) {
   output$timediff <- renderTable(timediff_stats())
   
   # Altitude
-  
   output$altitude_title <- renderUI({
     if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Altitude" %in% input$selected_cols)) 
       return()
@@ -296,7 +301,6 @@ app_server <- function(input, output, session) {
   output$altitude <- renderTable(altitude_stats())
   
   # Speed
-  
   output$speed_title <- renderUI({
     if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Speed" %in% input$selected_cols)) 
       return()
@@ -315,7 +319,6 @@ app_server <- function(input, output, session) {
   output$speed <- renderTable(speed_stats())
   
   # Course
-  
   output$course_title <- renderUI({
     if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Course" %in% input$selected_cols)) 
       return()
@@ -334,7 +337,6 @@ app_server <- function(input, output, session) {
   output$course <- renderTable(course_stats())
   
   # Course Difference
-  
   output$coursediff_title <- renderUI({
     if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("CourseDiff" %in% input$selected_cols)) 
       return()
@@ -353,7 +355,6 @@ app_server <- function(input, output, session) {
   output$coursediff <- renderTable(coursediff_stats())
   
   # Distance
-  
   output$distance_title <- renderUI({
     if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Distance" %in% input$selected_cols)) 
       return()
@@ -372,7 +373,6 @@ app_server <- function(input, output, session) {
   output$distance <- renderTable(distance_stats())
   
   # Rate
-  
   output$rate_title <- renderUI({
     if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Rate" %in% input$selected_cols)) 
       return()
@@ -387,9 +387,11 @@ app_server <- function(input, output, session) {
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
-  
   output$rate <- renderTable(rate_stats())
   
+  
+  ######################################
+  ## END CODE
   session$onSessionEnded(stopApp)
   
 }

@@ -46,19 +46,15 @@ clean_batch <- function(data_dir) {
   gps_units <- gsub("(.*)(20)([0-9]{2}\\_)(.*)(\\_{1}.*)(\\.csv)","\\4",data_files)
   ani_ids <- gsub("(.*)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.csv)","\\5",data_files)
   
-  # assign random ids to missing animal ids
-  ani_ids_na <- ani_ids == "anixxxx"
-  ani_ids[ani_ids_na] <- sample(1000:9999, size=sum(ani_ids_na), replace=F)
-  ani_ids[ani_ids_na] <- paste0("R", ani_ids[ani_ids_na])
-  
+  ani_ids <- make.unique(ani_ids, sep="_")
+
   data_info <- list(ani = ani_ids, gps = gps_units)
 
   for(i in 1:length(data_files)) {
     filestr <- gsub(paste0("(temp)(\\/)", dir_name, "(\\/)"), "", data_files[i])
-    site <- tolower(gsub("(\\_)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.csv)","", filestr))
-    if(site == filestr) {
-      site <- "Unknown"
-    }
+    
+    site <- ifelse( grepl("\\_", filestr), tolower(sub("\\_.*","", filestr)), "Unknown")
+    
     df <- read.csv(data_files[i], skipNul = T)
     
     aniid <- data_info$ani[i]

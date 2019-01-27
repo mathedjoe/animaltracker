@@ -27,7 +27,7 @@ app_ui <- navbarPage(theme = shinytheme("yeti"),
                         
                         h4("Upload Data"),
                         helpText("Select a zip folder on your computer containing .csv files."),
-                        fileInput("zipInput", "Upload Archived Folder", accept=c(".zip", ".7z"))
+                        fileInput("zipInput", "Upload zip file", accept=c(".zip"))
                         
                       ),#sidebarPanel
                       mainPanel(
