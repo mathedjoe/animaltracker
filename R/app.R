@@ -23,8 +23,6 @@ run_shiny_animaltracker <- function() {
                              helpText("This app comes with demo data; use the Choose Data tab to upload your own data."),
                              uiOutput("choose_site") %>% withSpinner(),
                              uiOutput("choose_ani"),
-                             uiOutput("choose_cols"),
-                             uiOutput("choose_stats"),
                              uiOutput("choose_dates"),
                              uiOutput("choose_times") %>% withSpinner()
                     ),
@@ -44,6 +42,10 @@ run_shiny_animaltracker <- function() {
                       )
                     )),
                     tabPanel("Statistics",
+                             fluidRow(
+                             column(3, uiOutput("choose_cols")),
+                             column(3, uiOutput("choose_stats"))
+                             ),
                              uiOutput("timediff_title"),
                              uiOutput("timediff"),
                              uiOutput("altitude_title"),
@@ -134,6 +136,7 @@ run_shiny_animaltracker <- function() {
       stats <- c("Mean", "SD", "Variance", "Range", "IQR", "Min", "Q1", "Median", "Q3", "Max")
       pickerInput("selected_stats", "Filter Summary Statistics",
                   choices = stats,
+                  selected = c("Mean", "SD", "Min", "Median", "Max"),
                   multiple = TRUE,
                   inline = FALSE, options = list(`actions-box` = TRUE)
                   )

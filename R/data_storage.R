@@ -44,7 +44,6 @@ clean_batch <- function(data_dir) {
   rds_name <- paste0(dir_name, ".rds")
   
   gps_units <- gsub("(.*)(20)([0-9]{2}\\_)(.*)(\\_{1}.*)(\\.csv)","\\4",data_files)
-  
   ani_ids <- gsub("(.*)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.csv)","\\5",data_files)
   
   # assign random ids to missing animal ids
@@ -57,11 +56,21 @@ clean_batch <- function(data_dir) {
   for(i in 1:length(data_files)) {
     filestr <- gsub(paste0("(temp)(\\/)", dir_name, "(\\/)"), "", data_files[i])
     site <- tolower(gsub("(\\_)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.csv)","", filestr))
-  
+    if(site == filestr) {
+      site <- "Unknown"
+    }
     df <- read.csv(data_files[i], skipNul = T)
     
     aniid <- data_info$ani[i]
     gpsid <- data_info$gps[i]
+    
+    if(data_files[i] == aniid) {
+      aniid <- paste0("Unknown (", filestr, ")")
+    }
+    
+    if(data_files[i] == gpsid) {
+      gpsid <- paste0("Unknown")
+    }
     
     #on every 50th data file, increment file name counter and wipe data_sets
     if(i %% 50 == 0 & i > 49) {
@@ -130,9 +139,6 @@ clean_df <- function(df, ani_id, gps_id) {
                   Latitude >= window$latmin,  Latitude <= window$latmax,
                   Longitude >= window$lonmin,  Longitude <= window$lonmax,
                   !DistanceFlag )
-
-  # add elevation data
-  df <- lookup_elevation()
  
   return(df)
 }
@@ -194,6 +200,10 @@ get_data_from_meta <- function(meta_df, min_date, max_date) {
     dplyr::filter(Animal %in% meta_df$ani_id,
            Date <= max_date,
            Date >= min_date)
+  
+  # add elevation data
+  current_df <- lookup_elevation(current_df)
+  
   return(current_df)
 }
 

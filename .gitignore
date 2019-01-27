@@ -6,3 +6,4 @@ data/animal_data.rds
 data/animal_data_with_elev.rds
 data/animaldb.sqlite
 .Rproj.user
+resources/
