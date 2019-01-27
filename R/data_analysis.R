@@ -36,6 +36,31 @@ quantile_time <- function(rds_path) {
   return(quantile)
 }
 
+#'
+#'Get summary statistics for a single column in an animal data frame
+#'
+#'@param df animal data frame
+#'@param col column to get summary stats for, as a string
+#'@return data frame of summary stats for col
+summarize_col <- function(df, col) {
+  summary <- df %>%
+    dplyr::group_by(Animal) %>%
+    dplyr::summarise(
+      N = n(),
+      Mean = mean(!! sym(col)),
+      Median = median(!! sym(col)),
+      SD = sd(!! sym(col)),
+      Variance = var(!! sym(col)),
+      Q1 = quantile(!! sym(col), 0.25),
+      Q3 = quantile(!! sym(col), 0.75),
+      IQR = IQR(!! sym(col)),
+      Range = (max(!! sym(col))-min(!! sym(col))),
+      Min = min(!! sym(col)),
+      Max = max(!! sym(col))
+    )
+  return(summary)
+}
+
 ### Plotting Functions
 
 #'

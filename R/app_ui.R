@@ -16,7 +16,7 @@ app_ui <- navbarPage(theme = shinytheme("yeti"),
            ## DATA PANEL
            tabPanel("Data", 
                     sidebarLayout(
-                      sidebarPanel(
+                      sidebarPanel( 
                         h4("Select Data"),
                         uiOutput("choose_site") %>% withSpinner(),
                         uiOutput("choose_ani"),
@@ -66,6 +66,8 @@ app_ui <- navbarPage(theme = shinytheme("yeti"),
                       ),
                       
                       mainPanel(
+                        h2("Statistical Summary of Selected Data"),
+                        helpText("To change the sample, switch to the Data panel."),
                         uiOutput("timediff_title"),
                         uiOutput("timediff"),
                         uiOutput("altitude_title"),

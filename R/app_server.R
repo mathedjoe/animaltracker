@@ -12,7 +12,7 @@
 #'
 # Define server logic for the shiny app
 app_server <- function(input, output, session) {
-  
+
   meta <- reactive({ 
     if(is.null(input$zipInput)) {
       return()
@@ -28,8 +28,12 @@ app_server <- function(input, output, session) {
     else {
       meta <- meta()
     }
-    pickerInput("selected_site", "Filter by Site",
-                choices = as.list(as.character(unique(meta$site))),
+    
+    site_choices <- as.list(as.character(unique(meta$site)))
+    
+    pickerInput("selected_site", "Select Site(s)",
+                choices = site_choices,
+                selected = site_choices[c(1,2)],
                 multiple = TRUE,
                 inline = FALSE, options = list(`actions-box` = TRUE)
     ) 
@@ -50,8 +54,11 @@ app_server <- function(input, output, session) {
     meta <- meta %>%
       dplyr::filter(site %in% input$selected_site) 
     
-    pickerInput("selected_ani", "Filter by Animal ID",
-                choices = as.list(as.character(unique(meta$ani_id))),
+    ani_choices <- as.list(as.character(unique(meta$ani_id)))
+    
+    pickerInput("selected_ani", "Select Animal(s)",
+                choices = ani_choices,
+                selected = ani_choices[c(1,2)],
                 multiple = TRUE, 
                 inline = FALSE, options = list(`actions-box` = TRUE)
     )
@@ -63,9 +70,10 @@ app_server <- function(input, output, session) {
     if(is.null(input$selected_ani)) {
       return()
     }
-    cols <- c("TimeDiffMins", "Altitude", "Course", "CourseDiff", "Distance", "Rate")
-    pickerInput("selected_cols", "Filter Variables for Statistics",
-                choices = cols,
+    var_choices <- c("TimeDiffMins", "Altitude", "Course", "CourseDiff", "Distance", "Rate")
+    pickerInput("selected_cols", "Choose Variables for Statistics",
+                choices = var_choices,
+                selected = var_choices[c(1,2,3)],
                 multiple = TRUE,
                 inline = FALSE, options = list(`actions-box` = TRUE)
     )
@@ -77,10 +85,10 @@ app_server <- function(input, output, session) {
     if(is.null(input$selected_ani)) {
       return()
     }
-    stats <- c("Mean", "SD", "Variance", "Range", "IQR", "Min", "Q1", "Median", "Q3", "Max")
-    pickerInput("selected_stats", "Filter Summary Statistics",
-                choices = stats,
-                selected = c("Mean", "SD", "Min", "Median", "Max"),
+    stats_choices <- c("N", "Mean", "SD", "Variance", "Min", "Max", "Range", "IQR",  "Q1", "Median", "Q3" )
+    pickerInput("selected_stats", "Choose Summary Statistics",
+                choices = stats_choices,
+                selected = stats_choices[1:6],
                 multiple = TRUE,
                 inline = FALSE, options = list(`actions-box` = TRUE)
     )
@@ -118,7 +126,7 @@ app_server <- function(input, output, session) {
   output$choose_times <- renderUI({
     
     # If missing input, return to avoid error later in function
-    if(is.null(input$selected_ani))
+    if(is.null(dat_no_time()))
       return()
     
     dat_no_time <- dat_no_time()
@@ -154,7 +162,7 @@ app_server <- function(input, output, session) {
   })
   
   dat <- reactive({
-    if(is.null(input$times)) {
+    if( is.null(input$times) ) {
       return()
     }
     current_df <- dat_no_time() %>%
@@ -165,9 +173,9 @@ app_server <- function(input, output, session) {
   
   points <- reactive({
     # If missing input, return to avoid error later in function
-    if(is.null(input$selected_ani) || is.null(input$dates)) 
+    if( is.null(dat()) )
       return()
-    
+
     SpatialPointsDataFrame(coords = dat()[c("Longitude", "Latitude")], data = dat(),
                            proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
   })
@@ -175,9 +183,7 @@ app_server <- function(input, output, session) {
   
   output$mainmap <- renderLeaflet({
     
-    
-    
-    if(is.null(input$selected_ani) || is.null(input$dates) )
+    if( is.null(points()) )
       return()
     
     factpal <- colorFactor(scales::hue_pal()(length(input$selected_ani)), input$selected_ani)
@@ -188,9 +194,10 @@ app_server <- function(input, output, session) {
       addProviderTiles("Esri.WorldImagery", group = "Satellite") %>%
       # addProviderTiles("Thunderforest.Landscape", group = "Topographical") %>%
       # addProviderTiles("OpenStreetMap.Mapnik", group = "Road map") %>%
+    
       
       addCircleMarkers(data = points(), radius=6, fillOpacity = .6, stroke=F,
-                       color = ~ factpal(Animal), 
+                       color = ~ factpal(Animal),
                        popup = ~ paste(paste("<h4>",paste("Animal ID:", points()$Animal), "</h4>"),
                                        paste("Date/Time:", points()$DateTime),
                                        paste("Altitude:", points()$Altitude),
@@ -204,7 +211,7 @@ app_server <- function(input, output, session) {
   })
   
   output$plot1 <- renderPlot({
-    if(is.null(input$selected_ani) || is.null(input$dates))
+    if(is.null(dat()))
       return()
     
     # hist(dat()$TimeDiffMin [dat()$TimeDiffMin < 100], main = "Distribution of Time Between GPS Measurements" )
@@ -218,7 +225,7 @@ app_server <- function(input, output, session) {
   })
   
   output$plot2 <- renderPlot({
-    if(is.null(input$selected_ani) || is.null(input$dates))
+    if(is.null(dat()))
       return()
     
     ggplot(dat(), aes(x=TimeDiffMins, fill=Animal))+
