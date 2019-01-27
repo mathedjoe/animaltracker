@@ -188,22 +188,40 @@ app_server <- function(input, output, session) {
     
     factpal <- colorFactor(scales::hue_pal()(length(input$selected_ani)), input$selected_ani)
     
+    pts <- points()
+    
     leaflet() %>%  # Add tiles
-      addTiles() %>%
+      addTiles(group="street map") %>%
       # addProviderTiles("OpenTopoMap") %>%
-      addProviderTiles("Esri.WorldImagery", group = "Satellite") %>%
+      addProviderTiles("Esri.WorldImagery", group = "satellite") %>%
       # addProviderTiles("Thunderforest.Landscape", group = "Topographical") %>%
       # addProviderTiles("OpenStreetMap.Mapnik", group = "Road map") %>%
     
       
-      addCircleMarkers(data = points(), radius=6, fillOpacity = .6, stroke=F,
-                       color = ~ factpal(Animal),
-                       popup = ~ paste(paste("<h4>",paste("Animal ID:", points()$Animal), "</h4>"),
-                                       paste("Date/Time:", points()$DateTime),
-                                       paste("Altitude:", points()$Altitude),
-                                       paste("Elevation:", points()$Elevation),
-                                       paste("Lat/Lon:", paste(points()$Latitude, points()$Longitude, sep=", ")),
+      addCircleMarkers(data = pts, group = "data points",
+                       radius=6,  
+                       stroke=TRUE, color = ~ factpal(Animal), weight = 3, opacity = .8,
+                       fillOpacity = .3, fillColor = ~ factpal(Animal),
+                       popup = ~ paste(paste("<h4>",paste("Animal ID:", pts$Animal), "</h4>"),
+                                       paste("Date/Time:", pts$DateTime),
+                                       paste("Altitude:", pts$Altitude),
+                                       paste("Elevation:", pts$Elevation),
+                                       paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep=", ")),
                                        sep="<br/>")
+      ) %>%
+      
+      addHeatmap(
+        data = pts,
+        group = "heat map",
+        # intensity = pts$Elevation,
+        blur = 20, max = 0.05, radius = 15
+      ) %>% 
+      hideGroup("heatmap") %>% # turn off heatmap by default
+      
+      addLayersControl(
+        baseGroups = c("satellite", "street map"),
+        overlayGroups = c("data points", "heat map"),
+        options = layersControlOptions(collapsed = FALSE)
       )
     
     # leaflet() %>%
