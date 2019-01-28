@@ -52,7 +52,7 @@ app_ui <- function(){
                       plotOutput("plot_elevation_line"),
                       plotOutput("plot_samplerate_hist"),
                       plotOutput("plot_rate_violin"),
-                      plotOutput("plot_time_heatmap")
+                      plotOutput("plot_time_heatmap", height = 1200)
                         
                          
              ),# end plots panel

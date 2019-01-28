@@ -267,6 +267,7 @@ app_server <- function(input, output, session) {
         polylineOptions=FALSE,
         markerOptions = FALSE,
         circleOptions = FALSE,
+        circleMarkerOptions = FALSE,
         polygonOptions = drawPolygonOptions(
             shapeOptions=drawShapeOptions(
               fillOpacity = .2
@@ -522,7 +523,7 @@ app_server <- function(input, output, session) {
                         )
                       )
     drawn_polys <-  sp::SpatialPolygons(list(sp::Polygons(list(drawn_polygon),"drawn_polygon")))
-    crs(drawn_polys) <- crs(points_main())
+    raster::crs(drawn_polys) <- raster::crs(points_main())
     
     # identify selected locations
     selected_locs <- sp::over(points_main(),drawn_polys)
