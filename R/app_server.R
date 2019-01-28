@@ -144,10 +144,10 @@ app_server <- function(input, output, session) {
   output$choose_cols <- renderUI({
     req(input$selected_ani) 
     
-    var_choices <- c("TimeDiffMins", "Altitude", "Course", "CourseDiff", "Distance", "Rate")
+    var_choices <- c( "Elevation", "TimeDiffMins", "Course", "CourseDiff", "Distance", "Rate")
     pickerInput("selected_cols", "Choose Variables for Statistics",
                 choices = var_choices,
-                selected = var_choices[c(1,2,3)],
+                selected = var_choices[c(1,2,3,4)],
                 multiple = TRUE,
                 inline = FALSE, options = list(`actions-box` = TRUE)
     )
@@ -339,23 +339,23 @@ app_server <- function(input, output, session) {
   
   output$timediff <- renderTable(timediff_stats())
   
-  # Altitude
-  output$altitude_title <- renderUI({
-    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Altitude" %in% input$selected_cols)) 
+  # Elevation
+  output$elevation_title <- renderUI({
+    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Elevation" %in% input$selected_cols)) 
       return()
-    h4("Altitude")
+    h4("Elevation")
   })
   
-  altitude_stats <- reactive({
-    if(!("Altitude" %in% input$selected_cols) | is.null(input$selected_stats)) 
+  elevation_stats <- reactive({
+    if(!("Elevation" %in% input$selected_cols) | is.null(input$selected_stats)) 
       return()
     
-    summary <- summarize_col(dat(), "Altitude") 
+    summary <- summarize_col(dat(), "Elevation") 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
   
-  output$altitude <- renderTable(altitude_stats())
+  output$elevation <- renderTable(elevation_stats())
   
   # Speed
   output$speed_title <- renderUI({

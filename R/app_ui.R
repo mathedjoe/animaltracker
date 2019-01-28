@@ -70,12 +70,13 @@ app_ui <- function(){
                         mainPanel(
                           h2("Statistical Summary of Selected Data"),
                           helpText("To change the sample, switch to the Data panel."),
-                          uiOutput("timediff_title"),
-                          uiOutput("timediff"),
-                          uiOutput("altitude_title"),
-                          uiOutput("altitude"),
+                         
+                          uiOutput("elevation_title"),
+                          uiOutput("elevation"),
                           uiOutput("speed_title"),
                           uiOutput("speed"),
+                          uiOutput("timediff_title"),
+                          uiOutput("timediff"),
                           uiOutput("course_title"),
                           uiOutput("course"),
                           uiOutput("coursediff_title"),
