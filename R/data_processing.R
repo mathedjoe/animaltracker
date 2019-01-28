@@ -14,7 +14,7 @@ lookup_elevation <- function(anidf, zoom = 11) {
   # extract coordinates from the animal data
   locations <- anidf %>% dplyr::select(x = Longitude, y = Latitude)
   
-  print(summary(locations))
+  # print(summary(locations))
   
   # retrieve terrain data for the region containing the animal data
   ## USGS DEM source = Amazon Web Services (https://aws.amazon.com/public-datasets/terrain/) terrain tiles.

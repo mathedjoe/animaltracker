@@ -4,12 +4,12 @@
 \alias{lookup_elevation}
 \title{Add elevation data from public AWS terrain tiles to long/lat coordinates of animal gps data}
 \usage{
-lookup_elevation(anidf, zoom = 12)
+lookup_elevation(anidf, zoom = 11)
 }
 \arguments{
 \item{anidf}{animal tracking dataframe}
 
-\item{zoom}{level of zoom, defaults to 12}
+\item{zoom}{level of zoom, defaults to 11}
 }
 \value{
 original data frame, with Elevation column appended
@@ -19,6 +19,6 @@ Add elevation data from public AWS terrain tiles to long/lat coordinates of anim
 }
 \examples{
 data(demo)
-xelev <- lookup_elevation(demo, zoom = 12)
+xelev <- lookup_elevation(demo, zoom = 11)
 plot(xelev$Altitude, xelev$Elevation)
 }

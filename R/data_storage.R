@@ -22,14 +22,13 @@
 # the shiny app needs to use some of these functions
 
 #'
-#'Cleans a directory of animal data files and stores them in .rds files
+#'Cleans a directory of animal data files and stores them locally in rds format
 #'
 #'@param data_dir location of animal data files, in list format
 #'@return df of metadata for animal file directory
 #'
 clean_batch <- function(data_dir) {
   
-  # print("cleaning batch")
 
     #initialize empty meta
   meta_df <- data.frame(matrix(ncol = 9, nrow = 0))

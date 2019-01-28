@@ -4,7 +4,10 @@
 \alias{run_shiny_animaltracker}
 \title{You can run the animaltracker Shiny app by calling this function.}
 \usage{
-run_shiny_animaltracker()
+run_shiny_animaltracker(launch.browser = TRUE)
+}
+\arguments{
+\item{launch.browser}{logical, whether to launch the app in your default browser (defaults to FALSE)}
 }
 \description{
 You can run the animaltracker Shiny app by calling this function.

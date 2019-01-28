@@ -1,0 +1,16 @@
+
+## Boxplot for cow's altitude distribution ##
+
+# Install and load ggplot2 package
+install.packages("ggplot2")
+library(ggplot2)
+
+# Read .rds data file and bind rows using dplyr - to make it into one dataframe
+data <- readRDS("cow_data.rds")
+data <- dplyr::bind_rows(data, id = NULL)
+
+# Create a boxplot with ggplot function
+box_plot <- ggplot(data, aes(x = Cow, # x-axis variable
+                             y = Altitude))+ # y-axis variable
+  geom_boxplot() # function that defines a boxplot
+box_plot + theme(axis.text.x = element_text(angle = 45, hjust = 1))

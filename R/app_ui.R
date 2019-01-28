@@ -39,7 +39,9 @@ app_ui <- function(){
                           
                         ),#sidebarPanel
                         mainPanel(
-                          leafletOutput("mainmap", height = 640) %>% withSpinner()
+                          
+                          leafletOutput("mainmap", height = 640) %>% withSpinner(),
+                          htmlOutput("mapinfo")
                           
                         ) #mainPanel
                       ) #sidebarLayout

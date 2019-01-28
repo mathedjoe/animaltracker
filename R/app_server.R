@@ -51,7 +51,7 @@ app_server <- function(input, output, session) {
     
     # if user provided data, get it
     else {
-      print(paste("Animals =", input$selected_ani) )
+      # print(paste("Animals =", input$selected_ani) )
       if(any(meta$ani_id  %in% input$selected_ani) ){
         current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
       }
@@ -207,7 +207,19 @@ app_server <- function(input, output, session) {
  
   
   })
-  
+
+  # Show real-time Information about the Mapped Data
+  output$mapinfo <- renderUI({
+    req(input$mainmap_zoom)
+    tags$div(class="row well", 
+                list(tags$h4("Map Info"),
+                tags$p( paste("Current zoom level =", as.character(input$mainmap_zoom) ) )
+                  )
+    )
+      
+    
+  })
+ 
   ######################################
   ## DYNAMIC DISPLAYS
   output$mainmap <- renderLeaflet({
@@ -278,7 +290,6 @@ app_server <- function(input, output, session) {
     # leaflet() %>%
     #   addMarkers(data = points(),popup=as.character(points()$a))
   })
-  
   output$plot1 <- renderPlot({
     if(is.null(dat()))
       return()
