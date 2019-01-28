@@ -49,8 +49,10 @@ app_ui <- function(){
              
              ## PLOTS PANEL
              tabPanel("Plots",
-                      plotOutput("plot1"),
-                      plotOutput("plot2")
+                      plotOutput("plot_elevation_line"),
+                      plotOutput("plot_samplerate_hist"),
+                      plotOutput("plot_rate_violin"),
+                      plotOutput("plot_time_heatmap")
                         
                          
              ),# end plots panel

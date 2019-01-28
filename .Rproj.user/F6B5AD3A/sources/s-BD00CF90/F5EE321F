@@ -7,13 +7,13 @@
     "folds" : "",
     "hash" : "0",
     "id" : "F5EE321F",
-    "lastKnownWriteTime" : 1548637493,
-    "last_content_update" : 1548637493675,
+    "lastKnownWriteTime" : 1548639880,
+    "last_content_update" : 1548639881001,
     "path" : "~/GitHub/animaltracker/R/app_server.R",
     "project_path" : "R/app_server.R",
     "properties" : {
-        "cursorPosition" : "213,30",
-        "scrollLine" : "0",
+        "cursorPosition" : "102,29",
+        "scrollLine" : "90",
         "tempName" : "Untitled1"
     },
     "relative_order" : 3,

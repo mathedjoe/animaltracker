@@ -101,7 +101,7 @@ app_server <- function(input, output, session) {
     
     pickerInput("selected_ani", "Select Animal(s)",
                 choices = ani_choices,
-                selected = ani_choices[c(1,2)],
+                selected = ani_choices[1:4],
                 multiple = TRUE, 
                 inline = FALSE, options = list(`actions-box` = TRUE)
     )
@@ -290,13 +290,19 @@ app_server <- function(input, output, session) {
     # leaflet() %>%
     #   addMarkers(data = points(),popup=as.character(points()$a))
   })
-  output$plot1 <- renderPlot({
-    if(is.null(dat()))
-      return()
+  
+  ######################################
+  # DYNAMIC PLOTS PANEL
+  ######################################
+  # Elevation Line Plot
+  output$plot_elevation_line <- renderPlot({
+   req(dat)
     
     # hist(dat()$TimeDiffMin [dat()$TimeDiffMin < 100], main = "Distribution of Time Between GPS Measurements" )
     ggplot(dat(), aes(x=DateTime, y=Elevation, group=Animal, color=Animal)) + 
-      labs( title = "Elevation (meters) during Data Collection")+
+      labs( title = "Elevation Time Series, by Animal",
+            x = "Date",
+            y = "Elevation (meters)")+
       ylim(1000,2000)+geom_line() + 
       geom_point() + 
       theme_minimal()
@@ -304,18 +310,69 @@ app_server <- function(input, output, session) {
     
   })
   
-  output$plot2 <- renderPlot({
-    if(is.null(dat()))
-      return()
+  # Sample Rate Histograms
+  output$plot_samplerate_hist <- renderPlot({
+    req(dat)
     
     ggplot(dat(), aes(x=TimeDiffMins, fill=Animal))+
       geom_histogram(  col="White", breaks = seq(0,40, 2)) +
       facet_wrap(~Animal, ncol=2)+
-      labs( title = "Distribution of Time between GPS Readings, by GPS Unit" )+ 
+      labs( title = "Sample Rate, by GPS Unit" ,
+            x = "Time between GPS Readings (minutes)", 
+            y = "Frequency") + 
       theme_minimal()
     
     
   })
+  
+  # Rate by Animal
+
+  output$plot_rate_violin <- renderPlot({
+    req(dat)
+    
+    ggplot(dat() %>% filter(Rate < 50), aes(x=Animal, y= Rate, fill=Animal))+
+      geom_violin() + 
+      geom_boxplot(width=.2, outlier.color = NA) +
+      theme_minimal()+
+      labs( title = "Rate of Travel, by GPS Unit" ,
+            x = "Animal", 
+            y = "Rate of Travel (meters/minute)") +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+    
+  })
+  
+  # time spent by lat/long
+  output$plot_time_heatmap <- renderPlot({
+    req(dat)
+    
+    dat<- dat()
+    # Heatmap of Time Spent
+    mybreaks <- list(x = round( seq(min(dat$Longitude), max(dat$Longitude), length.out = 10 ),3),
+                     y = round( seq(min(dat$Latitude), max(dat$Latitude), length.out = 10 ),3))
+    ggplot(dat %>% 
+             mutate( LongBin = cut_number(Longitude, 100, 
+                                          labels= round( seq(min(Longitude), max(Longitude), length.out = 100 ),3)
+             ),
+             LatBin = cut_number(Latitude, 100, 
+                                 labels=round( seq(min(Latitude), max(Latitude), length.out = 100 ), 3)
+             )) %>%
+             group_by(LongBin, LatBin, Animal) %>%
+             summarize(Duration = sum(TimeDiffMins, na.rm=T)/60), 
+           aes (x = LongBin,  y = LatBin, fill = Duration))+
+      geom_tile()+
+      facet_wrap(~Animal, ncol=2)+
+      labs( title = "Total Time Spent per Location (hours)" ,
+            x = "Longitude", 
+            y = "Latitude")+
+      scale_fill_gradientn(colors = c("white", "green", "red"))+
+      scale_x_discrete( breaks = mybreaks$x) +
+      scale_y_discrete( breaks = mybreaks$y) +
+      coord_equal()+
+      theme_minimal()
+    
+  })
+  
   
   ######################################
   ## DYNAMIC STATISTICS

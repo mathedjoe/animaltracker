@@ -49,8 +49,10 @@ app_ui <- function(){
              
              ## PLOTS PANEL
              tabPanel("Plots",
-                      plotOutput("plot1"),
-                      plotOutput("plot2")
+                      plotOutput("plot_elevation_line"),
+                      plotOutput("plot_samplerate_hist"),
+                      plotOutput("plot_rate_violin"),
+                      plotOutput("plot_time_heatmap")
                         
                          
              ),# end plots panel
@@ -70,12 +72,13 @@ app_ui <- function(){
                         mainPanel(
                           h2("Statistical Summary of Selected Data"),
                           helpText("To change the sample, switch to the Data panel."),
-                          uiOutput("timediff_title"),
-                          uiOutput("timediff"),
-                          uiOutput("altitude_title"),
-                          uiOutput("altitude"),
+                         
+                          uiOutput("elevation_title"),
+                          uiOutput("elevation"),
                           uiOutput("speed_title"),
                           uiOutput("speed"),
+                          uiOutput("timediff_title"),
+                          uiOutput("timediff"),
                           uiOutput("course_title"),
                           uiOutput("course"),
                           uiOutput("coursediff_title"),

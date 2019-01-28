@@ -7,13 +7,13 @@
     "folds" : "",
     "hash" : "0",
     "id" : "D3189A87",
-    "lastKnownWriteTime" : 1548636967,
-    "last_content_update" : 1548636967873,
+    "lastKnownWriteTime" : 1548638703,
+    "last_content_update" : 1548638703235,
     "path" : "~/GitHub/animaltracker/R/app_ui.R",
     "project_path" : "R/app_ui.R",
     "properties" : {
-        "cursorPosition" : "43,30",
-        "scrollLine" : "0",
+        "cursorPosition" : "54,51",
+        "scrollLine" : "39",
         "tempName" : "Untitled1"
     },
     "relative_order" : 2,
