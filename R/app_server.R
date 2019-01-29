@@ -243,9 +243,12 @@ app_server <- function(input, output, session) {
     
       
       addCircleMarkers(data = pts, group = "data points",
-                       radius=6,  
-                       stroke=TRUE, color = ~ factpal(Animal), weight = 3, opacity = .8,
-                       fillOpacity = .3, fillColor = ~ factpal(Animal),
+                       radius=4,  
+                       # clusterOptions = markerClusterOptions(maxClusterRadius = 50, 
+                                                             # disableClusteringAtZoom = 14),
+                       
+                       stroke=FALSE, color = ~ factpal(Animal), weight = 3, opacity = .8,
+                       fillOpacity = 1, fillColor = ~ factpal(Animal),
                        popup = ~ paste(paste("<h4>",paste("Animal ID:", pts$Animal), "</h4>"),
                                        paste("Date/Time:", pts$DateTime),
                                        paste("Elevation:", pts$Elevation),
