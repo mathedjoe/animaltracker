@@ -4,11 +4,11 @@ library(shiny)
 library(leaflet)
 library(leaflet.extras)
 library(sp)
-
-source("R/scratch/find_locations_function.R") # this should move into the package code
+print(getwd())
+source("find_locations_function.R") # this should move into the package code
 
 # source: https://opendata.socrata.com/dataset/Airport-Codes-mapped-to-Latitude-Longitude-in-the-/rxrh-4cxm
-airports <- read.csv('R/scratch/airport_codes.csv')
+airports <- read.csv('airport_codes.csv')
 
 # longitudinal coordinates in dataset are off, reverse to negative values to place them in the western hemisphere
 airports$Longitude <- airports$Longitude - 2 * airports$Longitude
@@ -54,15 +54,13 @@ shinyApp(
           targetGroup='Selected',
           polylineOptions=FALSE,
           markerOptions = FALSE,
+          circleOptions = FALSE,
           polygonOptions = drawPolygonOptions(shapeOptions=drawShapeOptions(fillOpacity = 0
                                                                             ,color = 'white'
                                                                             ,weight = 3)),
           rectangleOptions = drawRectangleOptions(shapeOptions=drawShapeOptions(fillOpacity = 0
                                                                                 ,color = 'white'
                                                                                 ,weight = 3)),
-          circleOptions = drawCircleOptions(shapeOptions = drawShapeOptions(fillOpacity = 0
-                                                                            ,color = 'white'
-                                                                            ,weight = 3)),
           editOptions = editToolbarOptions(edit = FALSE, selectedPathOptions = selectedPathOptions()))
     })
     

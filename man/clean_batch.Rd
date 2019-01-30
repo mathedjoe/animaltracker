@@ -2,7 +2,7 @@
 % Please edit documentation in R/data_storage.R
 \name{clean_batch}
 \alias{clean_batch}
-\title{Cleans a directory of animal data files and stores them in .rds files}
+\title{Cleans a directory of animal data files and stores them locally in rds format}
 \usage{
 clean_batch(data_dir)
 }
@@ -13,5 +13,5 @@ clean_batch(data_dir)
 df of metadata for animal file directory
 }
 \description{
-Cleans a directory of animal data files and stores them in .rds files
+Cleans a directory of animal data files and stores them locally in rds format
 }

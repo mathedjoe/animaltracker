@@ -2,17 +2,19 @@
 #'Add elevation data from public AWS terrain tiles to long/lat coordinates of animal gps data
 #'
 #'@param anidf animal tracking dataframe
-#'@param zoom level of zoom, defaults to 12
+#'@param zoom level of zoom, defaults to 11
 #'@return original data frame, with Elevation column appended
 #'@examples 
 #' data(demo)
-#' xelev <- lookup_elevation(demo, zoom = 12)
+#' xelev <- lookup_elevation(demo, zoom = 11)
 #' plot(xelev$Altitude, xelev$Elevation)
 #' @export
-lookup_elevation <- function(anidf, zoom = 12) {
+lookup_elevation <- function(anidf, zoom = 11) {
   
   # extract coordinates from the animal data
   locations <- anidf %>% dplyr::select(x = Longitude, y = Latitude)
+  
+  # print(summary(locations))
   
   # retrieve terrain data for the region containing the animal data
   ## USGS DEM source = Amazon Web Services (https://aws.amazon.com/public-datasets/terrain/) terrain tiles.
@@ -25,7 +27,7 @@ lookup_elevation <- function(anidf, zoom = 12) {
   datapts_elev <- nabor::knn(data = sp::coordinates(elevpts), query = locations, k=1)
   
   # add Elevation column to the animal data
-  anidf$Elevation <- elevpts$layer[ datapts_elev$nn.idx]
+  anidf$Elevation <- round(elevpts$layer[ datapts_elev$nn.idx], 1)
     
   return(anidf)
 }
