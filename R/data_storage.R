@@ -87,6 +87,8 @@ clean_batch <- function(data_dir) {
                              gpsid = gpsid, 
                              maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC")
 
+    # add elevation data
+    df_out <- lookup_elevation(df_out)
     # get meta from df
     file_meta <- get_meta(df_out, i, data_files[i], site, aniid, rds_name)
     # save meta to the designated meta df
@@ -162,9 +164,6 @@ get_data_from_meta <- function(meta_df, min_date, max_date) {
                   Date <= max_date,
                   Date >= min_date)
   # print( paste("nrows =", nrow(current_df) ) )
-  # add elevation data
-  
-  current_df <- lookup_elevation(current_df)
   
   return(current_df)
 }
