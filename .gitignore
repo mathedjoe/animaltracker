@@ -9,5 +9,5 @@ data/P3_S129_2017.csv
 data/processed/export_P3_brennan_2019_01_27.csv
 data/processed/to_process.rds
 data/temp/Bannock_2017_118_2237.csv
-.Rproj.user
+.Rproj.user/**
 .Rd2pdf*
