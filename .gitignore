@@ -1,7 +1,7 @@
-**.Rproj.user**
-**.Rhistory
-**.RData
-**.Rd2pdf**
+.Rproj.user
+.Rhistory
+.RData
+.Rd2pdf
 **/elevation/**
 *.zip
 *.tar
