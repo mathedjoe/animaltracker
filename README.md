@@ -57,3 +57,12 @@ run_shiny_animaltracker()
 ```
 ## Questions
 Email [joechampion@boisestate.edu](mailto:joechampion@boisestate.edu).
+
+## Contributers
+
+* Sergio Arispe (lead researcher), Oregon State University, <sergio.arispe@oregonstate.edu>
+* Joe Champion (lead developer), Boise State University, <joechampion@boisestate.edu>
+* Thea Sukianto (student assistant), Boise State University, <TheophiliaSukian@u.boisestate.edu>
+* Chithkala Dhulipati (student assistant), Boise State University, <chithkaladhulipa@u.boisestate.edu>
+* Dylan Mikesell (researcher), Boise State University, <dylanmikesell@boisestate.edu>
+
