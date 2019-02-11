@@ -12,3 +12,5 @@ data/temp/Bannock_2017_118_2237.csv
 .Rproj.user/**
 .Rd2pdf*
 .Rproj.user
+bannock_test.rds
+test_unknown.rds
