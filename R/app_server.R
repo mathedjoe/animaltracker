@@ -226,7 +226,16 @@ app_server <- function(input, output, session) {
  
   ######################################
   ## DYNAMIC DISPLAYS
-  output$mainmap <- renderLeaflet({
+  
+  base_map <- leaflet() %>%  # Add tiles
+    addTiles(group="street map") %>%
+    setView(-71, 48, zoom = 13) %>%
+    # addProviderTiles("OpenTopoMap") %>%
+    addProviderTiles("Esri.WorldImagery", group = "satellite")
+  
+  output$mainmap <- renderLeaflet(base_map)
+  
+  reactive({
     
     req(points, input$selected_ani ) 
     if(length(input$selected_ani) ==0 ){
@@ -238,10 +247,7 @@ app_server <- function(input, output, session) {
     
     pts <- points()
     
-    leaflet() %>%  # Add tiles
-      addTiles(group="street map") %>%
-      # addProviderTiles("OpenTopoMap") %>%
-      addProviderTiles("Esri.WorldImagery", group = "satellite") %>%
+    leafletProxy("mainmap", session) %>%
       # addProviderTiles("Thunderforest.Landscape", group = "Topographical") %>%
       # addProviderTiles("OpenStreetMap.Mapnik", group = "Road map") %>%
     
@@ -536,7 +542,16 @@ app_server <- function(input, output, session) {
     selected_locs <- sp::over(points_main(),drawn_polys)
     
     # get location ids
-    as.character( points_main()[["LocationID"]][which(!is.na(selected_locs))] )
+    locs_out <- as.character( points_main()[["LocationID"]] )
+    
+    # if any non-na selected locations, subset the selected locations
+    if( any(!is.na(selected_locs)) ){
+      
+      locs_out <-locs_out[ which(!is.na(selected_locs)) ] 
+      
+    }
+
+    locs_out
     
   })
   
