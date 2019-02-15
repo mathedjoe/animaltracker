@@ -51,15 +51,23 @@ clean_batch <- function(data_dir) {
   
   gps_units <- gsub("(.*)(20)([0-9]{2}\\_)(.*)(\\_{1}.*)(\\.csv)","\\4",data_files)
   ani_ids <- gsub("(.*)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.csv)","\\5",data_files)
+  file_names <- gsub(paste0("(temp)(\\/)", dir_name, "(\\/)"), "", data_files)
+  
+  site_names <- c()
+  
+  for(i in 1:length(file_names)) {
+    site_names[i] <-  ifelse( grepl("\\_", file_names[i]), tolower(sub("\\_.*","", file_names[i])), "Unknown")
+  }
   
   ani_ids <- make.unique(ani_ids, sep="_")
-
+  site_names <- make.unique(site_names, sep="_")
+  
   data_info <- list(ani = ani_ids, gps = gps_units)
+  
+  withProgress(message = "Processing data", detail = paste0("0/",length(data_files), " files processed"), value = 0, {
 
   for(i in 1:length(data_files)) {
-    filestr <- gsub(paste0("(temp)(\\/)", dir_name, "(\\/)"), "", data_files[i])
-    
-    site <- ifelse( grepl("\\_", filestr), tolower(sub("\\_.*","", filestr)), "Unknown")
+   
     
     df <- read.csv(data_files[i], skipNul = T)
     
@@ -67,7 +75,7 @@ clean_batch <- function(data_dir) {
     gpsid <- data_info$gps[i]
     
     if(data_files[i] == aniid) {
-      aniid <- paste0("Unknown (", filestr, ")")
+      aniid <- paste0("Unknown (", file_names[i], ")")
     }
     
     if(data_files[i] == gpsid) {
@@ -90,13 +98,14 @@ clean_batch <- function(data_dir) {
     # add elevation data
     df_out <- lookup_elevation(df_out)
     # get meta from df
-    file_meta <- get_meta(df_out, i, data_files[i], site, aniid, rds_name)
+    file_meta <- get_meta(df_out, i, data_files[i], site_names[i], aniid, rds_name)
     # save meta to the designated meta df
     meta_df <- save_meta(meta_df, file_meta)
     # add cleaned df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df_out
-    
+    incProgress(1/(length(data_files)), detail = paste0(i,"/",length(data_files), " files processed"))
   } #for loop
+  })
   #save remaining data files
   saveRDS(data_sets, rds_name)
   unlink("temp", recursive = T)
