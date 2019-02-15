@@ -19,11 +19,14 @@ app_server <- function(input, output, session) {
     if(is.null(input$zipInput)) {
       return(demo_meta)
     }
-      return(clean_batch(input$zipInput))
+    return(clean_batch(input$zipInput))
   })
   
   ######################################
   ## DYNAMIC DATA
+  
+  # last data set accessed
+  cache <- reactiveValues(prev = NULL)
   
   # main dynamic data set
   dat_main <- reactive({
@@ -40,28 +43,29 @@ app_server <- function(input, output, session) {
     # if(is.null(input$selected_ani) | is.null(input$dates) | is.null(meta)  )
     #   return()
     
+    #
     # if no user provided data, use demo data
     if(is.null(input$zipInput)) {
-      
-      current_df <- demo %>%
-        filter(Animal %in% meta$ani_id,
+      current_df <- demo %>% filter(Animal %in% meta$ani_id,
                Date <= input$dates[2],
                Date >= input$dates[1])
     }
-    
     # if user provided data, get it
     else {
       # print(paste("Animals =", input$selected_ani) )
+      # temporarily set current_df to cached df to avoid error
+      current_df <- cache$prev
       if(any(meta$ani_id  %in% input$selected_ani) ){
         current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
       }
-      
-      
     }
     
     # add LocationID column to the restricted data set
     current_df <- current_df %>% 
       mutate(LocationID = 1:n())
+    
+    # save current_df to cache
+    isolate(cache$prev <-  current_df)
     
     return(current_df)
     

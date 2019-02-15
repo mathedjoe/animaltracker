@@ -63,6 +63,8 @@ clean_batch <- function(data_dir) {
   site_names <- make.unique(site_names, sep="_")
   
   data_info <- list(ani = ani_ids, gps = gps_units)
+  
+  withProgress(message = "Processing data", detail = paste0("0/",length(data_files), " files processed"), value = 0, {
 
   for(i in 1:length(data_files)) {
    
@@ -101,8 +103,9 @@ clean_batch <- function(data_dir) {
     meta_df <- save_meta(meta_df, file_meta)
     # add cleaned df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df_out
-    
+    incProgress(1/(length(data_files)), detail = paste0(i,"/",length(data_files), " files processed"))
   } #for loop
+  })
   #save remaining data files
   saveRDS(data_sets, rds_name)
   unlink("temp", recursive = T)
