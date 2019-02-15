@@ -99,12 +99,10 @@ app_ui <- function(){
                         tabPanel("About",
                                  p("This app is part of a larger project to integrate GPS tracking data for animals (e.g., cattle) with data management and visualization tools. If you're interesting in joining our efforts, please reach out to one of the collaborators."),
                                  h2("Get the Code"),
-                                 
                                  p("The code for this Shiny App and related functions is stored on github. "),
                                  a(h4("View Code", class = "btn btn-default action-button" , 
                                              style = "fontweight:600"), target = "_blank",
-                                          href = 'https://github.com/mathedjoe/animaltracker')
-                                 )),
+                                          href = 'https://github.com/mathedjoe/animaltracker'),
                                 h2("Usage"),
                                 p("The following R code will install the package and run this app in your browser. (For more advanced usage, please consult the documentation and codebase, or reach out to the contributors.)"),
                                 code("install.packages('devtools')  # (if not already installed)", tags$br(),
@@ -122,5 +120,6 @@ app_ui <- function(){
                                   tags$li("Dylan Mikesell (researcher), Boise State University,", a("dylanmikesell@boisestate.edu", href='mailto:dylanmikesell@boisestate.edu'))
                                   
                                 )
+                        ))
   )
 }
