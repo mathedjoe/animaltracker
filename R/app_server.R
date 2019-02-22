@@ -19,6 +19,9 @@ app_server <- function(input, output, session) {
     if(is.null(input$zipInput)) {
       return(demo_meta)
     }
+    #else if(!is.null(input$selected_recent)) {
+      #return(cache()[[input$selected_recent]]$df_meta)
+    #}
     return(clean_batch(input$zipInput))
   })
   
@@ -26,7 +29,7 @@ app_server <- function(input, output, session) {
   ## DYNAMIC DATA
   
   # last data set accessed
-  cache <- reactiveValues(prev = NULL)
+  cache <- reactiveVal(list())
   
   # main dynamic data set
   dat_main <- reactive({
@@ -50,11 +53,16 @@ app_server <- function(input, output, session) {
                Date <= input$dates[2],
                Date >= input$dates[1])
     }
+    # if user chose cached data, get it
+    #else if(!is.null(input$selected_recent)){
+      #current_df <- cache()[[input$selected_recent]]$df
+      #return(current_df)
+    #}
     # if user provided data, get it
     else {
       # print(paste("Animals =", input$selected_ani) )
       # temporarily set current_df to cached df to avoid error
-      current_df <- cache$prev
+      current_df <- cache()[[1]]
       if(any(meta$ani_id  %in% input$selected_ani) ){
         current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
       }
@@ -63,9 +71,19 @@ app_server <- function(input, output, session) {
     # add LocationID column to the restricted data set
     current_df <- current_df %>% 
       mutate(LocationID = 1:n())
+  
+    ani_names <- paste(input$selected_ani, collapse = ", ")
+            
+    # enqueue to cache
+    updated_cache <- cache()
+    updated_cache[[paste0(ani_names,", ",input$dates[1],"-",input$dates[2])]] <- list(df = current_df, df_meta = meta)
     
-    # save current_df to cache
-    isolate(cache$prev <-  current_df)
+     # dequeue if there are more than 5 dfs 
+    if(length(updated_cache) > 5) {
+      updated_cache <- updated_cache[-1]
+    }
+    
+    cache(updated_cache)
     
     return(current_df)
     
@@ -170,6 +188,18 @@ app_server <- function(input, output, session) {
     )
   })
   
+  # select recent data
+  
+  output$choose_recent <- renderUI({
+
+    recent_choices <- names(cache())
+    pickerInput("selected_recent", "Select Data",
+                choices = recent_choices,
+                selected = NULL,
+                multiple = FALSE,
+                inline = FALSE
+    )
+  })
   
   # spatial points for maps
   points_main <- reactive({
@@ -240,7 +270,7 @@ app_server <- function(input, output, session) {
     req(points, input$selected_ani ) 
     if(length(input$selected_ani) ==0 ){
       return(  leaflet() %>%  # Add tiles
-               addTiles(group="street map"))
+                 addTiles(group="street map"))
     }
     
     factpal <- colorFactor(scales::hue_pal()(length(input$selected_ani)), input$selected_ani)
@@ -250,12 +280,12 @@ app_server <- function(input, output, session) {
     leafletProxy("mainmap", session) %>%
       # addProviderTiles("Thunderforest.Landscape", group = "Topographical") %>%
       # addProviderTiles("OpenStreetMap.Mapnik", group = "Road map") %>%
-    
+      
       
       addCircleMarkers(data = pts, group = "data points",
                        radius=4,  
                        # clusterOptions = markerClusterOptions(maxClusterRadius = 50, 
-                                                             # disableClusteringAtZoom = 14),
+                       # disableClusteringAtZoom = 14),
                        
                        stroke=FALSE, color = ~ factpal(Animal), weight = 3, opacity = .8,
                        fillOpacity = 1, fillColor = ~ factpal(Animal),
@@ -264,7 +294,7 @@ app_server <- function(input, output, session) {
                                        paste("Elevation:", pts$Elevation),
                                        paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep=", ")),
                                        paste("LocationID:", pts$LocationID),
-                                  
+                                       
                                        sep="<br/>")
       ) %>%
       
@@ -282,11 +312,11 @@ app_server <- function(input, output, session) {
         circleOptions = FALSE,
         circleMarkerOptions = FALSE,
         polygonOptions = drawPolygonOptions(
-            shapeOptions=drawShapeOptions(
-              fillOpacity = .2
-              ,color = 'white'
-              , fillColor = "mediumseagreen"
-              ,weight = 3)),
+          shapeOptions=drawShapeOptions(
+            fillOpacity = .2
+            ,color = 'white'
+            , fillColor = "mediumseagreen"
+            ,weight = 3)),
         rectangleOptions = drawRectangleOptions(
           shapeOptions=drawShapeOptions(
             fillOpacity = .2
