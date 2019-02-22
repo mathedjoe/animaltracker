@@ -19,9 +19,6 @@ app_server <- function(input, output, session) {
     if(is.null(input$zipInput)) {
       return(demo_meta)
     }
-    #else if(!is.null(input$selected_recent)) {
-      #return(cache()[[input$selected_recent]]$df_meta)
-    #}
     return(clean_batch(input$zipInput))
   })
   
@@ -42,7 +39,6 @@ app_server <- function(input, output, session) {
         filter(ani_id %in% input$selected_ani)
     }
     
-    
     # if(is.null(input$selected_ani) | is.null(input$dates) | is.null(meta)  )
     #   return()
     
@@ -53,11 +49,6 @@ app_server <- function(input, output, session) {
                Date <= input$dates[2],
                Date >= input$dates[1])
     }
-    # if user chose cached data, get it
-    #else if(!is.null(input$selected_recent)){
-      #current_df <- cache()[[input$selected_recent]]$df
-      #return(current_df)
-    #}
     # if user provided data, get it
     else {
       # print(paste("Animals =", input$selected_ani) )
@@ -257,15 +248,85 @@ app_server <- function(input, output, session) {
   ######################################
   ## DYNAMIC DISPLAYS
   
-  base_map <- leaflet() %>%  # Add tiles
-    addTiles(group="street map") %>%
-    setView(-71, 48, zoom = 13) %>%
-    # addProviderTiles("OpenTopoMap") %>%
-    addProviderTiles("Esri.WorldImagery", group = "satellite")
+  # base_map <- leaflet() %>%  # Add tiles
+  #   addTiles(group="street map") %>%
+  #   setView(-71, 48, zoom = 13) %>%
+  #   # addProviderTiles("OpenTopoMap") %>%
+  #   addProviderTiles("Esri.WorldImagery", group = "satellite")
+  # 
+  # output$mainmap <- renderLeaflet(base_map)
+  # 
+  # reactive({
+  #   
+  #   req(points, input$selected_ani ) 
+  #   if(length(input$selected_ani) ==0 ){
+  #     return(  leaflet() %>%  # Add tiles
+  #                addTiles(group="street map"))
+  #   }
+  #   
+  #   factpal <- colorFactor(scales::hue_pal()(length(input$selected_ani)), input$selected_ani)
+  #   
+  #   pts <- points()
+  #   
+  #   leafletProxy("mainmap", session) %>%
+  #     # addProviderTiles("Thunderforest.Landscape", group = "Topographical") %>%
+  #     # addProviderTiles("OpenStreetMap.Mapnik", group = "Road map") %>%
+  #     
+  #     
+  #     addCircleMarkers(data = pts, group = "data points",
+  #                      radius=4,  
+  #                      # clusterOptions = markerClusterOptions(maxClusterRadius = 50, 
+  #                      # disableClusteringAtZoom = 14),
+  #                      
+  #                      stroke=FALSE, color = ~ factpal(Animal), weight = 3, opacity = .8,
+  #                      fillOpacity = 1, fillColor = ~ factpal(Animal),
+  #                      popup = ~ paste(paste("<h4>",paste("Animal ID:", pts$Animal), "</h4>"),
+  #                                      paste("Date/Time:", pts$DateTime),
+  #                                      paste("Elevation:", pts$Elevation),
+  #                                      paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep=", ")),
+  #                                      paste("LocationID:", pts$LocationID),
+  #                                      
+  #                                      sep="<br/>")
+  #     ) %>%
+  #     
+  #     addHeatmap(
+  #       data = pts,
+  #       group = "heat map",
+  #       # intensity = pts$Elevation,
+  #       blur = 20, max = 0.05, radius = 15
+  #     ) %>% 
+  #     hideGroup("heat map") %>% # turn off heatmap by default
+  #     
+  #     addDrawToolbar(
+  #       polylineOptions=FALSE,
+  #       markerOptions = FALSE,
+  #       circleOptions = FALSE,
+  #       circleMarkerOptions = FALSE,
+  #       polygonOptions = drawPolygonOptions(
+  #         shapeOptions=drawShapeOptions(
+  #           fillOpacity = .2
+  #           ,color = 'white'
+  #           , fillColor = "mediumseagreen"
+  #           ,weight = 3)),
+  #       rectangleOptions = drawRectangleOptions(
+  #         shapeOptions=drawShapeOptions(
+  #           fillOpacity = .2
+  #           ,color = 'white'
+  #           , fillColor = "mediumseagreen"
+  #           ,weight = 3)),
+  #       editOptions = editToolbarOptions(edit = FALSE, selectedPathOptions = selectedPathOptions())) %>%
+  #     
+  #     addLayersControl(
+  #       baseGroups = c("satellite", "street map"),
+  #       overlayGroups = c("data points", "heat map"),
+  #       options = layersControlOptions(collapsed = FALSE)
+  #     )
+  #   
+  #   # leaflet() %>%
+  #   #   addMarkers(data = points(),popup=as.character(points()$a))
+  #})
   
-  output$mainmap <- renderLeaflet(base_map)
-  
-  reactive({
+  output$mainmap <- renderLeaflet({
     
     req(points, input$selected_ani ) 
     if(length(input$selected_ani) ==0 ){
@@ -277,7 +338,10 @@ app_server <- function(input, output, session) {
     
     pts <- points()
     
-    leafletProxy("mainmap", session) %>%
+    leaflet() %>%  # Add tiles
+      addTiles(group="street map") %>%
+      # addProviderTiles("OpenTopoMap") %>%
+      addProviderTiles("Esri.WorldImagery", group = "satellite") %>%
       # addProviderTiles("Thunderforest.Landscape", group = "Topographical") %>%
       # addProviderTiles("OpenStreetMap.Mapnik", group = "Road map") %>%
       
