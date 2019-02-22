@@ -39,6 +39,8 @@ app_server <- function(input, output, session) {
         filter(ani_id %in% input$selected_ani)
     }
     
+    ani_names <- paste(input$selected_ani, collapse = ", ")
+    
     # if(is.null(input$selected_ani) | is.null(input$dates) | is.null(meta)  )
     #   return()
     
@@ -62,12 +64,10 @@ app_server <- function(input, output, session) {
     # add LocationID column to the restricted data set
     current_df <- current_df %>% 
       mutate(LocationID = 1:n())
-  
-    ani_names <- paste(input$selected_ani, collapse = ", ")
             
     # enqueue to cache
     updated_cache <- cache()
-    updated_cache[[paste0(ani_names,", ",input$dates[1],"-",input$dates[2])]] <- list(df = current_df, df_meta = meta)
+    updated_cache[[paste0(ani_names,", ",input$dates[1],"-",input$dates[2])]] <- current_df
     
      # dequeue if there are more than 5 dfs 
     if(length(updated_cache) > 5) {
@@ -76,8 +76,7 @@ app_server <- function(input, output, session) {
     
     cache(updated_cache)
     
-    return(current_df)
-    
+    return(cache()[[input$selected_recent]])
   })
   
   
@@ -182,11 +181,11 @@ app_server <- function(input, output, session) {
   # select recent data
   
   output$choose_recent <- renderUI({
-
+    req(dat_main)
     recent_choices <- names(cache())
     pickerInput("selected_recent", "Select Data",
                 choices = recent_choices,
-                selected = NULL,
+                selected = recent_choices[length(recent_choices)],
                 multiple = FALSE,
                 inline = FALSE
     )
