@@ -97,7 +97,14 @@ clean_export_files <- function(data_dir, cleaned_filename = "data/animal_data.rd
   
   for (i in 1:length(data_files) ){
     
-    df <- read.csv(data_files[i], skipNul = T)
+    df <- read.csv(data_files[i], skipNul = T, as.is=T)
+    
+    ## remove any extra copies of the header row
+  
+    df$Latitude <- as.numeric(df$Latitude)
+    df<- df[!is.na(df$Latitude),]
+    
+    df<-as.data.frame(df)
     
     aniid <- data_info$ani[i]
     gpsid <- data_info$gps[i]

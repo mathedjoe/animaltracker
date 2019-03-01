@@ -12,3 +12,13 @@ x<- rep(0,6322)
 
 # replace every nth 0 with a 1, where n = .12*length(x)
 x [ seq(1, length(x), round(.12*length(x)))] <- 1
+
+xx <- read.csv("data/dirty_sample_data.csv", skipNul = T, as.is=T)
+nrow(xx)
+View(xx)
+xx$Latitude <- as.numeric(xx$Latitude)
+xx<- xx[!is.na(xx$Latitude),]
+nrow(xx)
+xx<- xx[xx$Latitude!="Latitude",]
+nrow(xx)
+df[df$Latitude == ""]
