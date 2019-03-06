@@ -285,133 +285,123 @@ app_server <- function(input, output, session) {
   last_drawn <- reactiveVal(NULL)
   
   observe({
-
     req(points, input$selected_ani)
     
     pts <- points()
     
-    if(is.null(input$selected_recent)){
-      return(  leaflet() %>%  # Add tiles
-                 addTiles(group="street map"))
+    if (is.null(input$selected_recent)) {
+      return(leaflet() %>%  # Add tiles
+               addTiles(group = "street map"))
     }
     
-      
-      if(is.null(last_drawn()) || (last_drawn() != input$selected_recent)) {
-        factpal <- colorFactor(scales::hue_pal()(length(cache()[[input$selected_recent]]$ani)), cache()[[input$selected_recent]]$ani)
-        
-        leafletProxy("mainmap", session) %>%
-          # addProviderTiles("Thunderforest.Landscape", group = "Topographical") %>%
-          # addProviderTiles("OpenStreetMap.Mapnik", group = "Road map") %>%
-          clearGroup("data points") %>%
-          clearGroup("heat map") %>%
-          addCircleMarkers(data = pts, group = "data points",
-                           radius=4,
-                           # clusterOptions = markerClusterOptions(maxClusterRadius = 50,
-                           # disableClusteringAtZoom = 14),
+    # if first time drawing map or if selected data is completely different from prev data,
+    # draw all points
     
-                           stroke=FALSE, color = ~ factpal(Animal), weight = 3, opacity = .8,
-                           fillOpacity = 1, fillColor = ~ factpal(Animal),
-                           popup = ~ paste(paste("<h4>",paste("Animal ID:", pts$Animal), "</h4>"),
-                                           paste("Date/Time:", pts$DateTime),
-                                           paste("Elevation:", pts$Elevation),
-                                           paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep=", ")),
-                                           paste("LocationID:", pts$LocationID),
+    current_anilist <- cache()[[input$selected_recent]]$ani
     
-                                           sep="<br/>")
-          ) %>%
-          addHeatmap(
-            data = pts,
-            group = "heat map",
-            # intensity = pts$Elevation,
-            blur = 20, max = 0.05, radius = 15
-          ) %>%
-          hideGroup("heat map") %>% # turn off heatmap by default 
-          addLayersControl(
-            baseGroups = c("satellite", "street map"),
-            overlayGroups = c("data points", "heat map"),
-            options = layersControlOptions(collapsed = FALSE)
+    factpal <-
+      colorFactor(scales::hue_pal()(length(current_anilist)), current_anilist)
+    
+    proxy <- leafletProxy("mainmap", session)
+    
+    if (is.null(last_drawn()) || (!any(current_anilist %in% last_drawn()))) {
+      print("drawing initial map")
+      print(last_drawn())
+      print(current_anilist)
+      print(str(pts))
+      proxy %>%
+        addCircleMarkers(
+          data = pts,
+          radius = 4,
+          # clusterOptions = markerClusterOptions(maxClusterRadius = 50,
+          # disableClusteringAtZoom = 14),
+          group = pts$Animal,
+          stroke = FALSE,
+          color = ~ factpal(Animal),
+          weight = 3,
+          opacity = .8,
+          fillOpacity = 1,
+          fillColor = ~ factpal(Animal),
+          popup = ~ paste(
+            paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
+            paste("Date/Time:", pts$DateTime),
+            paste("Elevation:", pts$Elevation),
+            paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
+                                      ", ")),
+            paste("LocationID:", pts$LocationID),
+            
+            sep = "<br/>"
           )
-        
-        last_drawn(input$selected_recent)
+        ) %>%
+        addHeatmap(
+          data = pts,
+          group = "heat map",
+          # intensity = pts$Elevation,
+          blur = 20,
+          max = 0.05,
+          radius = 15
+        ) %>%
+        hideGroup("heat map") %>% # turn off heatmap by default
+        addLayersControl(
+          baseGroups = c("satellite", "street map"),
+          overlayGroups = c("data points", "heat map"),
+          options = layersControlOptions(collapsed = FALSE)
+        )
+    }
+    else if(!identical(last_drawn(), current_anilist)){
+      print("updating points")
+      print(last_drawn())
+      print(current_anilist)
+      # remove old points
+      for(ani in setdiff(last_drawn(), current_anilist)) {
+        proxy %>% clearGroup(ani)
       }
-
-
-     # leaflet() %>%
-     #   addMarkers(data = points(),popup=as.character(points()$a))
+      # add new points
+      # if(length(setdiff(current_anilist, last_drawn())) != 0) {
+      #   # new_pts <- dplyr::filter(pts, Animal %in% setdiff(current_anilist, last_drawn()))
+      #   proxy %>% addCircleMarkers(
+      #     data = pts,
+      #     layerId = pts$Animal,
+      #     radius = 4,
+      #     # clusterOptions = markerClusterOptions(maxClusterRadius = 50,
+      #     # disableClusteringAtZoom = 14),
+      # 
+      #     stroke = FALSE,
+      #     color = ~ factpal(Animal),
+      #     weight = 3,
+      #     opacity = .8,
+      #     fillOpacity = 1,
+      #     fillColor = ~ factpal(Animal),
+      #     popup = ~ paste(
+      #       paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
+      #       paste("Date/Time:", pts$DateTime),
+      #       paste("Elevation:", pts$Elevation),
+      #       paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
+      #                                 ", ")),
+      #       paste("LocationID:", pts$LocationID),
+      # 
+      #       sep = "<br/>"
+      #   )
+      # ) %>%
+      #     addHeatmap(
+      #       data = pts,
+      #       group = "heat map",
+      #       # intensity = pts$Elevation,
+      #       blur = 20,
+      #       max = 0.05,
+      #       radius = 15
+      #     ) %>%
+      #     hideGroup("heat map") %>% # turn off heatmap by default
+      #     addLayersControl(
+      #       baseGroups = c("satellite", "street map"),
+      #       overlayGroups = c("data points", "heat map"),
+      #       options = layersControlOptions(collapsed = FALSE)
+      #     )
+      # }
+     }
+    last_drawn(current_anilist)
   })
   
-  # output$mainmap <- renderLeaflet({
-  #   
-  #   req(points, input$selected_ani ) 
-  #   if(length(input$selected_ani) ==0 ){
-  #     return(  leaflet() %>%  # Add tiles
-  #                addTiles(group="street map"))
-  #   }
-  #   
-  #   factpal <- colorFactor(scales::hue_pal()(length(input$selected_ani)), input$selected_ani)
-  #   
-  #   pts <- points()
-  #   
-  #   leaflet() %>%  # Add tiles
-  #     addTiles(group="street map") %>%
-  #     # addProviderTiles("OpenTopoMap") %>%
-  #     addProviderTiles("Esri.WorldImagery", group = "satellite") %>%
-  #     # addProviderTiles("Thunderforest.Landscape", group = "Topographical") %>%
-  #     # addProviderTiles("OpenStreetMap.Mapnik", group = "Road map") %>%
-  #     
-  #     
-  #     addCircleMarkers(data = pts, group = "data points",
-  #                      radius=4,  
-  #                      # clusterOptions = markerClusterOptions(maxClusterRadius = 50, 
-  #                      # disableClusteringAtZoom = 14),
-  #                      
-  #                      stroke=FALSE, color = ~ factpal(Animal), weight = 3, opacity = .8,
-  #                      fillOpacity = 1, fillColor = ~ factpal(Animal),
-  #                      popup = ~ paste(paste("<h4>",paste("Animal ID:", pts$Animal), "</h4>"),
-  #                                      paste("Date/Time:", pts$DateTime),
-  #                                      paste("Elevation:", pts$Elevation),
-  #                                      paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep=", ")),
-  #                                      paste("LocationID:", pts$LocationID),
-  #                                      
-  #                                      sep="<br/>")
-  #     ) %>%
-  #     
-  #     addHeatmap(
-  #       data = pts,
-  #       group = "heat map",
-  #       # intensity = pts$Elevation,
-  #       blur = 20, max = 0.05, radius = 15
-  #     ) %>% 
-  #     hideGroup("heat map") %>% # turn off heatmap by default
-  #     
-  #     addDrawToolbar(
-  #       polylineOptions=FALSE,
-  #       markerOptions = FALSE,
-  #       circleOptions = FALSE,
-  #       circleMarkerOptions = FALSE,
-  #       polygonOptions = drawPolygonOptions(
-  #         shapeOptions=drawShapeOptions(
-  #           fillOpacity = .2
-  #           ,color = 'white'
-  #           , fillColor = "mediumseagreen"
-  #           ,weight = 3)),
-  #       rectangleOptions = drawRectangleOptions(
-  #         shapeOptions=drawShapeOptions(
-  #           fillOpacity = .2
-  #           ,color = 'white'
-  #           , fillColor = "mediumseagreen"
-  #           ,weight = 3)),
-  #       editOptions = editToolbarOptions(edit = FALSE, selectedPathOptions = selectedPathOptions())) %>%
-  #     
-  #     addLayersControl(
-  #       baseGroups = c("satellite", "street map"),
-  #       overlayGroups = c("data points", "heat map"),
-  #       options = layersControlOptions(collapsed = FALSE)
-  #     )
-  #   
-  #   # leaflet() %>%
-  #   #   addMarkers(data = points(),popup=as.character(points()$a))
-  # })
   
   ######################################
   # DYNAMIC PLOTS PANEL
