@@ -69,9 +69,9 @@ app_server <- function(input, output, session) {
               
       # enqueue to cache
       updated_cache <- cache()
-      updated_cache[[cache_name]] <- list(df = current_df, ani = input$selected_ani)
+      updated_cache[[cache_name]] <- list(df = current_df, ani = input$selected_ani, date1 = input$dates[1], date2 = input$dates[2])
       
-       # dequeue if there are more than 5 dfs 
+      # dequeue if there are more than 5 dfs 
       if(length(updated_cache) > 5) {
         updated_cache <- updated_cache[-1]
       }
@@ -116,7 +116,7 @@ app_server <- function(input, output, session) {
       filter(site %in% input$selected_site) 
     
     ani_choices <- as.list(as.character(unique(meta$ani_id)))
-    
+   
     pickerInput("selected_ani", "Select Animal(s)",
                 choices = ani_choices,
                 selected = ani_choices[1:4],
@@ -188,10 +188,12 @@ app_server <- function(input, output, session) {
   
   output$choose_recent <- renderUI({
     req(dat_main)
+    ani_names <- paste(input$selected_ani, collapse = ", ")
+    cache_name <- paste0(ani_names,", ",input$dates[1],"-",input$dates[2])
     recent_choices <- names(cache())
     pickerInput("selected_recent", "Select Data",
                 choices = recent_choices,
-                selected = recent_choices[length(recent_choices)],
+                selected = cache_name,
                 multiple = FALSE,
                 inline = FALSE
     )
@@ -294,27 +296,22 @@ app_server <- function(input, output, session) {
                addTiles(group = "street map"))
     }
     
-    # if first time drawing map or if selected data is completely different from prev data,
-    # draw all points
-    
-    current_anilist <- cache()[[input$selected_recent]]$ani
+    current_anilist <- cache()[[input$selected_recent]]
     
     factpal <-
-      colorFactor(scales::hue_pal()(length(current_anilist)), current_anilist)
+      colorFactor(scales::hue_pal()(length(current_anilist$ani)), current_anilist$ani)
     
     proxy <- leafletProxy("mainmap", session)
     
-    if (is.null(last_drawn()) || (!any(current_anilist %in% last_drawn()))) {
-      print("drawing initial map")
-      print(last_drawn())
-      print(current_anilist)
-      print(str(pts))
+    if (is.null(last_drawn()) || (!any(current_anilist$ani %in% last_drawn()$ani)) 
+        || (identical(last_drawn()$ani, current_anilist$ani) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2))) {
+      for(ani in last_drawn()$ani) {
+        proxy %>% clearGroup(ani)
+      }
       proxy %>%
         addCircleMarkers(
           data = pts,
           radius = 4,
-          # clusterOptions = markerClusterOptions(maxClusterRadius = 50,
-          # disableClusteringAtZoom = 14),
           group = pts$Animal,
           stroke = FALSE,
           color = ~ factpal(Animal),
@@ -332,73 +329,56 @@ app_server <- function(input, output, session) {
             
             sep = "<br/>"
           )
-        ) %>%
-        addHeatmap(
-          data = pts,
-          group = "heat map",
-          # intensity = pts$Elevation,
-          blur = 20,
-          max = 0.05,
-          radius = 15
-        ) %>%
-        hideGroup("heat map") %>% # turn off heatmap by default
-        addLayersControl(
-          baseGroups = c("satellite", "street map"),
-          overlayGroups = c("data points", "heat map"),
-          options = layersControlOptions(collapsed = FALSE)
-        )
+        ) 
     }
-    else if(!identical(last_drawn(), current_anilist)){
-      print("updating points")
-      print(last_drawn())
-      print(current_anilist)
+    else if(!identical(last_drawn()$ani, current_anilist$ani)){
       # remove old points
-      for(ani in setdiff(last_drawn(), current_anilist)) {
+      for(ani in setdiff(last_drawn()$ani, current_anilist$ani)) {
         proxy %>% clearGroup(ani)
       }
       # add new points
-      # if(length(setdiff(current_anilist, last_drawn())) != 0) {
-      #   # new_pts <- dplyr::filter(pts, Animal %in% setdiff(current_anilist, last_drawn()))
-      #   proxy %>% addCircleMarkers(
-      #     data = pts,
-      #     layerId = pts$Animal,
-      #     radius = 4,
-      #     # clusterOptions = markerClusterOptions(maxClusterRadius = 50,
-      #     # disableClusteringAtZoom = 14),
-      # 
-      #     stroke = FALSE,
-      #     color = ~ factpal(Animal),
-      #     weight = 3,
-      #     opacity = .8,
-      #     fillOpacity = 1,
-      #     fillColor = ~ factpal(Animal),
-      #     popup = ~ paste(
-      #       paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
-      #       paste("Date/Time:", pts$DateTime),
-      #       paste("Elevation:", pts$Elevation),
-      #       paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
-      #                                 ", ")),
-      #       paste("LocationID:", pts$LocationID),
-      # 
-      #       sep = "<br/>"
-      #   )
-      # ) %>%
-      #     addHeatmap(
-      #       data = pts,
-      #       group = "heat map",
-      #       # intensity = pts$Elevation,
-      #       blur = 20,
-      #       max = 0.05,
-      #       radius = 15
-      #     ) %>%
-      #     hideGroup("heat map") %>% # turn off heatmap by default
-      #     addLayersControl(
-      #       baseGroups = c("satellite", "street map"),
-      #       overlayGroups = c("data points", "heat map"),
-      #       options = layersControlOptions(collapsed = FALSE)
-      #     )
-      # }
-     }
+      if(length(setdiff(current_anilist$ani, last_drawn()$ani)) != 0) {
+          pts <- subset(pts, Animal %in% setdiff(current_anilist$ani, last_drawn()$ani))
+          proxy %>%
+            addCircleMarkers(
+              data = pts,
+              radius = 4,
+              group = pts$Animal,
+              stroke = FALSE,
+              color = ~ factpal(Animal),
+              weight = 3,
+              opacity = .8,
+              fillOpacity = 1,
+              fillColor = ~ factpal(Animal),
+              popup = ~ paste(
+                paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
+                paste("Date/Time:", pts$DateTime),
+                paste("Elevation:", pts$Elevation),
+                paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
+                                          ", ")),
+                paste("LocationID:", pts$LocationID),
+                
+                sep = "<br/>"
+              )
+            ) 
+      }
+    }
+    # add heatmap and layer control 
+    proxy %>% 
+      addHeatmap(
+        data = pts,
+        group = "heat map",
+        # intensity = pts$Elevation,
+        blur = 20,
+        max = 0.05,
+        radius = 15
+      ) %>%
+      hideGroup("heat map") %>% # turn off heatmap by default
+      addLayersControl(
+        baseGroups = c("satellite", "street map"),
+        overlayGroups = c("data points", "heat map"),
+        options = layersControlOptions(collapsed = FALSE)
+      )
     last_drawn(current_anilist)
   })
   
