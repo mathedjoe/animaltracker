@@ -26,7 +26,7 @@ app_server <- function(input, output, session) {
   ## DYNAMIC DATA
   
   # last data set accessed
-  cache <- reactiveValues(prev = NULL)
+  cache <- reactiveVal(list())
   
   # main dynamic data set
   dat_main <- reactive({
@@ -39,36 +39,50 @@ app_server <- function(input, output, session) {
         filter(ani_id %in% input$selected_ani)
     }
     
+    ani_names <- paste(input$selected_ani, collapse = ", ")
+    cache_name <- paste0(ani_names,", ",input$dates[1],"-",input$dates[2])
     
     # if(is.null(input$selected_ani) | is.null(input$dates) | is.null(meta)  )
     #   return()
     
-    #
-    # if no user provided data, use demo data
-    if(is.null(input$zipInput)) {
-      current_df <- demo %>% filter(Animal %in% meta$ani_id,
-               Date <= input$dates[2],
-               Date >= input$dates[1])
-    }
-    # if user provided data, get it
-    else {
-      # print(paste("Animals =", input$selected_ani) )
-      # temporarily set current_df to cached df to avoid error
-      current_df <- cache$prev
-      if(any(meta$ani_id  %in% input$selected_ani) ){
-        current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
+    
+    if(!(cache_name %in% names(cache()))) {
+      # if no user provided data, use demo data
+      if(is.null(input$zipInput)) {
+        current_df <- demo %>% filter(Animal %in% meta$ani_id,
+                 Date <= input$dates[2],
+                 Date >= input$dates[1])
       }
+      # if user provided data, get it
+      else {
+        # print(paste("Animals =", input$selected_ani) )
+        # temporarily set current_df to cached df to avoid error
+        current_df <- cache()[[1]]
+        if(any(meta$ani_id  %in% input$selected_ani) ){
+          current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
+        }
+      }
+      
+      # add LocationID column to the restricted data set
+      current_df <- current_df %>% 
+        mutate(LocationID = 1:n())
+              
+      # enqueue to cache
+      updated_cache <- cache()
+      updated_cache[[cache_name]] <- list(df = current_df, ani = input$selected_ani, date1 = input$dates[1], date2 = input$dates[2])
+      
+      # dequeue if there are more than 5 dfs 
+      if(length(updated_cache) > 5) {
+        updated_cache <- updated_cache[-1]
+      }
+      cache(updated_cache)
     }
-    
-    # add LocationID column to the restricted data set
-    current_df <- current_df %>% 
-      mutate(LocationID = 1:n())
-    
-    # save current_df to cache
-    isolate(cache$prev <-  current_df)
-    
-    return(current_df)
-    
+    if(is.null(input$selected_recent)) {
+      return(cache()[[1]]$df)
+    }
+    else {
+      return(cache()[[input$selected_recent]]$df)
+    }
   })
   
   
@@ -102,7 +116,7 @@ app_server <- function(input, output, session) {
       filter(site %in% input$selected_site) 
     
     ani_choices <- as.list(as.character(unique(meta$ani_id)))
-    
+   
     pickerInput("selected_ani", "Select Animal(s)",
                 choices = ani_choices,
                 selected = ani_choices[1:4],
@@ -170,6 +184,20 @@ app_server <- function(input, output, session) {
     )
   })
   
+  # select recent data
+  
+  output$choose_recent <- renderUI({
+    req(dat_main)
+    ani_names <- paste(input$selected_ani, collapse = ", ")
+    cache_name <- paste0(ani_names,", ",input$dates[1],"-",input$dates[2])
+    recent_choices <- names(cache())
+    pickerInput("selected_recent", "Select Data",
+                choices = recent_choices,
+                selected = cache_name,
+                multiple = FALSE,
+                inline = FALSE
+    )
+  })
   
   # spatial points for maps
   points_main <- reactive({
@@ -227,83 +255,133 @@ app_server <- function(input, output, session) {
   ######################################
   ## DYNAMIC DISPLAYS
   
-  base_map <- leaflet() %>%  # Add tiles
+  base_map <- reactive({
+    req(meta)
+    leaflet() %>%  # Add tiles
     addTiles(group="street map") %>%
-    setView(-71, 48, zoom = 13) %>%
+    fitBounds(median(meta()$min_long), median(meta()$min_lat), median(meta()$max_long), median(meta()$max_lat)) %>%
+    #setView(mean(min(meta()$min_long), max(meta()$max_long)), mean(min(meta()$min_lat), max(meta()$max_lat)), zoom = 12) %>%
     # addProviderTiles("OpenTopoMap") %>%
-    addProviderTiles("Esri.WorldImagery", group = "satellite")
+    addProviderTiles("Esri.WorldImagery", group = "satellite") %>%
+    addDrawToolbar(
+      polylineOptions=FALSE,
+      markerOptions = FALSE,
+      circleOptions = FALSE,
+      circleMarkerOptions = FALSE,
+      polygonOptions = drawPolygonOptions(
+        shapeOptions=drawShapeOptions(
+          fillOpacity = .2
+          ,color = 'white'
+          , fillColor = "mediumseagreen"
+          ,weight = 3)),
+      rectangleOptions = drawRectangleOptions(
+        shapeOptions=drawShapeOptions(
+          fillOpacity = .2
+          ,color = 'white'
+          , fillColor = "mediumseagreen"
+          ,weight = 3)),
+      editOptions = editToolbarOptions(edit = FALSE, selectedPathOptions = selectedPathOptions())) 
+  })
+
+  output$mainmap <- renderLeaflet(base_map())
+  last_drawn <- reactiveVal(NULL)
   
-  output$mainmap <- renderLeaflet(base_map)
-  
-  reactive({
-    
-    req(points, input$selected_ani ) 
-    if(length(input$selected_ani) ==0 ){
-      return(  leaflet() %>%  # Add tiles
-               addTiles(group="street map"))
-    }
-    
-    factpal <- colorFactor(scales::hue_pal()(length(input$selected_ani)), input$selected_ani)
+  observe({
+    req(points, input$selected_ani)
     
     pts <- points()
     
-    leafletProxy("mainmap", session) %>%
-      # addProviderTiles("Thunderforest.Landscape", group = "Topographical") %>%
-      # addProviderTiles("OpenStreetMap.Mapnik", group = "Road map") %>%
+    if (is.null(input$selected_recent)) {
+      return(leaflet() %>%  # Add tiles
+               addTiles(group = "street map"))
+    }
     
-      
-      addCircleMarkers(data = pts, group = "data points",
-                       radius=4,  
-                       # clusterOptions = markerClusterOptions(maxClusterRadius = 50, 
-                                                             # disableClusteringAtZoom = 14),
-                       
-                       stroke=FALSE, color = ~ factpal(Animal), weight = 3, opacity = .8,
-                       fillOpacity = 1, fillColor = ~ factpal(Animal),
-                       popup = ~ paste(paste("<h4>",paste("Animal ID:", pts$Animal), "</h4>"),
-                                       paste("Date/Time:", pts$DateTime),
-                                       paste("Elevation:", pts$Elevation),
-                                       paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep=", ")),
-                                       paste("LocationID:", pts$LocationID),
-                                  
-                                       sep="<br/>")
-      ) %>%
-      
+    current_anilist <- cache()[[input$selected_recent]]
+    
+    factpal <-
+      colorFactor(scales::hue_pal()(length(current_anilist$ani)), current_anilist$ani)
+    
+    proxy <- leafletProxy("mainmap", session)
+    
+    if (is.null(last_drawn()) || (!any(current_anilist$ani %in% last_drawn()$ani)) 
+        || (identical(last_drawn()$ani, current_anilist$ani) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2))) {
+      for(ani in last_drawn()$ani) {
+        proxy %>% clearGroup(ani)
+      }
+      proxy %>%
+        addCircleMarkers(
+          data = pts,
+          radius = 4,
+          group = pts$Animal,
+          stroke = FALSE,
+          color = ~ factpal(Animal),
+          weight = 3,
+          opacity = .8,
+          fillOpacity = 1,
+          fillColor = ~ factpal(Animal),
+          popup = ~ paste(
+            paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
+            paste("Date/Time:", pts$DateTime),
+            paste("Elevation:", pts$Elevation),
+            paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
+                                      ", ")),
+            paste("LocationID:", pts$LocationID),
+            
+            sep = "<br/>"
+          )
+        ) 
+    }
+    else if(!identical(last_drawn()$ani, current_anilist$ani)){
+      # remove old points
+      for(ani in setdiff(last_drawn()$ani, current_anilist$ani)) {
+        proxy %>% clearGroup(ani)
+      }
+      # add new points
+      if(length(setdiff(current_anilist$ani, last_drawn()$ani)) != 0) {
+          pts <- subset(pts, Animal %in% setdiff(current_anilist$ani, last_drawn()$ani))
+          proxy %>%
+            addCircleMarkers(
+              data = pts,
+              radius = 4,
+              group = pts$Animal,
+              stroke = FALSE,
+              color = ~ factpal(Animal),
+              weight = 3,
+              opacity = .8,
+              fillOpacity = 1,
+              fillColor = ~ factpal(Animal),
+              popup = ~ paste(
+                paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
+                paste("Date/Time:", pts$DateTime),
+                paste("Elevation:", pts$Elevation),
+                paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
+                                          ", ")),
+                paste("LocationID:", pts$LocationID),
+                
+                sep = "<br/>"
+              )
+            ) 
+      }
+    }
+    # add heatmap and layer control 
+    proxy %>% 
       addHeatmap(
         data = pts,
         group = "heat map",
         # intensity = pts$Elevation,
-        blur = 20, max = 0.05, radius = 15
-      ) %>% 
+        blur = 20,
+        max = 0.05,
+        radius = 15
+      ) %>%
       hideGroup("heat map") %>% # turn off heatmap by default
-      
-      addDrawToolbar(
-        polylineOptions=FALSE,
-        markerOptions = FALSE,
-        circleOptions = FALSE,
-        circleMarkerOptions = FALSE,
-        polygonOptions = drawPolygonOptions(
-            shapeOptions=drawShapeOptions(
-              fillOpacity = .2
-              ,color = 'white'
-              , fillColor = "mediumseagreen"
-              ,weight = 3)),
-        rectangleOptions = drawRectangleOptions(
-          shapeOptions=drawShapeOptions(
-            fillOpacity = .2
-            ,color = 'white'
-            , fillColor = "mediumseagreen"
-            ,weight = 3)),
-        editOptions = editToolbarOptions(edit = FALSE, selectedPathOptions = selectedPathOptions())) %>%
-      
       addLayersControl(
         baseGroups = c("satellite", "street map"),
         overlayGroups = c("data points", "heat map"),
         options = layersControlOptions(collapsed = FALSE)
       )
-    
-    # leaflet() %>%
-    #   addMarkers(data = points(),popup=as.character(points()$a))
+    last_drawn(current_anilist)
   })
+  
   
   ######################################
   # DYNAMIC PLOTS PANEL

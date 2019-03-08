@@ -27,6 +27,11 @@ app_ui <- function(){
                           
                           hr(),
                           
+                          h4("Recent Data"),
+                          uiOutput("choose_recent"),
+                          
+                          hr(),
+                          
                           h4("Upload Data"),
                           helpText("Select a zip folder on your computer containing .csv files."),
                           fileInput("zipInput", "Upload zip file", accept=c(".zip")),
