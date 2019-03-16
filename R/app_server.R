@@ -305,6 +305,7 @@ app_server <- function(input, output, session) {
     
     if (is.null(last_drawn()) || (!any(current_anilist$ani %in% last_drawn()$ani)) 
         || (identical(last_drawn()$ani, current_anilist$ani) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2))) {
+      print("drawing initial map")
       for(ani in last_drawn()$ani) {
         proxy %>% clearGroup(ani)
       }
@@ -332,6 +333,7 @@ app_server <- function(input, output, session) {
         ) 
     }
     else if(!identical(last_drawn()$ani, current_anilist$ani)){
+      print("updating points")
       # remove old points
       for(ani in setdiff(last_drawn()$ani, current_anilist$ani)) {
         proxy %>% clearGroup(ani)
@@ -379,6 +381,11 @@ app_server <- function(input, output, session) {
         overlayGroups = c("data points", "heat map"),
         options = layersControlOptions(collapsed = FALSE)
       )
+    
+    if(!is.null(selected_locations())) {
+      proxy %>% fitBounds(min(dat()$Longitude), min(dat()$Latitude), max(dat()$Longitude), max(dat()$Latitude)) %>%
+        removeShape("polygon")
+    }
     last_drawn(current_anilist)
   })
   
@@ -603,7 +610,7 @@ app_server <- function(input, output, session) {
       return()
     }
     #Only add new layers for bounded locations
-    
+    print("subsetting points")
     # transform into a spatial polygon
     drawn_polygon <- sp::Polygon(
                         do.call(rbind,
