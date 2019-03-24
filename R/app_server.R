@@ -260,7 +260,6 @@ app_server <- function(input, output, session) {
     leaflet() %>%  # Add tiles
     addTiles(group="street map") %>%
     fitBounds(median(meta()$min_long), median(meta()$min_lat), median(meta()$max_long), median(meta()$max_lat)) %>%
-    #setView(mean(min(meta()$min_long), max(meta()$max_long)), mean(min(meta()$min_lat), max(meta()$max_lat)), zoom = 12) %>%
     # addProviderTiles("OpenTopoMap") %>%
     addProviderTiles("Esri.WorldImagery", group = "satellite") %>%
     addDrawToolbar(
@@ -303,37 +302,39 @@ app_server <- function(input, output, session) {
     
     proxy <- leafletProxy("mainmap", session)
     
-    if (is.null(last_drawn()) || (!any(current_anilist$ani %in% last_drawn()$ani)) 
+    if (!is.null(selected_locations()) || is.null(last_drawn()) || (!any(current_anilist$ani %in% last_drawn()$ani)) 
         || (identical(last_drawn()$ani, current_anilist$ani) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2))) {
-      print("drawing initial map")
-      for(ani in last_drawn()$ani) {
-        proxy %>% clearGroup(ani)
-      }
-      proxy %>%
-        addCircleMarkers(
-          data = pts,
-          radius = 4,
-          group = pts$Animal,
-          stroke = FALSE,
-          color = ~ factpal(Animal),
-          weight = 3,
-          opacity = .8,
-          fillOpacity = 1,
-          fillColor = ~ factpal(Animal),
-          popup = ~ paste(
-            paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
-            paste("Date/Time:", pts$DateTime),
-            paste("Elevation:", pts$Elevation),
-            paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
-                                      ", ")),
-            paste("LocationID:", pts$LocationID),
-            
-            sep = "<br/>"
+        for(ani in last_drawn()$ani) {
+          proxy %>% clearGroup(ani)
+        }
+        proxy %>%
+          addCircleMarkers(
+            data = pts,
+            radius = 4,
+            group = pts$Animal,
+            stroke = FALSE,
+            color = ~ factpal(Animal),
+            weight = 3,
+            opacity = .8,
+            fillOpacity = 1,
+            fillColor = ~ factpal(Animal),
+            popup = ~ paste(
+              paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
+              paste("Date/Time:", pts$DateTime),
+              paste("Elevation:", pts$Elevation),
+              paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
+                                        ", ")),
+              paste("LocationID:", pts$LocationID),
+              
+              sep = "<br/>"
+            )
           )
-        ) 
-    }
+      # is a subset selected?
+      if(!is.null(selected_locations())) {
+        proxy %>% fitBounds(min(dat()$Longitude), min(dat()$Latitude), max(dat()$Longitude), max(dat()$Latitude))
+      }
+    } # if closing bracket
     else if(!identical(last_drawn()$ani, current_anilist$ani)){
-      print("updating points")
       # remove old points
       for(ani in setdiff(last_drawn()$ani, current_anilist$ani)) {
         proxy %>% clearGroup(ani)
@@ -363,8 +364,8 @@ app_server <- function(input, output, session) {
                 sep = "<br/>"
               )
             ) 
-      }
-    }
+      } # if new points 
+    } # else if closing bracket
     # add heatmap and layer control 
     proxy %>% 
       addHeatmap(
@@ -381,13 +382,9 @@ app_server <- function(input, output, session) {
         overlayGroups = c("data points", "heat map"),
         options = layersControlOptions(collapsed = FALSE)
       )
-    
-    if(!is.null(selected_locations())) {
-      proxy %>% fitBounds(min(dat()$Longitude), min(dat()$Latitude), max(dat()$Longitude), max(dat()$Latitude)) %>%
-        removeShape("polygon")
-    }
     last_drawn(current_anilist)
-  })
+    }) # observe
+
   
   
   ######################################
@@ -610,7 +607,6 @@ app_server <- function(input, output, session) {
       return()
     }
     #Only add new layers for bounded locations
-    print("subsetting points")
     # transform into a spatial polygon
     drawn_polygon <- sp::Polygon(
                         do.call(rbind,
