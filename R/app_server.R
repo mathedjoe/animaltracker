@@ -332,6 +332,7 @@ app_server <- function(input, output, session) {
       # is a subset selected?
       if(!is.null(selected_locations())) {
         proxy %>% fitBounds(min(dat()$Longitude), min(dat()$Latitude), max(dat()$Longitude), max(dat()$Latitude))
+        js$removePolygon()
       }
     } # if closing bracket
     else if(!identical(last_drawn()$ani, current_anilist$ani)){

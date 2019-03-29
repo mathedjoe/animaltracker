@@ -10,9 +10,15 @@
 
 app_ui <- function(){
     require(shiny)
+    require(V8)
+    jsCode <- '
+    shinyjs.removePolygon = function(map) {
+      alert("removing polygon");
+    }'
     navbarPage(theme = shinytheme("yeti"),
              # shinythemes::themeSelector(),  # <--- run this to choose a style theme
-             
+             header = div(useShinyjs(),
+                          extendShinyjs(text = jsCode)),
              title = "Animal Tracker",
              
              ## DATA PANEL
