@@ -9,11 +9,13 @@
 #'
 
 app_ui <- function(){
-    require(shiny)
-    require(V8)
     jsCode <- '
-    shinyjs.removePolygon = function(map) {
+    shinyjs.removePolygon = function() {
       alert("removing polygon");
+      var event = document.createEvent("Event");
+      event.initEvent("click", true, true);
+      var cb = document.getElementsByClassName("leaflet-draw-edit-remove");
+      !cb[0].dispatchEvent(event);
     }'
     navbarPage(theme = shinytheme("yeti"),
              # shinythemes::themeSelector(),  # <--- run this to choose a style theme
