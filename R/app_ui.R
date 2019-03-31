@@ -9,18 +9,13 @@
 #'
 
 app_ui <- function(){
-    jsCode <- '
-    shinyjs.removePolygon = function() {
-      alert("removing polygon");
-      var event = document.createEvent("Event");
-      event.initEvent("click", true, true);
-      var cb = document.getElementsByClassName("leaflet-draw-edit-remove");
-      !cb[0].dispatchEvent(event);
-    }'
+    require(shiny)
+    require(shinyjs)
+    require(V8)
     navbarPage(theme = shinytheme("yeti"),
              # shinythemes::themeSelector(),  # <--- run this to choose a style theme
              header = div(useShinyjs(),
-                          extendShinyjs(text = jsCode)),
+                          extendShinyjs(script = "js/removePolygon.js")),
              title = "Animal Tracker",
              
              ## DATA PANEL
