@@ -10,9 +10,12 @@
 
 app_ui <- function(){
     require(shiny)
+    require(shinyjs)
+    require(V8)
     navbarPage(theme = shinytheme("yeti"),
              # shinythemes::themeSelector(),  # <--- run this to choose a style theme
-             
+             header = div(useShinyjs(),
+                          extendShinyjs(script = "js/removePolygon.js")),
              title = "Animal Tracker",
              
              ## DATA PANEL
