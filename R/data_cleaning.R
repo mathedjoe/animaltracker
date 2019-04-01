@@ -124,6 +124,14 @@ clean_export_files <- function(data_dir, cleaned_filename = "data/animal_data.rd
     
     if(!is.null(cleaned_dir)){
       write.csv(df, file.path(cleaned_dir, paste0(aniid,".csv")), row.names=F)
+      pts <- df[c("Longitude", "Latitude")]
+      output=sp::SpatialPointsDataFrame(coords=pts,proj4string=sp::CRS("+init=epsg:4326"),
+                                        
+                                        data=df)
+      
+      rgdal::writeOGR(obj=output,dsn=cleaned_dir,layer= substr(aniid, 1, nchar(aniid)-4) ,
+                      
+                      driver="ESRI Shapefile")
     }
     
     
