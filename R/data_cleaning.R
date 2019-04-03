@@ -30,7 +30,7 @@ get_file_meta <- function(data_dir){
 #'@param maxcourse maximum distance (meters) between consecutive points
 #'@param maxdist maximum geographic distance (meters) between consecutive points
 #'@param maxtime maximum time (minutes) between consecutive points 
-#'@param timezone identification code for the animal
+#'@param timezone time zone, defaults to UTC
 #'@export
 #'
 clean_location_data<- function (df, aniid = NA, gpsid = NA, maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC"){
@@ -74,16 +74,14 @@ clean_location_data<- function (df, aniid = NA, gpsid = NA, maxrate = 84, maxcou
 #'Cleans all animal GPS datasets (in .csv format) in a chosen directory. Optionally exports the clean data as spreadsheets, a single .rds data file, or as a list of data frames
 #'
 #'@param data_dir directory of GPS tracking files (in csv)
-#'@param out_path full name of output file (ending in .rds)
-#'@param processed_dir optional directory to save the processed GPS datasets as spreadsheets (.csv)
-#'@param saveRDS logical, whether to save the processed data to a single R object (.rds) 
-#'@param saveCSV logical, whether to save the processed data to spreadsheets in
+#'@param cleaned_filename full name of output file (ending in .rds), defaults to data/animal_data.rds
+#'@param cleaned_dir directory to save the processed GPS datasets as spreadsheets (.csv), defaults to data/processed
+#'@param tz timezone for cleaned data, defaults to UTC
 #'@export
 #'
-clean_export_files <- function(data_dir, cleaned_filename = "data/animal_data.rds", cleaned_dir = "data/processed") {
+clean_export_files <- function(data_dir, cleaned_filename = "data/animal_data.rds", cleaned_dir = "data/processed", tz = "UTC") {
   data_files <- list.files(data_dir, pattern="*.csv", full.names=T)
   data_info <- get_file_meta(data_dir)
-  timezone <- "UTC"
   
   data_sets <- list()
   
@@ -116,7 +114,7 @@ clean_export_files <- function(data_dir, cleaned_filename = "data/animal_data.rd
     df<- clean_location_data(df, 
                              aniid = aniid, 
                              gpsid = gpsid, 
-                             maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC")
+                             maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = tz)
    
     print(paste("...", nstart - nrow(df), "points removed"))
     print(paste("...total distance traveled =", round(sum(df$DistGeo)/1000, 1), "km"))
