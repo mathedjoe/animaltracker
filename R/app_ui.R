@@ -36,7 +36,8 @@ app_ui <- function(){
                           hr(),
                           
                           h4("Upload Data"),
-                          helpText("Select a zip folder on your computer containing .csv files."),
+                          helpText("Select a zip folder on your computer containing .csv files. Please upload data from one
+                                   area at a time."),
                           fileInput("zipInput", "Upload zip file", accept=c(".zip")),
                           
                           hr(),

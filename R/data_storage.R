@@ -56,11 +56,10 @@ clean_batch <- function(data_dir) {
   site_names <- c()
   
   for(i in 1:length(file_names)) {
-    site_names[i] <-  ifelse( grepl("\\_", file_names[i]), tolower(sub("\\_.*","", file_names[i])), "Unknown")
+    site_names[i] <-  ifelse( grepl("\\_", file_names[i]), tolower(sub("\\_.*","", file_names[i])), paste0("Unknown (", file_names[i], ")"))
   }
   
   ani_ids <- make.unique(ani_ids, sep="_")
-  site_names <- make.unique(site_names, sep="_")
   
   data_info <- list(ani = ani_ids, gps = gps_units)
   
@@ -76,10 +75,12 @@ clean_batch <- function(data_dir) {
     
     if(data_files[i] == aniid) {
       aniid <- paste0("Unknown (", file_names[i], ")")
+      data_info$ani[i] <- aniid
     }
     
     if(data_files[i] == gpsid) {
-      gpsid <- paste0("Unknown")
+      gpsid <- paste0("Unknown (", file_names[i], ")")
+      data_info$gps[i] <- gpsid
     }
     
     # clean df
@@ -102,7 +103,7 @@ clean_batch <- function(data_dir) {
     
     if(nrow(all_data_sets) != nrow(elev_data_sets)) {
       diff <- nrow(all_data_sets) - nrow(elev_data_sets)
-      incProgress(0, detail = paste0("lat/long range greater than 5 deg. detected. ", diff, " rows filtered. Fetching elevation..."))
+      incProgress(0, detail = paste0("lat/long range greater than 5 degrees. detected. ", diff, " rows filtered. Fetching elevation (this may take a few minutes)..."))
     }
     else {
       incProgress(0, detail = "Fetching elevation...")
@@ -122,7 +123,7 @@ clean_batch <- function(data_dir) {
         data_sets <- list()
       }
       
-      df_out <- elev_data_sets %>% dplyr::filter(aniid %in% Animal)
+      df_out <- elev_data_sets %>% dplyr::filter(Animal == aniid)
       
       # get meta from df
       file_meta <- get_meta(df_out, i, data_files[i], site_names[i], aniid, rds_name)
