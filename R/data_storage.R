@@ -82,30 +82,58 @@ clean_batch <- function(data_dir) {
       gpsid <- paste0("Unknown")
     }
     
-    #on every 50th data file, increment file name counter and wipe data_sets
-    if(i %% 50 == 0 & i > 49) {
-      saveRDS(data_sets, rds_name)
-      num_saved_rds <- num_saved_rds + 1
-      rds_name <- paste0(data_dir, num_saved_rds, ".rds")
-      data_sets <- list()
-    }
     # clean df
     df_out<- clean_location_data(df, 
                              aniid = aniid, 
                              gpsid = gpsid, 
                              maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC")
-
-    # add elevation data
-    df_out <- lookup_elevation(df_out)
-    # get meta from df
-    file_meta <- get_meta(df_out, i, data_files[i], site_names[i], aniid, rds_name)
-    # save meta to the designated meta df
-    meta_df <- save_meta(meta_df, file_meta)
     # add cleaned df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df_out
-    incProgress(1/(length(data_files)), detail = paste0(i,"/",length(data_files), " files processed"))
-  } #for loop
-  })
+    incProgress(1/(2*length(data_files)), detail = paste0(i,"/",length(data_files), " files cleaned"))
+  } #cleaning for loop
+    
+    all_data_sets <- suppressWarnings(dplyr::bind_rows(data_sets)) 
+    
+    elev_data_sets <- all_data_sets %>% dplyr::filter(Latitude <= median(Latitude) + 2.5,
+                                                      Latitude >= median(Latitude) - 2.5,
+                                                      Longitude <= median(Longitude) + 2.5,
+                                                      Longitude >= median(Longitude) - 2.5)
+   
+    
+    if(nrow(all_data_sets) != nrow(elev_data_sets)) {
+      diff <- nrow(all_data_sets) - nrow(elev_data_sets)
+      incProgress(0, detail = paste0("lat/long range greater than 5 deg. detected. ", diff, " rows filtered. Fetching elevation..."))
+    }
+    else {
+      incProgress(0, detail = "Fetching elevation...")
+    }
+    
+    elev_data_sets <- lookup_elevation(elev_data_sets)
+    
+    for(i in 1:length(data_files)) {
+      
+      aniid <- data_info$ani[i]
+      
+      #on every 50th data file, increment file name counter and wipe data_sets
+      if(i %% 50 == 0 & i > 49) {
+        saveRDS(data_sets, rds_name)
+        num_saved_rds <- num_saved_rds + 1
+        rds_name <- paste0(data_dir, num_saved_rds, ".rds")
+        data_sets <- list()
+      }
+      
+      df_out <- elev_data_sets %>% dplyr::filter(aniid %in% Animal)
+      
+      # get meta from df
+      file_meta <- get_meta(df_out, i, data_files[i], site_names[i], aniid, rds_name)
+      # save meta to the designated meta df
+      meta_df <- save_meta(meta_df, file_meta)
+      # replace df with elevation df
+      data_sets[[paste0("ani",aniid)]] <- df_out
+      incProgress(1/(2*length(data_files)), detail = paste0(i,"/",length(data_files), " files completed"))
+    }
+    
+  }) #progress bar
   #save remaining data files
   saveRDS(data_sets, rds_name)
   unlink("temp", recursive = T)
