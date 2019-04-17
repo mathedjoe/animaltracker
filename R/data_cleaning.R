@@ -49,24 +49,36 @@ clean_location_data<- function (df, aniid = NA, gpsid = NA, maxrate = 84, maxcou
       Animal = as.factor(Animal), # reclassify Animal column as a categorical (factor) variable
       DateTime = as.POSIXct(paste(Date, Time), "%Y/%m/%d %H:%M:%S", tz=timezone), # reclassify Date as a Date variable
       Date = as.Date(Date, "%Y/%m/%d"), # reclassify Date as a Date variable
-      Time = as.character(Time), 
-      TimeDiff = as.numeric(DateTime - dplyr::lag(DateTime,1)), # compute sequential time differences (in seconds)
-      TimeDiffMins = as.numeric(difftime(DateTime,dplyr::lag(DateTime,1), units="mins")), # compute sequential time differences (in mins)
-      Rate = Distance/TimeDiffMins, # compute rate of travel (meters/min),
-      CourseDiff = abs(Course - dplyr::lag(Course,1)),
+      Time = as.character(Time)
+    ) %>%
+    dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time)) %>% # filter missing time slots before calculating differences
+    dplyr::mutate(
+      TimeDiff = as.numeric(DateTime - dplyr::lag(DateTime,1,default=first(DateTime))), # compute sequential time differences (in seconds)
+      TimeDiffMins = as.numeric(difftime(DateTime,dplyr::lag(DateTime,1,default=first(DateTime)), units="mins")), # compute sequential time differences (in mins)
+      Rate = ifelse(TimeDiffMins != 0, Distance/TimeDiffMins, 0), # compute rate of travel (meters/min), default to 0 to prevent divide by 0 error
+      CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
       DistGeo = geosphere::distGeo(cbind(Longitude, Latitude), 
-                                   cbind(dplyr::lag(Longitude,1), dplyr::lag(Latitude, 1) )), #compute geodesic distance between points
+                                   cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))), #compute geodesic distance between points
       
       RateFlag = 1*(Rate > maxrate), # flag any data points representing too fast travel
       CourseFlag = 1*(CourseDiff >= maxcourse) ,
       DistanceFlag = 1*(DistGeo >= maxdist ),
       TotalFlags = RateFlag + CourseFlag + DistanceFlag
     ) %>%
-    dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time), !is.na(Longitude), !is.na(Latitude),
+    dplyr::filter(!is.na(Longitude), !is.na(Latitude),
                   Latitude != 0, Longitude !=0,
                   TotalFlags < 2,
                   TimeDiffMins < maxtime,
-                  !DistanceFlag )
+                  !DistanceFlag ) %>%
+    dplyr::mutate( # recalculate columns affected by filtering
+      TimeDiff = as.numeric(DateTime - dplyr::lag(DateTime,1,default=first(DateTime))),
+      TimeDiffMins = as.numeric(difftime(DateTime, dplyr::lag(DateTime,1,default=first(DateTime)), units="mins")),
+      Rate = ifelse(TimeDiffMins != 0, Distance/TimeDiffMins, 0),
+      CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
+      DistGeo = geosphere::distGeo(cbind(Longitude, Latitude),
+                                   cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude))))
+    ) %>%
+    dplyr::select(-c("RateFlag", "CourseFlag", "DistanceFlag", "TotalFlags")) # remove flags after use
 }
 
 
