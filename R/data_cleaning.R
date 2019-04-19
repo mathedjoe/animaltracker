@@ -30,7 +30,7 @@ get_file_meta <- function(data_dir){
 #'@param maxcourse maximum distance (meters) between consecutive points
 #'@param maxdist maximum geographic distance (meters) between consecutive points
 #'@param maxtime maximum time (minutes) between consecutive points 
-#'@param timezone identification code for the animal
+#'@param timezone time zone, defaults to UTC
 #'@export
 #'
 clean_location_data<- function (df, aniid = NA, gpsid = NA, maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC"){
@@ -49,24 +49,37 @@ clean_location_data<- function (df, aniid = NA, gpsid = NA, maxrate = 84, maxcou
       Animal = as.factor(Animal), # reclassify Animal column as a categorical (factor) variable
       DateTime = as.POSIXct(paste(Date, Time), "%Y/%m/%d %H:%M:%S", tz=timezone), # reclassify Date as a Date variable
       Date = as.Date(Date, "%Y/%m/%d"), # reclassify Date as a Date variable
-      Time = as.character(Time), 
-      TimeDiff = as.numeric(DateTime - dplyr::lag(DateTime,1)), # compute sequential time differences (in seconds)
-      TimeDiffMins = as.numeric(difftime(DateTime,dplyr::lag(DateTime,1), units="mins")), # compute sequential time differences (in mins)
-      Rate = Distance/TimeDiffMins, # compute rate of travel (meters/min),
-      CourseDiff = abs(Course - dplyr::lag(Course,1)),
+      Time = as.character(Time)
+    ) %>%
+    dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time)) %>% # filter missing time slots before calculating differences
+    dplyr::distinct(DateTime, .keep_all = TRUE) %>% # remove duplicate timestamps
+    dplyr::mutate(
+      TimeDiff = as.numeric(DateTime - dplyr::lag(DateTime,1,default=first(DateTime))), # compute sequential time differences (in seconds)
+      TimeDiffMins = as.numeric(difftime(DateTime,dplyr::lag(DateTime,1,default=first(DateTime)), units="mins")), # compute sequential time differences (in mins)
+      Rate = ifelse(TimeDiffMins != 0, Distance/TimeDiffMins, 0), # compute rate of travel (meters/min), default to 0 to prevent divide by 0 error
+      CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
       DistGeo = geosphere::distGeo(cbind(Longitude, Latitude), 
-                                   cbind(dplyr::lag(Longitude,1), dplyr::lag(Latitude, 1) )), #compute geodesic distance between points
+                                   cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))), #compute geodesic distance between points
       
       RateFlag = 1*(Rate > maxrate), # flag any data points representing too fast travel
       CourseFlag = 1*(CourseDiff >= maxcourse) ,
       DistanceFlag = 1*(DistGeo >= maxdist ),
       TotalFlags = RateFlag + CourseFlag + DistanceFlag
     ) %>%
-    dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time), !is.na(Longitude), !is.na(Latitude),
+    dplyr::filter(!is.na(Longitude), !is.na(Latitude),
                   Latitude != 0, Longitude !=0,
                   TotalFlags < 2,
                   TimeDiffMins < maxtime,
-                  !DistanceFlag )
+                  !DistanceFlag ) %>%
+    dplyr::mutate( # recalculate columns affected by filtering
+      TimeDiff = as.numeric(DateTime - dplyr::lag(DateTime,1,default=first(DateTime))),
+      TimeDiffMins = as.numeric(difftime(DateTime, dplyr::lag(DateTime,1,default=first(DateTime)), units="mins")),
+      Rate = ifelse(TimeDiffMins != 0, Distance/TimeDiffMins, 0),
+      CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
+      DistGeo = geosphere::distGeo(cbind(Longitude, Latitude),
+                                   cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude))))
+    ) %>%
+    dplyr::select(-c("RateFlag", "CourseFlag", "DistanceFlag", "TotalFlags")) # remove flags after use
 }
 
 
@@ -74,16 +87,14 @@ clean_location_data<- function (df, aniid = NA, gpsid = NA, maxrate = 84, maxcou
 #'Cleans all animal GPS datasets (in .csv format) in a chosen directory. Optionally exports the clean data as spreadsheets, a single .rds data file, or as a list of data frames
 #'
 #'@param data_dir directory of GPS tracking files (in csv)
-#'@param out_path full name of output file (ending in .rds)
-#'@param processed_dir optional directory to save the processed GPS datasets as spreadsheets (.csv)
-#'@param saveRDS logical, whether to save the processed data to a single R object (.rds) 
-#'@param saveCSV logical, whether to save the processed data to spreadsheets in
+#'@param cleaned_filename full name of output file (ending in .rds), defaults to data/animal_data.rds
+#'@param cleaned_dir directory to save the processed GPS datasets as spreadsheets (.csv), defaults to data/processed
+#'@param tz timezone for cleaned data, defaults to UTC
 #'@export
 #'
-clean_export_files <- function(data_dir, cleaned_filename = "data/animal_data.rds", cleaned_dir = "data/processed") {
+clean_export_files <- function(data_dir, cleaned_filename = "data/animal_data.rds", cleaned_dir = "data/processed", tz = "UTC") {
   data_files <- list.files(data_dir, pattern="*.csv", full.names=T)
   data_info <- get_file_meta(data_dir)
-  timezone <- "UTC"
   
   data_sets <- list()
   
@@ -116,7 +127,7 @@ clean_export_files <- function(data_dir, cleaned_filename = "data/animal_data.rd
     df<- clean_location_data(df, 
                              aniid = aniid, 
                              gpsid = gpsid, 
-                             maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC")
+                             maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = tz)
    
     print(paste("...", nstart - nrow(df), "points removed"))
     print(paste("...total distance traveled =", round(sum(df$DistGeo)/1000, 1), "km"))
@@ -124,6 +135,14 @@ clean_export_files <- function(data_dir, cleaned_filename = "data/animal_data.rd
     
     if(!is.null(cleaned_dir)){
       write.csv(df, file.path(cleaned_dir, paste0(aniid,".csv")), row.names=F)
+      pts <- df[c("Longitude", "Latitude")]
+      output=sp::SpatialPointsDataFrame(coords=pts,proj4string=sp::CRS("+init=epsg:4326"),
+                                        
+                                        data=df)
+      
+      rgdal::writeOGR(obj=output,dsn=cleaned_dir,layer= substr(aniid, 1, nchar(aniid)-4) ,
+                      
+                      driver="ESRI Shapefile")
     }
     
     

@@ -22,7 +22,7 @@ clean_location_data(df, aniid = NA, gpsid = NA, maxrate = 84,
 
 \item{maxtime}{maximum time (minutes) between consecutive points}
 
-\item{timezone}{identification code for the animal}
+\item{timezone}{time zone, defaults to UTC}
 }
 \description{
 Cleans a raw animal GPS dataset, implementing a standardized procedure to remove impossible values
