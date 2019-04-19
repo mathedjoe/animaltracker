@@ -52,6 +52,7 @@ clean_location_data<- function (df, aniid = NA, gpsid = NA, maxrate = 84, maxcou
       Time = as.character(Time)
     ) %>%
     dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time)) %>% # filter missing time slots before calculating differences
+    dplyr::distinct(DateTime, .keep_all = TRUE) %>% # remove duplicate timestamps
     dplyr::mutate(
       TimeDiff = as.numeric(DateTime - dplyr::lag(DateTime,1,default=first(DateTime))), # compute sequential time differences (in seconds)
       TimeDiffMins = as.numeric(difftime(DateTime,dplyr::lag(DateTime,1,default=first(DateTime)), units="mins")), # compute sequential time differences (in mins)
