@@ -284,6 +284,7 @@ app_server <- function(input, output, session) {
 
   output$mainmap <- renderLeaflet(base_map())
   last_drawn <- reactiveVal(NULL)
+  last_locations <- reactiveVal(NULL)
   
   observe({
     req(points, input$selected_ani)
@@ -302,9 +303,15 @@ app_server <- function(input, output, session) {
     
     proxy <- leafletProxy("mainmap", session)
     
-    if (!is.null(selected_locations()) || is.null(last_drawn()) || (!any(current_anilist$ani %in% last_drawn()$ani)) 
-        || (identical(last_drawn()$ani, current_anilist$ani) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2))) {
-        for(ani in last_drawn()$ani) {
+    if (is.null(last_drawn()) || (!is.null(selected_locations()) & is.null(last_locations())) || (!is.null(selected_locations()) & !identical(last_locations(), selected_locations()) & !identical(last_drawn()$ani, current_anilist))  
+        ||(!any(current_anilist$ani %in% last_drawn()$ani)) || (identical(last_drawn()$ani, current_anilist$ani) & identical(last_locations(), selected_locations()) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2))) {
+      #flags for debugging
+      #print(paste0("1: ", is.null(last_drawn())))
+      #print(paste0("2: ", !is.null(selected_locations()) & is.null(last_locations())))
+      #print(paste0("3: ", !is.null(selected_locations()) & !identical(last_locations(), selected_locations()) & !identical(last_drawn()$ani, current_anilist)))
+      #print(paste0("4: ", !any(current_anilist$ani %in% last_drawn()$ani)))
+      #print(paste0("5: ", identical(last_drawn()$ani, current_anilist$ani) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2)))
+      for(ani in last_drawn()$ani) {
           proxy %>% clearGroup(ani)
         }
         proxy %>%
@@ -384,6 +391,7 @@ app_server <- function(input, output, session) {
         options = layersControlOptions(collapsed = FALSE)
       )
     last_drawn(current_anilist)
+    last_locations(selected_locations())
     }) # observe
 
   
