@@ -19,6 +19,7 @@ Add elevation data from public AWS terrain tiles to long/lat coordinates of anim
 }
 \examples{
 data(demo)
+library(dplyr)
 xelev <- lookup_elevation(demo, zoom = 11)
 plot(xelev$Altitude, xelev$Elevation)
 }

@@ -16,6 +16,7 @@ histogram of the distribution of modeled elevation - measured altitude
 Generate a histogram of the distribution of modeled elevation - measured altitude
 }
 \examples{
-xelev <- lookup_elevations(demo, zoom = 10)
+library(dplyr)
+xelev <- lookup_elevation(demo, zoom = 10)
 histogram_animal_elevation(xelev)
 }

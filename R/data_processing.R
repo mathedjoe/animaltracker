@@ -6,6 +6,7 @@
 #'@return original data frame, with Elevation column appended
 #'@examples 
 #' data(demo)
+#' library(dplyr)
 #' xelev <- lookup_elevation(demo, zoom = 11)
 #' plot(xelev$Altitude, xelev$Elevation)
 #' @export
@@ -39,7 +40,8 @@ lookup_elevation <- function(anidf, zoom = 11) {
 #'@param datapts GPS data with measured Altitude and computed Elevation data
 #'@return histogram of the distribution of modeled elevation - measured altitude
 #'@examples 
-#' xelev <- lookup_elevations(demo, zoom = 10)
+#' library(dplyr)
+#' xelev <- lookup_elevation(demo, zoom = 10)
 #' histogram_animal_elevation(xelev)
 #' @export
 histogram_animal_elevation <- function(datapts) {
