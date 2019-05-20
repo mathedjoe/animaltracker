@@ -3,36 +3,51 @@
 #'
 #'@param anidf animal tracking dataframe
 #'@param zoom level of zoom, defaults to 11
-#'@return original data frame, with Elevation column appended
+#'@param get_slope logical, whether to compute slope (in degrees)
+#'@param get_aspect logical, whether to compute aspect (in degrees)
+#'@return original data frame, with terrain column(s) appended
 #'@examples 
 #' data(demo)
 #' library(dplyr)
 #' xelev <- lookup_elevation(demo, zoom = 11)
 #' plot(xelev$Altitude, xelev$Elevation)
 #' @export
-lookup_elevation <- function(anidf, zoom = 11) {
+lookup_elevation <- function(anidf, zoom = 11, get_slope=TRUE, get_aspect=TRUE) {
   
   # extract coordinates from the animal data
   locations <- anidf %>% dplyr::select(x = Longitude, y = Latitude)
-  
-  # print(summary(locations))
   
   # retrieve terrain data for the region containing the animal data
   ## USGS DEM source = Amazon Web Services (https://aws.amazon.com/public-datasets/terrain/) terrain tiles.
   elev <- elevatr::get_elev_raster(locations, prj = "+proj=longlat", z=zoom)
   
   # convert terrain data to spatial pts
-  elevpts <- raster::rasterToPoints(elev, spatial=TRUE) 
+  elevpts <- raster::rasterToPoints(elev, spatial=TRUE)
   
   # determine nearest neighbors in the terrain data for the animal locations
   datapts_elev <- nabor::knn(data = sp::coordinates(elevpts), query = locations, k=1)
   
-  # add Elevation column to the animal data
-  anidf$Elevation <- round(elevpts$layer[ datapts_elev$nn.idx], 1)
-    
+  # add Elevation and Slope columns to the animal data
+  anidf$Elevation <- round(elevpts$layer[ datapts_elev$nn.idx ], 1)
+  
+  if(get_slope | get_aspect){
+    elev_terr <- terrain(elev, opt=c('slope', 'aspect'), unit='degrees')
+  }
+  
+  if(get_slope){
+    slope <- elev_terr$slope
+    slopepts <- raster::rasterToPoints(slope, spatial=TRUE)
+    anidf$Slope <- round(slopepts$slope[ datapts_elev$nn.idx  ], 1)
+  }
+  
+  if(get_aspect){
+    aspect <- elev_terr$aspect
+    aspectpts <- raster::rasterToPoints(aspect, spatial=TRUE)
+    anidf$Aspect <- round(aspectpts$aspect[ datapts_elev$nn.idx  ], 1)
+  }
+  
   return(anidf)
 }
-
 
 #'
 #'Generate a histogram of the distribution of modeled elevation - measured altitude
