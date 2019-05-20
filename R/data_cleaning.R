@@ -36,6 +36,7 @@ get_file_meta <- function(data_dir){
 clean_location_data<- function (df, aniid = NA, gpsid = NA, maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC"){
   require(dplyr)
   require(tibble)
+  require(forecast)
   df %>% 
     tibble::add_column(Order = df$Index, .before="Index")%>%  # add Order column
     tibble::add_column(Animal = aniid, .after="Index") %>%      # add Animal column 
@@ -49,13 +50,17 @@ clean_location_data<- function (df, aniid = NA, gpsid = NA, maxrate = 84, maxcou
       Animal = as.factor(Animal), # reclassify Animal column as a categorical (factor) variable
       DateTime = as.POSIXct(paste(Date, Time), "%Y/%m/%d %H:%M:%S", tz=timezone), # reclassify Date as a Date variable
       Date = as.Date(Date, "%Y/%m/%d"), # reclassify Date as a Date variable
-      Time = as.character(Time)
+      Time = as.character(Time),
+      Latitude = forecast::tsclean(Latitude),
+      Longitude = forecast::tsclean(Longitude),
+      Altitude = forecast::tsclean(Altitude),
+      Distance = forecast::tsclean(Distance)
     ) %>%
     dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time)) %>% # filter missing time slots before calculating differences
     dplyr::distinct(DateTime, .keep_all = TRUE) %>% # remove duplicate timestamps
     dplyr::mutate(
-      TimeDiff = as.numeric(DateTime - dplyr::lag(DateTime,1,default=first(DateTime))), # compute sequential time differences (in seconds)
-      TimeDiffMins = as.numeric(difftime(DateTime,dplyr::lag(DateTime,1,default=first(DateTime)), units="mins")), # compute sequential time differences (in mins)
+      TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), # compute sequential time differences (in seconds)
+      TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))), # compute sequential time differences (in mins)
       Rate = ifelse(TimeDiffMins != 0, Distance/TimeDiffMins, 0), # compute rate of travel (meters/min), default to 0 to prevent divide by 0 error
       CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
       DistGeo = geosphere::distGeo(cbind(Longitude, Latitude), 
@@ -66,14 +71,11 @@ clean_location_data<- function (df, aniid = NA, gpsid = NA, maxrate = 84, maxcou
       DistanceFlag = 1*(DistGeo >= maxdist ),
       TotalFlags = RateFlag + CourseFlag + DistanceFlag
     ) %>%
-    dplyr::filter(!is.na(Longitude), !is.na(Latitude),
-                  Latitude != 0, Longitude !=0,
-                  TotalFlags < 2,
-                  TimeDiffMins < maxtime,
+    dplyr::filter(TotalFlags < 2,
                   !DistanceFlag ) %>%
     dplyr::mutate( # recalculate columns affected by filtering
-      TimeDiff = as.numeric(DateTime - dplyr::lag(DateTime,1,default=first(DateTime))),
-      TimeDiffMins = as.numeric(difftime(DateTime, dplyr::lag(DateTime,1,default=first(DateTime)), units="mins")),
+      TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), 
+      TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
       Rate = ifelse(TimeDiffMins != 0, Distance/TimeDiffMins, 0),
       CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
       DistGeo = geosphere::distGeo(cbind(Longitude, Latitude),
