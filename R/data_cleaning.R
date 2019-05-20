@@ -24,6 +24,8 @@ get_file_meta <- function(data_dir){
 #'Cleans a raw animal GPS dataset, implementing a standardized procedure to remove impossible values
 #'
 #'@param df data frame in standardized format (e.g., from a raw spreadsheet)
+#'@param autocleans automatically clean data with ts_clean, defaults to true
+#'@param filters filter bad data points, defaults to true
 #'@param aniid identification code for the animal
 #'@param gpsid identification code for the GPS device
 #'@param maxrate maximum rate of travel (meters/minute) between consecutive points
@@ -33,11 +35,13 @@ get_file_meta <- function(data_dir){
 #'@param timezone time zone, defaults to UTC
 #'@export
 #'
-clean_location_data<- function (df, aniid = NA, gpsid = NA, maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC"){
+clean_location_data<- function (df, autocleans = TRUE, filters = TRUE, 
+                                aniid = NA, gpsid = NA, 
+                                maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC"){
   require(dplyr)
   require(tibble)
   require(forecast)
-  df %>% 
+  df <- df %>% 
     tibble::add_column(Order = df$Index, .before="Index")%>%  # add Order column
     tibble::add_column(Animal = aniid, .after="Index") %>%      # add Animal column 
     tibble::add_column(GPS = gpsid, .after="Animal") %>%      # add Animal column 
@@ -50,14 +54,23 @@ clean_location_data<- function (df, aniid = NA, gpsid = NA, maxrate = 84, maxcou
       Animal = as.factor(Animal), # reclassify Animal column as a categorical (factor) variable
       DateTime = as.POSIXct(paste(Date, Time), "%Y/%m/%d %H:%M:%S", tz=timezone), # reclassify Date as a Date variable
       Date = as.Date(Date, "%Y/%m/%d"), # reclassify Date as a Date variable
-      Time = as.character(Time),
-      Latitude = forecast::tsclean(Latitude),
-      Longitude = forecast::tsclean(Longitude),
-      Altitude = forecast::tsclean(Altitude),
-      Distance = forecast::tsclean(Distance)
-    ) %>%
-    dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time)) %>% # filter missing time slots before calculating differences
-    dplyr::distinct(DateTime, .keep_all = TRUE) %>% # remove duplicate timestamps
+      Time = as.character(Time)
+    )
+  if(autocleans) {
+    df <- df %>% 
+      dplyr::mutate(
+        Latitude = forecast::tsclean(Latitude),
+        Longitude = forecast::tsclean(Longitude),
+        Altitude = forecast::tsclean(Altitude),
+        Distance = forecast::tsclean(Distance)
+      )
+  }
+  if(filters) {
+    df <- df %>% 
+      dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time)) %>% # filter missing time slots before calculating differences
+      dplyr::distinct(DateTime, .keep_all = TRUE) # remove duplicate timestamps
+  }
+  df <- df %>% 
     dplyr::mutate(
       TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), # compute sequential time differences (in seconds)
       TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))), # compute sequential time differences (in mins)
@@ -65,23 +78,33 @@ clean_location_data<- function (df, aniid = NA, gpsid = NA, maxrate = 84, maxcou
       CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
       DistGeo = geosphere::distGeo(cbind(Longitude, Latitude), 
                                    cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))), #compute geodesic distance between points
-      
       RateFlag = 1*(Rate > maxrate), # flag any data points representing too fast travel
       CourseFlag = 1*(CourseDiff >= maxcourse) ,
-      DistanceFlag = 1*(DistGeo >= maxdist ),
-      TotalFlags = RateFlag + CourseFlag + DistanceFlag
-    ) %>%
-    dplyr::filter(TotalFlags < 2,
-                  !DistanceFlag ) %>%
-    dplyr::mutate( # recalculate columns affected by filtering
-      TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), 
-      TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
-      Rate = ifelse(TimeDiffMins != 0, Distance/TimeDiffMins, 0),
-      CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
-      DistGeo = geosphere::distGeo(cbind(Longitude, Latitude),
-                                   cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude))))
-    ) %>%
-    dplyr::select(-c("RateFlag", "CourseFlag", "DistanceFlag", "TotalFlags")) # remove flags after use
+      DistanceFlag = 1*(DistGeo >= maxdist )
+    ) 
+  if(filters) {
+    df <- df %>%
+      dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistanceFlag ) %>%
+      dplyr::filter(TotalFlags < 2,
+                    !DistanceFlag ) %>%
+      dplyr::mutate( # recalculate columns affected by filtering
+        TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), 
+        TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
+        Rate = ifelse(TimeDiffMins != 0, Distance/TimeDiffMins, 0),
+        CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
+        DistGeo = geosphere::distGeo(cbind(Longitude, Latitude),
+                                     cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude))))
+      ) %>%
+      dplyr::select(-c("RateFlag", "CourseFlag", "DistanceFlag", "TotalFlags")) # remove flags after use
+  }
+  else {
+    df <- df %>% 
+      dplyr::mutate(
+        TimeFlag = 1*(is.na(DateTime) || is.na(Date) || is.na(Time))
+      ) %>%
+      tibble::add_column(DuplicateDateFlag = 1*duplicated(df$DateTime)) %>%
+      dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistanceFlag + TimeFlag + DuplicateDateFlag)
+  }
 }
 
 
