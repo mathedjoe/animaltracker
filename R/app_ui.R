@@ -26,8 +26,13 @@ app_ui <- function(){
                           h4("Upload Data"),
                           helpText("Select a zip folder on your computer containing .csv files. Please upload data from one
                                    area at a time."),
+
+                          fileInput("zipInput", "Upload zip file", accept=c(".zip")),
+                          hr(),
+                          
+                          h4("Data Processing"),
                           bsCollapse(id = "uploadOptions",
-                                     bsCollapsePanel("Data Cleaning Options",
+                                     bsCollapsePanel("Cleaning Options",
                                                      checkboxInput("autocleanBox", label = "Autoclean lat/long/altitude/distance", value = TRUE),
                                                      checkboxInput("filterBox", label = "Filter bad data points", value = TRUE)
                                      ),
@@ -36,8 +41,7 @@ app_ui <- function(){
                                                      checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
                                      )
                           ),
-
-                          fileInput("zipInput", "Upload zip file", accept=c(".zip")),
+                          
                           hr(),
                           
                           h4("Select Data"),
