@@ -73,7 +73,10 @@ clean_batch <- function(data_dir, autocleans, filters, get_slope, get_aspect) {
     
     df <- read.csv(data_files[i], skipNul = T, stringsAsFactors = FALSE)
     suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
+<<<<<<< HEAD
     df<-as.data.frame(df, stringsAsFactors = TRUE)
+=======
+>>>>>>> 58b209586caba6dabf8269acba6999ab525451fb
     
     aniid <- data_info$ani[i]
     gpsid <- data_info$gps[i]
