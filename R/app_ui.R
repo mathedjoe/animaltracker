@@ -12,6 +12,7 @@ app_ui <- function(){
     require(shiny)
     require(shinyjs)
     require(V8)
+    require(shinyBS)
     navbarPage(theme = shinytheme("yeti"),
              # shinythemes::themeSelector(),  # <--- run this to choose a style theme
              header = div(useShinyjs(),
@@ -22,6 +23,23 @@ app_ui <- function(){
              tabPanel("Data", 
                       sidebarLayout(
                         sidebarPanel( 
+                          h4("Upload Data"),
+                          helpText("Select a zip folder on your computer containing .csv files. Please upload data from one
+                                   area at a time."),
+                          bsCollapse(id = "uploadOptions",
+                                     bsCollapsePanel("Data Cleaning Options",
+                                                     checkboxInput("autocleanBox", label = "Autoclean lat/long/altitude/distance", value = TRUE),
+                                                     checkboxInput("filterBox", label = "Filter bad data points", value = TRUE)
+                                     ),
+                                     bsCollapsePanel("Elevation Options",
+                                                     checkboxInput("slopeBox", label = "Include slope", value = TRUE),
+                                                     checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
+                                     )
+                          ),
+
+                          fileInput("zipInput", "Upload zip file", accept=c(".zip")),
+                          hr(),
+                          
                           h4("Select Data"),
                           uiOutput("choose_site") %>% withSpinner(),
                           uiOutput("choose_ani"),
@@ -30,27 +48,24 @@ app_ui <- function(){
                           
                           hr(),
                           
-                          h4("Recent Data"),
-                          uiOutput("choose_recent"),
-                          
-                          hr(),
-                          
-                          h4("Upload Data"),
-                          helpText("Select a zip folder on your computer containing .csv files. Please upload data from one
-                                   area at a time."),
-                          fileInput("zipInput", "Upload zip file", accept=c(".zip")),
-                          
-                          hr(),
                           h4("Download Data"),
-                          helpText("Save currently selected data to a (potentially large) .csv file."),
+                          helpText("Save data to a (potentially large) .csv file."),
                           # Button
+                          bsCollapse(id = "downloadOptionsPanel",
+                                     bsCollapsePanel("Download Options",
+                                                     radioButtons("downloadOptions", NULL,
+                                                                  c("Processed (unfiltered) data", "Processed (filtered) data", "Currently selected data")))
+                                     ),
                           downloadButton("downloadData", "Download")
                           
                         ),#sidebarPanel
                         mainPanel(
                           
                           leafletOutput("mainmap", height = 640) %>% withSpinner(),
-                          htmlOutput("mapinfo")
+                          htmlOutput("mapinfo"),
+                          h4("Recent Data"),
+                          uiOutput("choose_recent")
+                          
                           
                         ) #mainPanel
                       ) #sidebarLayout

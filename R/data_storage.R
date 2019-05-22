@@ -25,9 +25,12 @@
 #'Cleans a directory of animal data files and stores them locally in rds format
 #'
 #'@param data_dir location of animal data files, in list format
+#'@param filters
+#'@param get_slope
+#'@param get_aspect
 #'@return df of metadata for animal file directory
 #'
-clean_batch <- function(data_dir) {
+clean_batch <- function(data_dir, autocleans, filters, get_slope, get_aspect) {
   
 
     #initialize empty meta
@@ -84,7 +87,7 @@ clean_batch <- function(data_dir) {
     }
     
     # clean df
-    df_out<- clean_location_data(df, 
+    df_out<- clean_location_data(df, autocleans, filters,
                              aniid = aniid, 
                              gpsid = gpsid, 
                              maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC")
@@ -109,7 +112,7 @@ clean_batch <- function(data_dir) {
       incProgress(0, detail = "Fetching elevation...")
     }
     
-    elev_data_sets <- lookup_elevation(elev_data_sets)
+    elev_data_sets <- lookup_elevation(elev_data_sets, get_slope, get_aspect)
     
     for(i in 1:length(data_files)) {
       
