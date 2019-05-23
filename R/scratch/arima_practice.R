@@ -128,3 +128,38 @@ ggplot() +
   geom_line(data = cow_ts, aes(x = DateTime, y = ma_7, colour = "Weekly Moving Average")) +
   geom_line(data = cow_ts, aes(x = DateTime, y = ma_30, colour = "Monthly Moving Average")) +
   ylab('Elevation')
+
+data_sets <- list()
+
+for(i in 1:length(demo_raw$data)) {
+  
+  df <- demo_raw$data[[i]]
+  print(str(df))
+  
+  suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
+  df <- type.convert(df)
+  
+  aniid <- demo_raw$ani[i]
+  gpsid <- demo_raw$gps[i]
+  
+  if(demo_raw$file[i] == aniid) {
+    aniid <- paste0("Unknown (", file_names[i], ")")
+    demo_raw$ani[i] <- aniid
+  }
+  
+  if(demo_raw$file[i] == gpsid) {
+    gpsid <- paste0("Unknown (", file_names[i], ")")
+    demo_raw$gps[i] <- gpsid
+  }
+  
+  # clean df
+  df_out<- clean_location_data(df, autocleans = FALSE, filters = TRUE,
+                               aniid = aniid, 
+                               gpsid = gpsid, 
+                               maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC")
+  # add cleaned df to the list of data
+  data_sets[[paste0("ani",aniid)]] <- df_out
+} #cleaning for loop
+
+demo_filtered <- dplyr::bind_rows(data_sets)
+

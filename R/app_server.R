@@ -16,20 +16,23 @@ app_server <- function(input, output, session) {
 
   raw_dat <- reactive({
     if(is.null(input$zipInput)) {
-      
+      return(demo_raw)
     }
+    return(store_batch_list(input$zipInput))
   })
   
   clean_unfiltered <- reactive({
     if(is.null(input$zipInput)) {
-      
+      return(demo_unfiltered)
     }
+    return(clean_batch_df(raw_dat(), autocleans = FALSE, filters = FALSE))
   })
   
   clean_filtered <- reactive({
     if(is.null(input$zipInput)) {
-      
+      return(demo_filtered)
     }
+    return(clean_batch_df(raw_dat(), autocleans = FALSE, filters = TRUE))
   })
   
   # initialize list of datasets
@@ -37,7 +40,7 @@ app_server <- function(input, output, session) {
     if(is.null(input$zipInput)) {
       return(demo_meta)
     }
-    return(clean_batch(raw_dat(), input$autocleanBox, input$filterBox, input$slopeBox, input$aspectBox))
+    return(clean_store_batch(raw_dat(), input$autocleanBox, input$filterBox, input$slopeBox, input$aspectBox))
   })
   
   ######################################
@@ -671,48 +674,11 @@ app_server <- function(input, output, session) {
       paste0("data_export_", format(Sys.time(), "%Y-%m-%d_%H-%M-%p"), ".csv")
     },
     content = function(file) {
-      if(input$downloadOptions == "Processed (unfiltered) data" || input$downloadOptions == "Processed (filtered) data") {
-        dir_name <- gsub(".zip", "", input$zipInput$name)
-        data_files <- unzip(input$zipInput$datapath, exdir="temp")
-        data_files <- list.files("temp", pattern ="*.csv", recursive = TRUE, full.names = T)
-        data_sets <- list()
-        gps_units <- gsub("(.*)(20)([0-9]{2}\\_)(.*)(\\_{1}.*)(\\.csv)","\\4",data_files)
-        ani_ids <- gsub("(.*)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.csv)","\\5",data_files)
-        file_names <- gsub(paste0("(temp)(\\/)", dir_name, "(\\/)"), "", data_files)
-        ani_ids <- make.unique(ani_ids, sep="_")
-        data_info <- list(ani = ani_ids, gps = gps_units)
-        df_out <- data.frame()
-        for(i in 1:length(data_files)) {
-          df <- read.csv(data_files[i], skipNul = T)
-          
-          aniid <- data_info$ani[i]
-          gpsid <- data_info$gps[i]
-          
-          if(data_files[i] == aniid) {
-            aniid <- paste0("Unknown (", file_names[i], ")")
-            data_info$ani[i] <- aniid
-          }
-          
-          if(data_files[i] == gpsid) {
-            gpsid <- paste0("Unknown (", file_names[i], ")")
-            data_info$gps[i] <- gpsid
-          }
-          
-          # clean df
-          if(input$downloadOptions == "Processed (unfiltered) data") {
-          df_out <- dplyr::bind_rows(df_out, clean_location_data(df, autocleans = input$autocleanBox, filters = FALSE,
-                                       aniid = aniid, 
-                                       gpsid = gpsid, 
-                                       maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC"))
-          }
-          else {
-            df_out <- dplyr::bind_rows(df_out, clean_location_data(df, autocleans = input$autocleanBox, 
-                                                                   aniid = aniid, 
-                                                                   gpsid = gpsid, 
-                                                                   maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC"))
-          }
-        }
-        write.csv(df_out, file, row.names = FALSE)
+      if(input$downloadOptions == "Processed (unfiltered) data") {
+        write.csv(clean_unfiltered(), file, row.names = FALSE)
+      }
+      else if(input$downloadOptions == "Processed (filtered) data") {
+        write.csv(clean_filtered(), file, row.names = FALSE)
       }
       else {
         write.csv(dat(), file, row.names = FALSE)
