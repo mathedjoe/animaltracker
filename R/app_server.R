@@ -14,12 +14,30 @@
 app_server <- function(input, output, session) {
   
 
+  raw_dat <- reactive({
+    if(is.null(input$zipInput)) {
+      
+    }
+  })
+  
+  clean_unfiltered <- reactive({
+    if(is.null(input$zipInput)) {
+      
+    }
+  })
+  
+  clean_filtered <- reactive({
+    if(is.null(input$zipInput)) {
+      
+    }
+  })
+  
   # initialize list of datasets
-  meta <- reactive({ 
+  meta <- observeEvent(input$processButton, {
     if(is.null(input$zipInput)) {
       return(demo_meta)
     }
-    return(clean_batch(input$zipInput, input$autocleanBox, input$filterBox, input$slopeBox, input$aspectBox))
+    return(clean_batch(raw_dat(), input$autocleanBox, input$filterBox, input$slopeBox, input$aspectBox))
   })
   
   ######################################

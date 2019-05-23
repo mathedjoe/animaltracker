@@ -41,6 +41,7 @@ app_ui <- function(){
                                                      checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
                                      )
                           ),
+                          actionButton("processButton", "Process Data"),
                           
                           hr(),
                           
