@@ -67,11 +67,11 @@ store_batch_list <- function(data_dir) {
 #'
 clean_batch_df <- function(data_info, autocleans, filters) {
   data_sets <- list()
-  
+  withProgress(message = paste0("Preparing raw data", ifelse(filters, " (filtered)", " (unfiltered)")), detail = paste0("0/",length(data_info$data), " files prepped"), value = 0, {
+    
   for(i in 1:length(data_info$data)) {
     
     df <- data_info$data[[i]]
-    print(str(df))
     
     suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
     df <- type.convert(df)
@@ -96,7 +96,9 @@ clean_batch_df <- function(data_info, autocleans, filters) {
                                  maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC")
     # add cleaned df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df_out
+    incProgress(1/(2*length(data_info$data)), detail = paste0(i,"/",length(data_info$data), " files prepped"))
   } #cleaning for loop
+  })
   return(suppressWarnings(dplyr::bind_rows(data_sets)))
 }
 

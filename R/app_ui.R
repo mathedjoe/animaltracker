@@ -28,6 +28,7 @@ app_ui <- function(){
                                    area at a time."),
 
                           fileInput("zipInput", "Upload zip file", accept=c(".zip")),
+                          textOutput("numUploaded"),
                           hr(),
                           
                           h4("Data Processing"),

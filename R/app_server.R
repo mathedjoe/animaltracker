@@ -21,31 +21,33 @@ app_server <- function(input, output, session) {
     return(store_batch_list(input$zipInput))
   })
   
+  output$numUploaded <- renderText(paste0(ifelse(is.null(input$zipInput), 0, length(raw_dat()$data)), " files uploaded"))
+  
   clean_unfiltered <- reactive({
     if(is.null(input$zipInput)) {
       return(demo_unfiltered)
     }
-    return(clean_batch_df(raw_dat(), autocleans = FALSE, filters = FALSE))
+    if(!identical(raw_dat(), demo_raw)) {
+      return(clean_batch_df(raw_dat(), autocleans = FALSE, filters = FALSE))
+    }
   })
   
   clean_filtered <- reactive({
     if(is.null(input$zipInput)) {
       return(demo_filtered)
     }
-    return(clean_batch_df(raw_dat(), autocleans = FALSE, filters = TRUE))
+    if(!identical(raw_dat(), demo_raw)) {
+      return(clean_batch_df(raw_dat(), autocleans = FALSE, filters = TRUE))
+    }
   })
   
   # initialize list of datasets
-  meta <- reactive({
-    if(is.null(input$zipInput)) {
-      return(demo_meta)
-    }
-    return(clean_store_batch(raw_dat(), input$autocleanBox, input$filterBox, input$slopeBox, input$aspectBox))
-    
-  })
+  meta <- reactiveVal(demo_meta)
   
   observeEvent(input$processButton, {
-    meta()
+    if(!identical(raw_dat(), demo_raw)) {
+      meta(clean_store_batch(raw_dat(), input$autocleanBox, input$filterBox, input$slopeBox, input$aspectBox))
+    }
   })
   
   ######################################
