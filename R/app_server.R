@@ -36,11 +36,16 @@ app_server <- function(input, output, session) {
   })
   
   # initialize list of datasets
-  meta <- observeEvent(input$processButton, {
+  meta <- reactive({
     if(is.null(input$zipInput)) {
       return(demo_meta)
     }
     return(clean_store_batch(raw_dat(), input$autocleanBox, input$filterBox, input$slopeBox, input$aspectBox))
+    
+  })
+  
+  observeEvent(input$processButton, {
+    meta()
   })
   
   ######################################
