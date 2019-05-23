@@ -136,12 +136,12 @@ clean_store_batch <- function(data_info, autocleans, filters, get_slope, get_asp
     gpsid <- data_info$gps[i]
     
     if(data_info$file[i] == aniid) {
-      aniid <- paste0("Unknown (", file_names[i], ")")
+      aniid <- paste0("Unknown (", data_info$file[i], ")")
       data_info$ani[i] <- aniid
     }
     
     if(data_info$file[i] == gpsid) {
-      gpsid <- paste0("Unknown (", file_names[i], ")")
+      gpsid <- paste0("Unknown (", data_info$file[i], ")")
       data_info$gps[i] <- gpsid
     }
     
