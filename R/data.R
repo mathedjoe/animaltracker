@@ -12,7 +12,7 @@
 
 #' Raw demo animal GPS data from cows with information
 #' 
-#' @format A 39 MB list with 6 elements
+#' @format A 39 MB list with 10 elements
 #'
 "demo_raw"
 

@@ -46,15 +46,36 @@ store_batch_list <- function(data_dir) {
   
   site_names <- c()
   
+  max_lat <- max(data_sets[[1]]$Latitude)
+  min_lat <- min(data_sets[[1]]$Latitude)
+  max_long <- max(data_sets[[1]]$Longitude)
+  min_long <- min(data_sets[[1]]$Longitude)
+  
   for(i in 1:length(file_names)) {
     site_names[i] <-  ifelse( grepl("\\_", file_names[i]), tolower(sub("\\_.*","", file_names[i])), paste0("Unknown (", file_names[i], ")"))
+    if(max(data_sets[[i]]$Latitude) > max_lat) {
+      max_lat <- max(data_sets[[i]]$Latitude)
+    }
+    if(min(data_sets[[i]]$Latitude) < min_lat) {
+      min_lat <- min(data_sets[[i]]$Latitude)
+    }
+    if(max(data_sets[[i]]$Longitude) > max_long) {
+      max_long <- max(data_sets[[i]]$Longitude)
+    }
+    if(min(data_sets[[i]]$Longitude) < min_long) {
+      min_long <- min(data_sets[[i]]$Longitude)
+    }
   }
   
   ani_ids <- make.unique(ani_ids, sep="_")
   
   unlink("temp", recursive = T)
   
-  return(list(data = data_sets, file = file_names, ani = ani_ids, gps = gps_units, site = site_names, rds_name = rds_name))
+  return(list(data = data_sets, file = file_names, 
+              ani = ani_ids, gps = gps_units, 
+              site = site_names, rds_name = rds_name,
+              min_lat = min_lat, max_lat = max_lat,
+              min_long = min_long, max_long = max_long))
 }
 
 #'
@@ -110,9 +131,13 @@ clean_batch_df <- function(data_info, autocleans, filters) {
 #'@param filters filter bad data points, defaults to true
 #'@param get_slope logical, whether to compute slope (in degrees)
 #'@param get_aspect logical, whether to compute aspect (in degrees)
+#'@param min_lat minimum latitude for filtering
+#'@param max_lat maximum latitude for filtering
+#'@param min_long minimum longitude for filtering
+#'@param max_long maximum longitude for filtering
 #'@return df of metadata for animal file directory
 #'
-clean_store_batch <- function(data_info, autocleans, filters, get_slope, get_aspect) {
+clean_store_batch <- function(data_info, autocleans, filters, get_slope, get_aspect, min_lat, max_lat, min_long, max_long) {
   
   #initialize empty meta
   meta_df <- data.frame(matrix(ncol = 9, nrow = 0))
@@ -157,21 +182,23 @@ clean_store_batch <- function(data_info, autocleans, filters, get_slope, get_asp
     
     all_data_sets <- suppressWarnings(dplyr::bind_rows(data_sets)) 
     
-    elev_data_sets <- all_data_sets %>% dplyr::filter(Latitude <= median(Latitude) + 2.5,
-                                                      Latitude >= median(Latitude) - 2.5,
-                                                      Longitude <= median(Longitude) + 2.5,
-                                                      Longitude >= median(Longitude) - 2.5)
-   
+    elev_data_sets <- all_data_sets %>% dplyr::filter(Latitude <= max_lat,
+                                                      Latitude >= min_lat,
+                                                      Longitude <= max_long,
+                                                      Longitude >= min_long)
     
-    if(nrow(all_data_sets) != nrow(elev_data_sets)) {
-      diff <- nrow(all_data_sets) - nrow(elev_data_sets)
-      incProgress(0, detail = paste0("lat/long range greater than 5 degrees. detected. ", diff, " rows filtered. Fetching elevation (this may take a few minutes)..."))
+    if(nrow(elev_data_sets) == 0) {
+      incProgress(0, detail = "Fetching elevation for invalid bounds. Defaulting to all data.")
+      elev_data_sets <- lookup_elevation(all_data_sets, get_slope, get_aspect)
     }
     else {
-      incProgress(0, detail = "Fetching elevation...")
+      incProgress(0, detail = paste0("Fetching elevation for lat. bounds (", min_lat, ",", max_lat, 
+                                     ") and long. bounds (", min_long, ",", max_long, ")..." ))
+      elev_data_sets <- lookup_elevation(elev_data_sets, get_slope, get_aspect)
     }
     
-    elev_data_sets <- lookup_elevation(elev_data_sets, get_slope, get_aspect)
+    
+    
     
     for(i in 1:length(data_info$data)) {
       

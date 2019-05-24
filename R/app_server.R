@@ -46,7 +46,18 @@ app_server <- function(input, output, session) {
   
   observeEvent(input$processButton, {
     if(!identical(raw_dat(), demo_raw)) {
-      meta(clean_store_batch(raw_dat(), input$autocleanBox, input$filterBox, input$slopeBox, input$aspectBox))
+      if(input$filterBox) {
+        meta(clean_store_batch(raw_dat(), input$autocleanBox, filters = TRUE, 
+                               input$slopeBox, input$aspectBox, 
+                               input$selected_lat[1], input$selected_lat[2],
+                               input$selected_long[1], input$selected_long[2]))
+      }
+      else {
+        meta(clean_store_batch(raw_dat(), input$autocleanBox, filters = FALSE, 
+                               input$slopeBox, input$aspectBox, 
+                               raw_dat()$min_lat, raw_dat()$max_lat,
+                               raw_dat()$min_long, raw_dat()$max_long))
+      }
     }
   })
   
@@ -117,6 +128,22 @@ app_server <- function(input, output, session) {
   
   ######################################
   ## DYNAMIC USER INTERFACE
+  
+  # select lat/long bounds
+  
+  output$lat_bounds <- renderUI({
+    if(!input$filterBox) {
+      return()
+    }
+    numericRangeInput("selected_lat", "Latitude Range:", value = c(raw_dat()$min_lat, raw_dat()$max_lat))
+  })
+  
+  output$long_bounds <- renderUI({
+    if(!input$filterBox) {
+      return()
+    }
+    numericRangeInput("selected_long", "Longitude Range:", value = c(raw_dat()$min_long, raw_dat()$max_long))
+  })
   
   # select data sites
   output$choose_site <- renderUI({

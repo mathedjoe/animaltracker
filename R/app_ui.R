@@ -38,6 +38,8 @@ app_ui <- function(){
                                                      checkboxInput("filterBox", label = "Filter bad data points", value = TRUE)
                                      ),
                                      bsCollapsePanel("Elevation Options",
+                                                     uiOutput("lat_bounds"),
+                                                     uiOutput("long_bounds"),
                                                      checkboxInput("slopeBox", label = "Include slope", value = TRUE),
                                                      checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
                                      )
