@@ -225,7 +225,7 @@ clean_store_batch <- function(data_info, autocleans, filters, get_slope, get_asp
     
   }) #progress bar
   #save remaining data files
-  saveRDS(data_sets, rds_name)
+  saveRDS(data_sets, data_info$rds_name)
   return(meta_df)
 }
 
