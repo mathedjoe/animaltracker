@@ -19,7 +19,12 @@ lookup_elevation <- function(anidf, zoom = 11, get_slope=TRUE, get_aspect=TRUE) 
   
   # retrieve terrain data for the region containing the animal data
   ## USGS DEM source = Amazon Web Services (https://aws.amazon.com/public-datasets/terrain/) terrain tiles.
-  elev <- elevatr::get_elev_raster(locations, prj = "+proj=longlat", z=zoom)
+  # elev <- elevatr::get_elev_raster(locations, prj = "+proj=longlat", z=zoom)
+  
+  ## 'alt' stands for altitude (elevation); the data were aggregated from SRTM 90 m resolution data between -60 and 60 latitude.
+  dir.create("data/elev")
+  elev <- raster::getData("alt", path ='data/elev', country='USA')[[1]]
+ 
   
   # convert terrain data to spatial pts
   elevpts <- raster::rasterToPoints(elev, spatial=TRUE)
@@ -28,7 +33,7 @@ lookup_elevation <- function(anidf, zoom = 11, get_slope=TRUE, get_aspect=TRUE) 
   datapts_elev <- nabor::knn(data = sp::coordinates(elevpts), query = locations, k=1)
   
   # add Elevation and Slope columns to the animal data
-  anidf$Elevation <- round(elevpts$layer[ datapts_elev$nn.idx ], 1)
+  anidf$Elevation <- round(elevpts$USA1_msk_alt[ datapts_elev$nn.idx ], 1)
   
   if(get_slope | get_aspect){
     elev_terr <- terrain(elev, opt=c('slope', 'aspect'), unit='degrees')
@@ -45,7 +50,7 @@ lookup_elevation <- function(anidf, zoom = 11, get_slope=TRUE, get_aspect=TRUE) 
     aspectpts <- raster::rasterToPoints(aspect, spatial=TRUE)
     anidf$Aspect <- round(aspectpts$aspect[ datapts_elev$nn.idx  ], 1)
   }
-  
+  unlink("data/elev", recursive = T)
   return(anidf)
 }
 
