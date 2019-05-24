@@ -118,8 +118,11 @@ app_ui <- function(){
                           uiOutput("distance_title"),
                           uiOutput("distance"),
                           uiOutput("rate_title"),
-                          uiOutput("rate")
-                          
+                          uiOutput("rate"),
+                          uiOutput("slope_title"),
+                          uiOutput("slope"),
+                          uiOutput("aspect_title"),
+                          uiOutput("aspect")
                         )
                       )
                       

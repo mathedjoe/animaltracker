@@ -217,7 +217,7 @@ app_server <- function(input, output, session) {
   output$choose_cols <- renderUI({
     req(input$selected_ani) 
     
-    var_choices <- c( "Elevation", "TimeDiffMins", "Course", "CourseDiff", "Distance", "Rate")
+    var_choices <- c( "Elevation", "TimeDiffMins", "Course", "CourseDiff", "Distance", "Rate", "Slope", "Aspect")
     pickerInput("selected_cols", "Choose Variables for Statistics",
                 choices = var_choices,
                 selected = var_choices[c(1,2,3,4)],
@@ -384,6 +384,8 @@ app_server <- function(input, output, session) {
               paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
               paste("Date/Time:", pts$DateTime),
               paste("Elevation:", pts$Elevation),
+              paste("Slope:", ifelse("Slope" %in% colnames(pts), pts$Slope, "N/A")),
+              paste("Aspect:", ifelse("Aspect" %in% colnames(pts), pts$Aspect, "N/A")),
               paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
                                         ", ")),
               paste("LocationID:", pts$LocationID),
@@ -662,6 +664,44 @@ app_server <- function(input, output, session) {
     
   })
   output$rate <- renderTable(rate_stats())
+  
+  # Slope
+  
+  output$slope_title <- renderUI({
+    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Slope" %in% input$selected_cols) | !("Slope" %in% colnames(dat()))) 
+      return()
+    h4("Slope")
+  })
+  
+  slope_stats <- reactive({
+    if(!("Slope" %in% input$selected_cols) | is.null(input$selected_stats) | !("Slope" %in% colnames(dat()))) 
+      return()
+    
+    summary <- summarize_col(dat(), "Slope") 
+    subset(summary, select=c("Animal", input$selected_stats))
+    
+  })
+  
+  output$slope <- renderTable(slope_stats())
+  
+  # Aspect
+  
+  output$aspect_title <- renderUI({
+    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Aspect" %in% input$selected_cols) | !("Aspect" %in% colnames(dat()))) 
+      return()
+    h4("Aspect")
+  })
+  
+  aspect_stats <- reactive({
+    if(!("Aspect" %in% input$selected_cols) | is.null(input$selected_stats) | !("Aspect" %in% colnames(dat()))) 
+      return()
+    
+    summary <- summarize_col(dat(), "Aspect") 
+    subset(summary, select=c("Animal", input$selected_stats))
+    
+  })
+  
+  output$aspect <- renderTable(aspect_stats())
   
   ##############################################################
   # SUBSET DATA VIA MAP
