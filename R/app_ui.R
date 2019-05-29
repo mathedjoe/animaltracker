@@ -34,7 +34,7 @@ app_ui <- function(){
                           h4("Data Processing"),
                           bsCollapse(id = "uploadOptions",
                                      bsCollapsePanel("Cleaning Options",
-                                                     checkboxInput("autocleanBox", label = "Autoclean lat/long/altitude/distance", value = TRUE),
+                                                     checkboxInput("autocleanBox", label = "Autoclean lat/long/altitude/distance", value = FALSE),
                                                      checkboxInput("filterBox", label = "Filter bad data points", value = TRUE)
                                      ),
                                      bsCollapsePanel("Elevation Options",

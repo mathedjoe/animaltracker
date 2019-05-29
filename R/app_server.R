@@ -46,14 +46,14 @@ app_server <- function(input, output, session) {
   
   observeEvent(input$processButton, {
     if(!identical(raw_dat(), demo_raw)) {
-      if(input$filterBox) {
+      if(!is.null(input$selected_lat) && !is.null(input$selected_long)) {
         meta(clean_store_batch(raw_dat(), input$autocleanBox, filters = TRUE, 
                                input$slopeBox, input$aspectBox, 
                                input$selected_lat[1], input$selected_lat[2],
                                input$selected_long[1], input$selected_long[2]))
       }
       else {
-        meta(clean_store_batch(raw_dat(), input$autocleanBox, filters = FALSE, 
+        meta(clean_store_batch(raw_dat(), input$autocleanBox, input$filterBox, 
                                input$slopeBox, input$aspectBox, 
                                raw_dat()$min_lat, raw_dat()$max_lat,
                                raw_dat()$min_long, raw_dat()$max_long))
