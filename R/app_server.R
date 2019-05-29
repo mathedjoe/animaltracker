@@ -43,9 +43,12 @@ app_server <- function(input, output, session) {
   
   # initialize list of datasets
   meta <- reactiveVal(demo_meta)
+  last_drawn <- reactiveVal(NULL)
+  
   
   observeEvent(input$processButton, {
     if(!identical(raw_dat(), demo_raw)) {
+      last_drawn(NULL)
       if(!is.null(input$selected_lat) && !is.null(input$selected_long)) {
         meta(clean_store_batch(raw_dat(), input$autocleanBox, filters = TRUE, 
                                input$slopeBox, input$aspectBox, 
@@ -338,7 +341,6 @@ app_server <- function(input, output, session) {
   })
 
   output$mainmap <- renderLeaflet(base_map())
-  last_drawn <- reactiveVal(NULL)
   last_locations <- reactiveVal(NULL)
   
   observe({
