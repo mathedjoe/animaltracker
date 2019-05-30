@@ -189,11 +189,11 @@ clean_store_batch <- function(data_info, autocleans, filters, elev, get_slope, g
                                                       Longitude >= min_long)
     
     if(nrow(elev_data_sets) == 0) {
-      incProgress(0, detail = "Fetching elevation for invalid bounds. Defaulting to all data.")
+      incProgress(0, detail = "Appending elevation for invalid bounds. Defaulting to all data.")
       elev_data_sets <- lookup_elevation(elev, all_data_sets, get_slope, get_aspect)
     }
     else {
-      incProgress(0, detail = paste0("Fetching elevation for lat. bounds (", min_lat, ",", max_lat, 
+      incProgress(0, detail = paste0("Appending elevation for lat. bounds (", min_lat, ",", max_lat, 
                                      ") and long. bounds (", min_long, ",", max_long, ")..." ))
       elev_data_sets <- lookup_elevation(elev, elev_data_sets, get_slope, get_aspect)
     }
