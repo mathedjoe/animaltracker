@@ -13,7 +13,9 @@
 # Define server logic for the shiny app
 app_server <- function(input, output, session) {
   
-
+  ## the data were aggregated from SRTM 90 m resolution data between -60 and 60 latitude.
+  elev <- read_zip_to_rasters("data/elev/USA_msk_alt.zip")
+  
   raw_dat <- reactive({
     if(is.null(input$zipInput)) {
       return(demo_raw)
@@ -43,20 +45,20 @@ app_server <- function(input, output, session) {
   
   # initialize list of datasets
   meta <- reactiveVal(demo_meta)
-  last_drawn <- reactiveVal(NULL)
+  uploaded <- reactiveVal(FALSE)
   
   
   observeEvent(input$processButton, {
     if(!identical(raw_dat(), demo_raw)) {
-      last_drawn(NULL)
+      uploaded(TRUE)
       if(!is.null(input$selected_lat) && !is.null(input$selected_long)) {
-        meta(clean_store_batch(raw_dat(), input$autocleanBox, filters = TRUE, 
+        meta(clean_store_batch(raw_dat(), input$autocleanBox, filters = TRUE, elev,
                                input$slopeBox, input$aspectBox, 
                                input$selected_lat[1], input$selected_lat[2],
                                input$selected_long[1], input$selected_long[2]))
       }
       else {
-        meta(clean_store_batch(raw_dat(), input$autocleanBox, input$filterBox, 
+        meta(clean_store_batch(raw_dat(), input$autocleanBox, input$filterBox, elev,
                                input$slopeBox, input$aspectBox, 
                                raw_dat()$min_lat, raw_dat()$max_lat,
                                raw_dat()$min_long, raw_dat()$max_long))
@@ -69,6 +71,7 @@ app_server <- function(input, output, session) {
   
   # last data set accessed
   cache <- reactiveVal(list())
+  
   
   # main dynamic data set
   dat_main <- reactive({
@@ -272,6 +275,7 @@ app_server <- function(input, output, session) {
   ### Subseted data set
   dat <- reactive({
     req(dat_main)
+   
     # subset data if user has defined selected locations
     if(is.null(selected_locations())){
       return(dat_main())
@@ -341,6 +345,7 @@ app_server <- function(input, output, session) {
   })
 
   output$mainmap <- renderLeaflet(base_map())
+  last_drawn <- reactiveVal(NULL)
   last_locations <- reactiveVal(NULL)
   
   observe({
@@ -386,8 +391,8 @@ app_server <- function(input, output, session) {
               paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
               paste("Date/Time:", pts$DateTime),
               paste("Elevation:", pts$Elevation),
-              paste("Slope:", ifelse("Slope" %in% colnames(pts), pts$Slope, "N/A")),
-              paste("Aspect:", ifelse("Aspect" %in% colnames(pts), pts$Aspect, "N/A")),
+              paste("Slope:", ifelse("Slope" %in% colnames(dat()), pts$Slope, "N/A")),
+              paste("Aspect:", ifelse("Aspect" %in% colnames(dat()), pts$Aspect, "N/A")),
               paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
                                         ", ")),
               paste("LocationID:", pts$LocationID),
@@ -406,7 +411,6 @@ app_server <- function(input, output, session) {
       for(ani in setdiff(last_drawn()$ani, current_anilist$ani)) {
         proxy %>% clearGroup(ani)
       }
-      # add new points
       if(length(setdiff(current_anilist$ani, last_drawn()$ani)) != 0) {
           pts <- subset(pts, Animal %in% setdiff(current_anilist$ani, last_drawn()$ani))
           proxy %>%
@@ -424,6 +428,8 @@ app_server <- function(input, output, session) {
                 paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
                 paste("Date/Time:", pts$DateTime),
                 paste("Elevation:", pts$Elevation),
+                paste("Slope:", ifelse("Slope" %in% colnames(dat()), pts$Slope, "N/A")),
+                paste("Aspect:", ifelse("Aspect" %in% colnames(dat()), pts$Aspect, "N/A")),
                 paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
                                           ", ")),
                 paste("LocationID:", pts$LocationID),
@@ -431,7 +437,34 @@ app_server <- function(input, output, session) {
                 sep = "<br/>"
               )
             ) 
-      } # if new points 
+      } # if new points
+      else if(uploaded()) {
+        uploaded(FALSE)
+        proxy %>%
+          addCircleMarkers(
+            data = pts,
+            radius = 4,
+            group = pts$Animal,
+            stroke = FALSE,
+            color = ~ factpal(Animal),
+            weight = 3,
+            opacity = .8,
+            fillOpacity = 1,
+            fillColor = ~ factpal(Animal),
+            popup = ~ paste(
+              paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
+              paste("Date/Time:", pts$DateTime),
+              paste("Elevation:", pts$Elevation),
+              paste("Slope:", ifelse("Slope" %in% colnames(dat()), pts$Slope, "N/A")),
+              paste("Aspect:", ifelse("Aspect" %in% colnames(dat()), pts$Aspect, "N/A")),
+              paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
+                                        ", ")),
+              paste("LocationID:", pts$LocationID),
+              
+              sep = "<br/>"
+            )
+          ) 
+      }
     } # else if closing bracket
     # add heatmap and layer control 
     proxy %>% 

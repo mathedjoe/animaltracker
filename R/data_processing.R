@@ -1,6 +1,7 @@
 #'
-#'Add elevation data from public AWS terrain tiles to long/lat coordinates of animal gps data
+#'Add elevation data from terrain tiles to long/lat coordinates of animal gps data
 #'
+#'@param elev elevation data as terrain tiles
 #'@param anidf animal tracking dataframe
 #'@param zoom level of zoom, defaults to 11
 #'@param get_slope logical, whether to compute slope (in degrees)
@@ -12,19 +13,10 @@
 #' xelev <- lookup_elevation(demo, zoom = 11)
 #' plot(xelev$Altitude, xelev$Elevation)
 #' @export
-lookup_elevation <- function(anidf, zoom = 11, get_slope=TRUE, get_aspect=TRUE) {
+lookup_elevation <- function(elev, anidf, zoom = 11, get_slope=TRUE, get_aspect=TRUE) {
   
   # extract coordinates from the animal data
   locations <- anidf %>% dplyr::select(x = Longitude, y = Latitude)
-  
-  # retrieve terrain data for the region containing the animal data
-  ## USGS DEM source = Amazon Web Services (https://aws.amazon.com/public-datasets/terrain/) terrain tiles.
-  # elev <- elevatr::get_elev_raster(locations, prj = "+proj=longlat", z=zoom)
-  
-  ## 'alt' stands for altitude (elevation); the data were aggregated from SRTM 90 m resolution data between -60 and 60 latitude.
-  dir.create("data/elev")
-  elev <- raster::getData("alt", path ='data/elev', country='USA')[[1]]
- 
   
   # convert terrain data to spatial pts
   elevpts <- raster::rasterToPoints(elev, spatial=TRUE)
@@ -50,8 +42,27 @@ lookup_elevation <- function(anidf, zoom = 11, get_slope=TRUE, get_aspect=TRUE) 
     aspectpts <- raster::rasterToPoints(aspect, spatial=TRUE)
     anidf$Aspect <- round(aspectpts$aspect[ datapts_elev$nn.idx  ], 1)
   }
-  unlink("data/elev", recursive = T)
   return(anidf)
+}
+
+#'
+#'Read an archive of altitude mask files and convert the first file into a raster object
+#'
+#'@param filename path of altitude mask file archive
+#'@param exdir path to extract files 
+#'@return the first altitude mask file as a raster object
+#'
+read_zip_to_rasters <- function(filename, exdir = "data/elev"){
+  
+  ff <- utils::unzip(filename, exdir=dirname(exdir))
+  f <- ff[substr(ff, nchar(ff)-3, nchar(ff)) == '.grd']
+  
+  rs <- raster(f[[1]])
+  
+  projection(rs) <- "+proj=longlat +datum=WGS84"
+  
+  return(rs)
+  
 }
 
 #'
