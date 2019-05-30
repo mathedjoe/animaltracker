@@ -45,37 +45,48 @@ store_batch_list <- function(data_dir) {
   ani_ids <- gsub("(.*)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.csv)","\\5", file_names)
   
   site_names <- c()
-  
-  max_lat <- max(data_sets[[1]]$Latitude)
-  min_lat <- min(data_sets[[1]]$Latitude)
-  max_long <- max(data_sets[[1]]$Longitude)
-  min_long <- min(data_sets[[1]]$Longitude)
+  # function to compute max/min lat/long from a dirty dataset
+  maxminlatlong <- function(data){
+    df <- data %>% 
+      select( Latitude, Longitude) %>%
+      filter(!is.na(Latitude), Latitude !=0, !is.na(Longitude), Longitude !=0)
+    
+   return( c(     max(df$Latitude), 
+                  min(df$Latitude),
+                  max(df$Longitude),
+                  min(df$Longitude)
+            )
+         )
+  }
+  # function to update a global max/min lat/long with a new dataset
+  update_maxminlatlong <- function(mmll, newdata){
+    new_mmll <- maxminlatlong(newdata)
+    c(max(mmll[1], new_mmll[1]),
+      min(mmll[2], new_mmll[2]),
+      max(mmll[3], new_mmll[3]),
+      min(mmll[4], new_mmll[4]))
+    
+  }
+  maxminsll <- maxminlatlong(data_sets[[1]])
   
   for(i in 1:length(file_names)) {
     site_names[i] <-  ifelse( grepl("\\_", file_names[i]), tolower(sub("\\_.*","", file_names[i])), paste0("Unknown (", file_names[i], ")"))
-    if(max(data_sets[[i]]$Latitude) > max_lat) {
-      max_lat <- max(data_sets[[i]]$Latitude)
+    if(i > 1 ){
+      maxminsll <- update_maxminlatlong(maxminsll, data_sets[[i]])
     }
-    if(min(data_sets[[i]]$Latitude) < min_lat) {
-      min_lat <- min(data_sets[[i]]$Latitude)
-    }
-    if(max(data_sets[[i]]$Longitude) > max_long) {
-      max_long <- max(data_sets[[i]]$Longitude)
-    }
-    if(min(data_sets[[i]]$Longitude) < min_long) {
-      min_long <- min(data_sets[[i]]$Longitude)
-    }
+      
   }
   
   ani_ids <- make.unique(ani_ids, sep="_")
   
   unlink("temp", recursive = T)
+  # print(paste("The max/min Lat/Lon values are", paste(maxminsll, collapse=", ")) )
   
   return(list(data = data_sets, file = file_names, 
               ani = ani_ids, gps = gps_units, 
               site = site_names, rds_name = rds_name,
-              min_lat = min_lat, max_lat = max_lat,
-              min_long = min_long, max_long = max_long))
+              min_lat = maxminsll[2], max_lat = maxminsll[1],
+              min_long = maxminsll[4], max_long = maxminsll[3]))
 }
 
 #'
@@ -182,6 +193,8 @@ clean_store_batch <- function(data_info, autocleans, filters, elev, get_slope, g
   } #cleaning for loop
     
     all_data_sets <- suppressWarnings(dplyr::bind_rows(data_sets)) 
+    
+    # print(paste("Now have", nrow(all_data_sets), "rows of clean data."))
     
     elev_data_sets <- all_data_sets %>% dplyr::filter(Latitude <= max_lat,
                                                       Latitude >= min_lat,
