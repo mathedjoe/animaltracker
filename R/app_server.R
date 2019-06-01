@@ -13,13 +13,57 @@
 # Define server logic for the shiny app
 app_server <- function(input, output, session) {
   
-
-  # initialize list of datasets
-  meta <- reactive({ 
+  ## the data were aggregated from SRTM 90 m resolution data between -60 and 60 latitude.
+  elev <- read_zip_to_rasters("data/elev/USA_msk_alt.zip")
+  
+  raw_dat <- reactive({
     if(is.null(input$zipInput)) {
-      return(demo_meta)
+      return(demo_raw)
     }
-    return(clean_batch(input$zipInput))
+    return(store_batch_list(input$zipInput))
+  })
+  
+  output$numUploaded <- renderText(paste0(ifelse(is.null(input$zipInput), 0, length(raw_dat()$data)), " files uploaded"))
+  
+  clean_unfiltered <- reactive({
+    if(is.null(input$zipInput)) {
+      return(demo_unfiltered)
+    }
+    if(!identical(raw_dat(), demo_raw)) {
+      return(clean_batch_df(raw_dat(), autocleans = FALSE, filters = FALSE))
+    }
+  })
+  
+  clean_filtered <- reactive({
+    if(is.null(input$zipInput)) {
+      return(demo_filtered)
+    }
+    if(!identical(raw_dat(), demo_raw)) {
+      return(clean_batch_df(raw_dat(), autocleans = FALSE, filters = TRUE))
+    }
+  })
+  
+  # initialize list of datasets
+  meta <- reactiveVal(demo_meta)
+  uploaded <- reactiveVal(FALSE)
+  
+  
+  observeEvent(input$processButton, {
+    if(!identical(raw_dat(), demo_raw)) {
+      uploaded(TRUE)
+      if(!is.null(input$selected_lat) && !is.null(input$selected_long)) {
+        meta(clean_store_batch(raw_dat(), input$autocleanBox, filters = TRUE, elev,
+                               input$slopeBox, input$aspectBox, 
+                               input$selected_lat[1], input$selected_lat[2],
+                               input$selected_long[1], input$selected_long[2]))
+      }
+      else {
+        meta(clean_store_batch(raw_dat(), input$autocleanBox, input$filterBox, elev,
+                               input$slopeBox, input$aspectBox, 
+                               raw_dat()$min_lat, raw_dat()$max_lat,
+                               raw_dat()$min_long, raw_dat()$max_long))
+      }
+    }
   })
   
   ######################################
@@ -27,6 +71,7 @@ app_server <- function(input, output, session) {
   
   # last data set accessed
   cache <- reactiveVal(list())
+  
   
   # main dynamic data set
   dat_main <- reactive({
@@ -89,6 +134,22 @@ app_server <- function(input, output, session) {
   
   ######################################
   ## DYNAMIC USER INTERFACE
+  
+  # select lat/long bounds
+  
+  output$lat_bounds <- renderUI({
+    if(!input$filterBox) {
+      return()
+    }
+    numericRangeInput("selected_lat", "Latitude Range:", value = c(raw_dat()$min_lat, raw_dat()$max_lat))
+  })
+  
+  output$long_bounds <- renderUI({
+    if(!input$filterBox) {
+      return()
+    }
+    numericRangeInput("selected_long", "Longitude Range:", value = c(raw_dat()$min_long, raw_dat()$max_long))
+  })
   
   # select data sites
   output$choose_site <- renderUI({
@@ -162,7 +223,7 @@ app_server <- function(input, output, session) {
   output$choose_cols <- renderUI({
     req(input$selected_ani) 
     
-    var_choices <- c( "Elevation", "TimeDiffMins", "Course", "CourseDiff", "Distance", "Rate")
+    var_choices <- c( "Elevation", "TimeDiffMins", "Course", "CourseDiff", "Distance", "Rate", "Slope", "Aspect")
     pickerInput("selected_cols", "Choose Variables for Statistics",
                 choices = var_choices,
                 selected = var_choices[c(1,2,3,4)],
@@ -214,6 +275,7 @@ app_server <- function(input, output, session) {
   ### Subseted data set
   dat <- reactive({
     req(dat_main)
+   
     # subset data if user has defined selected locations
     if(is.null(selected_locations())){
       return(dat_main())
@@ -329,6 +391,8 @@ app_server <- function(input, output, session) {
               paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
               paste("Date/Time:", pts$DateTime),
               paste("Elevation:", pts$Elevation),
+              paste("Slope:", pts$Slope),
+              paste("Aspect:", pts$Aspect),
               paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
                                         ", ")),
               paste("LocationID:", pts$LocationID),
@@ -347,7 +411,6 @@ app_server <- function(input, output, session) {
       for(ani in setdiff(last_drawn()$ani, current_anilist$ani)) {
         proxy %>% clearGroup(ani)
       }
-      # add new points
       if(length(setdiff(current_anilist$ani, last_drawn()$ani)) != 0) {
           pts <- subset(pts, Animal %in% setdiff(current_anilist$ani, last_drawn()$ani))
           proxy %>%
@@ -365,6 +428,8 @@ app_server <- function(input, output, session) {
                 paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
                 paste("Date/Time:", pts$DateTime),
                 paste("Elevation:", pts$Elevation),
+                paste("Slope:", pts$Slope),
+                paste("Aspect:", pts$Aspect),
                 paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
                                           ", ")),
                 paste("LocationID:", pts$LocationID),
@@ -372,7 +437,34 @@ app_server <- function(input, output, session) {
                 sep = "<br/>"
               )
             ) 
-      } # if new points 
+      } # if new points
+      else if(uploaded()) {
+        uploaded(FALSE)
+        proxy %>%
+          addCircleMarkers(
+            data = pts,
+            radius = 4,
+            group = pts$Animal,
+            stroke = FALSE,
+            color = ~ factpal(Animal),
+            weight = 3,
+            opacity = .8,
+            fillOpacity = 1,
+            fillColor = ~ factpal(Animal),
+            popup = ~ paste(
+              paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
+              paste("Date/Time:", pts$DateTime),
+              paste("Elevation:", pts$Elevation),
+              paste("Slope:", pts$Slope),
+              paste("Aspect:", pts$Aspect),
+              paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
+                                        ", ")),
+              paste("LocationID:", pts$LocationID),
+              
+              sep = "<br/>"
+            )
+          ) 
+      }
     } # else if closing bracket
     # add heatmap and layer control 
     proxy %>% 
@@ -608,6 +700,44 @@ app_server <- function(input, output, session) {
   })
   output$rate <- renderTable(rate_stats())
   
+  # Slope
+  
+  output$slope_title <- renderUI({
+    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Slope" %in% input$selected_cols) | !("Slope" %in% colnames(dat()))) 
+      return()
+    h4("Slope")
+  })
+  
+  slope_stats <- reactive({
+    if(!("Slope" %in% input$selected_cols) | is.null(input$selected_stats) | !("Slope" %in% colnames(dat()))) 
+      return()
+    
+    summary <- summarize_col(dat(), "Slope") 
+    subset(summary, select=c("Animal", input$selected_stats))
+    
+  })
+  
+  output$slope <- renderTable(slope_stats())
+  
+  # Aspect
+  
+  output$aspect_title <- renderUI({
+    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Aspect" %in% input$selected_cols) | !("Aspect" %in% colnames(dat()))) 
+      return()
+    h4("Aspect")
+  })
+  
+  aspect_stats <- reactive({
+    if(!("Aspect" %in% input$selected_cols) | is.null(input$selected_stats) | !("Aspect" %in% colnames(dat()))) 
+      return()
+    
+    summary <- summarize_col(dat(), "Aspect") 
+    subset(summary, select=c("Animal", input$selected_stats))
+    
+  })
+  
+  output$aspect <- renderTable(aspect_stats())
+  
   ##############################################################
   # SUBSET DATA VIA MAP
   selected_locations <- reactive({
@@ -653,7 +783,15 @@ app_server <- function(input, output, session) {
       paste0("data_export_", format(Sys.time(), "%Y-%m-%d_%H-%M-%p"), ".csv")
     },
     content = function(file) {
-      write.csv(dat(), file, row.names = FALSE)
+      if(input$downloadOptions == "Processed (unfiltered) data") {
+        write.csv(clean_unfiltered(), file, row.names = FALSE)
+      }
+      else if(input$downloadOptions == "Processed (filtered) data") {
+        write.csv(clean_filtered(), file, row.names = FALSE)
+      }
+      else {
+        write.csv(dat(), file, row.names = FALSE)
+      }
     }
   )
   

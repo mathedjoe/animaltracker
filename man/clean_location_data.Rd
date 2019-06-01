@@ -4,11 +4,16 @@
 \alias{clean_location_data}
 \title{Cleans a raw animal GPS dataset, implementing a standardized procedure to remove impossible values}
 \usage{
-clean_location_data(df, aniid = NA, gpsid = NA, maxrate = 84,
-  maxcourse = 100, maxdist = 840, maxtime = 100, timezone = "UTC")
+clean_location_data(df, autocleans = TRUE, filters = TRUE,
+  aniid = NA, gpsid = NA, maxrate = 84, maxcourse = 100,
+  maxdist = 840, maxtime = 100, timezone = "UTC")
 }
 \arguments{
 \item{df}{data frame in standardized format (e.g., from a raw spreadsheet)}
+
+\item{autocleans}{automatically clean data with ts_clean, defaults to true}
+
+\item{filters}{filter bad data points, defaults to true}
 
 \item{aniid}{identification code for the animal}
 
