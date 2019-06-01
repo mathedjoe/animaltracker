@@ -4,7 +4,7 @@
 \name{demo_raw}
 \alias{demo_raw}
 \title{Raw demo animal GPS data from cows with information}
-\format{A 39 MB list with 10 elements}
+\format{A 62.4 MB list with 10 elements}
 \usage{
 demo_raw
 }

@@ -2,20 +2,27 @@
 % Please edit documentation in R/data_processing.R
 \name{lookup_elevation}
 \alias{lookup_elevation}
-\title{Add elevation data from public AWS terrain tiles to long/lat coordinates of animal gps data}
+\title{Add elevation data from terrain tiles to long/lat coordinates of animal gps data}
 \usage{
-lookup_elevation(anidf, zoom = 11)
+lookup_elevation(elev, anidf, zoom = 11, get_slope = TRUE,
+  get_aspect = TRUE)
 }
 \arguments{
+\item{elev}{elevation data as terrain tiles}
+
 \item{anidf}{animal tracking dataframe}
 
 \item{zoom}{level of zoom, defaults to 11}
+
+\item{get_slope}{logical, whether to compute slope (in degrees)}
+
+\item{get_aspect}{logical, whether to compute aspect (in degrees)}
 }
 \value{
-original data frame, with Elevation column appended
+original data frame, with terrain column(s) appended
 }
 \description{
-Add elevation data from public AWS terrain tiles to long/lat coordinates of animal gps data
+Add elevation data from terrain tiles to long/lat coordinates of animal gps data
 }
 \examples{
 data(demo)

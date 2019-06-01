@@ -4,7 +4,7 @@
 \name{demo_filtered}
 \alias{demo_filtered}
 \title{Filtered demo animal GPS data from cows}
-\format{A data frame with 220412 rows and 26 variables}
+\format{A data frame with 323278 rows and 26 variables}
 \usage{
 demo_filtered
 }
