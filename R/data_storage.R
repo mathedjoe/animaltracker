@@ -40,16 +40,19 @@ store_batch_list <- function(data_dir) {
   
   data_sets <- lapply(data_files, read.csv, skipNul = T, stringsAsFactors = F)
   
-  file_names <- gsub(paste0("(temp)(\\/)", dir_name, "(\\/)"), "", data_files)
+  # remove "temp" from file name
+  file_names <- gsub("(temp)(\\/)", "", data_files)
+  
   gps_units <- gsub("(.*)(20)([0-9]{2}\\_)(.*)(\\_{1}.*)(\\.csv)","\\4", file_names)
   ani_ids <- gsub("(.*)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.csv)","\\5", file_names)
   
   site_names <- c()
   # function to compute max/min lat/long from a dirty dataset
   maxminlatlong <- function(data){
-    df <- data %>% 
-      select( Latitude, Longitude) %>%
-      filter(!is.na(Latitude), Latitude !=0, !is.na(Longitude), Longitude !=0)
+    suppressWarnings(  df <-  data[!is.na(as.numeric(data$Index)), ] ) # discard any rows with text in the first column duplicate header rows
+    df <- type.convert(df) %>% 
+      dplyr::select( Latitude, Longitude) %>%
+      dplyr::filter(!is.na(Latitude), Latitude !=0, !is.na(Longitude), Longitude !=0)
     
    return( c(     max(df$Latitude), 
                   min(df$Latitude),
@@ -103,7 +106,10 @@ clean_batch_df <- function(data_info, autocleans, filters) {
     
   for(i in 1:length(data_info$data)) {
     
-    df <- data_info$data[[i]]
+    df <- data_info$data[[i]] 
+    
+    df <- df[!duplicated(as.list(df))] # discard any columns that are duplicates of index
+    colnames(df)[1] <- "Index"
     
     suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
     df <- type.convert(df)
@@ -112,12 +118,12 @@ clean_batch_df <- function(data_info, autocleans, filters) {
     gpsid <- data_info$gps[i]
     
     if(data_info$file[i] == aniid) {
-      aniid <- paste0("Unknown (", file_names[i], ")")
+      aniid <- paste0("Unknown (", data_info$file[i], ")")
       data_info$ani[i] <- aniid
     }
     
     if(data_info$file[i] == gpsid) {
-      gpsid <- paste0("Unknown (", file_names[i], ")")
+      gpsid <- paste0("Unknown (", data_info$file[i], ")")
       data_info$gps[i] <- gpsid
     }
     
@@ -165,6 +171,9 @@ clean_store_batch <- function(data_info, autocleans, filters, elev, get_slope, g
   for(i in 1:length(data_info$data)) {
    
     df <- data_info$data[[i]]
+    
+    df <- df[!duplicated(as.list(df))] # discard any columns that are duplicates of index
+    colnames(df)[1] <- "Index"
     
     suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
     df <- type.convert(df)
