@@ -156,7 +156,6 @@ clean_batch_df <- function(data_info, autocleans, filters) {
 #'@return df of metadata for animal file directory
 #'
 clean_store_batch <- function(data_info, autocleans, filters, elev, get_slope, get_aspect, min_lat, max_lat, min_long, max_long) {
-  
   #initialize empty meta
   meta_df <- data.frame(matrix(ncol = 9, nrow = 0))
   meta_cols <- c("file_id", "file_name", "site", "ani_id", "min_date", "max_date", "min_lat", "max_lat", "storage")
@@ -212,12 +211,12 @@ clean_store_batch <- function(data_info, autocleans, filters, elev, get_slope, g
     
     if(nrow(elev_data_sets) == 0) {
       incProgress(0, detail = "Appending elevation for invalid bounds. Defaulting to all data.")
-      elev_data_sets <- lookup_elevation(elev, all_data_sets, get_slope, get_aspect)
+      elev_data_sets <- lookup_elevation(elev, all_data_sets, get_slope = get_slope, get_aspect = get_aspect)
     }
     else {
       incProgress(0, detail = paste0("Appending elevation for lat. bounds (", min_lat, ",", max_lat, 
                                      ") and long. bounds (", min_long, ",", max_long, ")..." ))
-      elev_data_sets <- lookup_elevation(elev, elev_data_sets, get_slope, get_aspect)
+      elev_data_sets <- lookup_elevation(elev, elev_data_sets, get_slope = get_slope, get_aspect = get_aspect)
     }
     
     

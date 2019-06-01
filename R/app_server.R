@@ -391,8 +391,8 @@ app_server <- function(input, output, session) {
               paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
               paste("Date/Time:", pts$DateTime),
               paste("Elevation:", pts$Elevation),
-              paste("Slope:", ifelse("Slope" %in% colnames(dat()), pts$Slope, "N/A")),
-              paste("Aspect:", ifelse("Aspect" %in% colnames(dat()), pts$Aspect, "N/A")),
+              paste("Slope:", pts$Slope),
+              paste("Aspect:", pts$Aspect),
               paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
                                         ", ")),
               paste("LocationID:", pts$LocationID),
@@ -428,8 +428,8 @@ app_server <- function(input, output, session) {
                 paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
                 paste("Date/Time:", pts$DateTime),
                 paste("Elevation:", pts$Elevation),
-                paste("Slope:", ifelse("Slope" %in% colnames(dat()), pts$Slope, "N/A")),
-                paste("Aspect:", ifelse("Aspect" %in% colnames(dat()), pts$Aspect, "N/A")),
+                paste("Slope:", pts$Slope),
+                paste("Aspect:", pts$Aspect),
                 paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
                                           ", ")),
                 paste("LocationID:", pts$LocationID),
@@ -455,8 +455,8 @@ app_server <- function(input, output, session) {
               paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
               paste("Date/Time:", pts$DateTime),
               paste("Elevation:", pts$Elevation),
-              paste("Slope:", ifelse("Slope" %in% colnames(dat()), pts$Slope, "N/A")),
-              paste("Aspect:", ifelse("Aspect" %in% colnames(dat()), pts$Aspect, "N/A")),
+              paste("Slope:", pts$Slope),
+              paste("Aspect:", pts$Aspect),
               paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
                                         ", ")),
               paste("LocationID:", pts$LocationID),
