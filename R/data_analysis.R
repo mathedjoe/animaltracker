@@ -282,6 +282,42 @@ violin_gps_compare <- function(correct, candidate, col) {
     geom_boxplot()
 }
 
-line_compare <- function(correct, candidate, by) {
-  
+line_compare_dev <- function(correct, candidate, col) {
+  col_name <- dplyr::enquo(col)
+  correct <- correct %>% 
+    dplyr::rename(GPS = collar) %>% 
+    dplyr::mutate(Date = as.Date(date)) %>% 
+    dplyr::mutate(Data = "Correct") %>% 
+    dplyr::group_by(GPS, Date) %>% 
+    dplyr::mutate(avg = mean(!!col_name)) %>% 
+    dplyr::select(GPS, Date, Data, avg) %>% 
+    dplyr::distinct()
+  candidate <- candidate %>% 
+    dplyr::mutate(Data = "Candidate") %>% 
+    dplyr::group_by(GPS, Date) %>% 
+    dplyr::mutate(avg = mean(!!col_name)) %>% 
+    dplyr::select(GPS, Date, Data, avg) %>% 
+    dplyr::distinct()
+  plot_data <- dplyr::bind_rows(correct, candidate)
+  ggplot(plot_data, aes(x=Date, y=avg, group=Data, color=Data)) +
+    geom_line() +
+    ylab(paste0("Mean ", deparse(substitute(col)))) +
+    facet_wrap(vars(GPS))
+}
+
+line_compare <- function(correct, candidate, col) {
+  col_name <- dplyr::enquo(col)
+  correct <- correct %>% 
+    dplyr::mutate(Date = as.Date(date)) %>%
+    dplyr::group_by(Date) %>% 
+    dplyr::summarise(avg = mean(!!col_name)) %>% 
+    dplyr::mutate(Data = "Correct") 
+  candidate <- candidate %>% 
+    dplyr::group_by(Date) %>% 
+    dplyr::summarise(avg = mean(!!col_name)) %>% 
+    dplyr::mutate(Data = "Candidate")
+  plot_data <- dplyr::bind_rows(correct, candidate)
+  ggplot(plot_data, aes(x=Date, y=avg, group=Data, color=Data)) +
+    geom_line() +
+    ylab(paste0("Mean ", deparse(substitute(col)))) 
 }
