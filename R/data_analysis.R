@@ -165,17 +165,21 @@ compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
   
   correct_gps_summary <- correct %>% 
     dplyr::rename(GPS = collar) %>%
+    dplyr::rename(Date = date) %>% 
+    dplyr::mutate(Date = as.Date(Date)) %>%
     summarise_anidf(GPS, Latitude, Longitude, distancetr, Course, RATE, Elevation)
-  
-  candidate_gps_summary <- candidate %>% 
-    summarise_anidf(GPS, Latitude, Longitude, Distance, Course, Rate, Elevation)
-  
+ 
   correct_date_summary <- correct %>% 
     dplyr::rename(Date = date) %>% 
     dplyr::mutate(Date = as.Date(Date)) %>% 
     summarise_anidf(Date, Latitude, Longitude, distancetr, Course, RATE, Elevation)
   
+  candidate_gps_summary <- candidate %>% 
+    dplyr::mutate(Date = as.Date(Date)) %>%
+    summarise_anidf(GPS, Latitude, Longitude, Distance, Course, Rate, Elevation)
+  
   candidate_date_summary <- candidate %>% 
+    dplyr::mutate(Date = as.Date(Date)) %>%
     summarise_anidf(Date, Latitude, Longitude, Distance, Course, Rate, Elevation)
   
   gps_summary <- join_summaries(correct_gps_summary, candidate_gps_summary, by="GPS")
@@ -183,6 +187,8 @@ compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
   
   write.csv(gps_summary, gps_out, row.names = F)
   write.csv(date_summary, date_out, row.names = F)
+  
+  return(list(gps = gps_summary, date = date_summary))
 }
 
 #'
@@ -279,7 +285,7 @@ violin_gps_compare <- function(correct, candidate, col) {
     dplyr::select(GPS, !!col, Data)
   plot_data <- dplyr::bind_rows(correct, candidate)
   ggplot(plot_data, aes(x=GPS, y=!!col, fill=Data)) +
-    geom_boxplot()
+    geom_violin()
 }
 
 line_compare_dev <- function(correct, candidate, col) {
