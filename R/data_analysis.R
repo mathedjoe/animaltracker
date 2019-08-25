@@ -253,17 +253,17 @@ join_summaries <- function(correct_summary, candidate_summary, by, daily=F) {
     # create difference columns
     dplyr::mutate(nDiff = n.x - n.y) %>% 
     dplyr::mutate(meanLatDiff = meanLat.x - meanLat.y) %>% 
-    dplyr::mutate(sdLatDiff = sdLat.x - sdLat.y) %>% 
+    dplyr::mutate(sdLatDiff = sqrt((sdLat.x)^2 + (sdLat.y)^2)) %>% 
     dplyr::mutate(meanLongDiff = meanLong.x - meanLong.y) %>% 
-    dplyr::mutate(sdLongDiff = sdLong.x - sdLong.y) %>% 
+    dplyr::mutate(sdLongDiff = sqrt((sdLong.x)^2 + (sdLong.y)^2)) %>% 
     dplyr::mutate(meanDistDiff = meanDist.x - meanDist.y) %>% 
-    dplyr::mutate(sdDistDiff = sdDist.x - sdDist.y) %>% 
+    dplyr::mutate(sdDistDiff = sqrt((sdDist.x)^2 + (sdDist.y)^2)) %>% 
     dplyr::mutate(meanCourseDiff = meanCourse.x - meanCourse.y) %>% 
-    dplyr::mutate(sdCourseDiff = sdCourse.x - sdCourse.y) %>% 
+    dplyr::mutate(sdCourseDiff = sqrt((sdCourse.x)^2 + (sdCourse.y)^2)) %>% 
     dplyr::mutate(meanRateDiff = meanRate.x - meanRate.y) %>% 
-    dplyr::mutate(sdRateDiff = sdRate.x - sdRate.y) %>% 
+    dplyr::mutate(sdRateDiff = sqrt((sdRate.x)^2 + (sdRate.y)^2)) %>% 
     dplyr::mutate(meanElevDiff = meanElev.x - meanElev.y) %>% 
-    dplyr::mutate(sdElevDiff = sdElev.x - sdElev.y) 
+    dplyr::mutate(sdElevDiff = sqrt((sdElev.x)^2 + (sdElev.y)^2)) 
     # reorder summary columns
    if(daily) {
      summary_all %>% 
