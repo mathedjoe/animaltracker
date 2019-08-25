@@ -153,33 +153,28 @@ qqplot_time <- function(rds_path) {
 }
 
 #'
-#'Compares two animal datasets and calculates summary statistics 
+#'Compares two animal datasets and calculates summary statistics. 
+#'GPS, date, lat, long, course, distance, rate, elevation column names should match. 
 #'
 #'@param correct reference df
 #'@param candidate df to be compared to the reference
 #'@param gps_out desired file name of .csv output summary by GPS collar
 #'@param date_out desired file name of .csv output summary by date
+#'@return list containing gps_out and date_out as dfs
 #'@export
 #'
 compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
   
   correct_gps_summary <- correct %>% 
-    dplyr::rename(GPS = collar) %>%
-    dplyr::rename(Date = date) %>% 
-    dplyr::mutate(Date = as.Date(Date)) %>%
-    summarise_anidf(GPS, Latitude, Longitude, distancetr, Course, RATE, Elevation)
+    summarise_anidf(GPS, Latitude, Longitude, Distance, Course, Rate, Elevation)
  
   correct_date_summary <- correct %>% 
-    dplyr::rename(Date = date) %>% 
-    dplyr::mutate(Date = as.Date(Date)) %>% 
-    summarise_anidf(Date, Latitude, Longitude, distancetr, Course, RATE, Elevation)
+    summarise_anidf(Date, Latitude, Longitude, Distance, Course, Rate, Elevation)
   
   candidate_gps_summary <- candidate %>% 
-    dplyr::mutate(Date = as.Date(Date)) %>%
     summarise_anidf(GPS, Latitude, Longitude, Distance, Course, Rate, Elevation)
   
   candidate_date_summary <- candidate %>% 
-    dplyr::mutate(Date = as.Date(Date)) %>%
     summarise_anidf(Date, Latitude, Longitude, Distance, Course, Rate, Elevation)
   
   gps_summary <- join_summaries(correct_gps_summary, candidate_gps_summary, by="GPS")
@@ -188,24 +183,25 @@ compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
   write.csv(gps_summary, gps_out, row.names = F)
   write.csv(date_summary, date_out, row.names = F)
   
-  return(list(gps = gps_summary, date = date_summary))
+  return(list(GPS = gps_summary, Date = date_summary))
 }
 
 #'
-#'Helper function for compare_summarise_data
+#'Helper function for compare_summarise_data and compare_summarise_daily
 #'Calculates summary statistics for an animal dataset
 #'
 #'@param anidf the animal dataset
-#'@param by column to group by
+#'@param by column to group by, null if daily=T
 #'@param lat latitude column
 #'@param long longitude column
 #'@param dist distance column
 #'@param course course column
 #'@param rate rate column
 #'@param elev elevation column
+#'@param daily whether to group by both GPS and Date for daily summary, defaults to False
 #'
 #'
-summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev) {
+summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev, daily=F) {
   by <- dplyr::enquo(by)
   lat <- dplyr::enquo(lat)
   long <- dplyr::enquo(long)
@@ -213,8 +209,15 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev) {
   course <- dplyr::enquo(course)
   rate <- dplyr::enquo(rate)
   elev <- dplyr::enquo(elev)
+  if(daily) {
+    anidf <- anidf %>% 
+      dplyr::group_by(GPS, Date)
+  }
+  else {
+    anidf <- anidf %>% 
+      dplyr::group_by(!!by) 
+  }
   anidf %>% 
-    dplyr::group_by(!!by) %>% 
     dplyr::summarise(n = n(),
                      meanLat = mean(!!lat),
                      sdLat = sd(!!lat),
@@ -236,10 +239,17 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev) {
 #'
 #'@param correct_summary summary df of reference dataset, returned by summarise_anidf
 #'@param candidate_summary summary df of dataset to be compared to reference, returned by summarise_anidf
-#'@param by column to join by 
+#'@param by column to join by , null if daily=T
+#'@param daily whether to group by both GPS and Date for daily summary, defaults to False
 #'
-join_summaries <- function(correct_summary, candidate_summary, by) {
-  dplyr::full_join(correct_summary, candidate_summary, by=by) %>% 
+join_summaries <- function(correct_summary, candidate_summary, by, daily=F) {
+  if(daily) {
+    summary_all <- dplyr::full_join(correct_summary, candidate_summary, by=c("GPS", "Date"))
+  }
+  else {
+    summary_all <- dplyr::full_join(correct_summary, candidate_summary, by=by)
+  }
+   summary_all <- summary_all %>% 
     # create difference columns
     dplyr::mutate(nDiff = n.x - n.y) %>% 
     dplyr::mutate(meanLatDiff = meanLat.x - meanLat.y) %>% 
@@ -253,77 +263,133 @@ join_summaries <- function(correct_summary, candidate_summary, by) {
     dplyr::mutate(meanRateDiff = meanRate.x - meanRate.y) %>% 
     dplyr::mutate(sdRateDiff = sdRate.x - sdRate.y) %>% 
     dplyr::mutate(meanElevDiff = meanElev.x - meanElev.y) %>% 
-    dplyr::mutate(sdElevDiff = sdElev.x - sdElev.y) %>% 
+    dplyr::mutate(sdElevDiff = sdElev.x - sdElev.y) 
     # reorder summary columns
-    dplyr::select(1,
-                  n.x, n.y, nDiff,
-                  meanLat.x, meanLat.y, meanLatDiff,
-                  sdLat.x, sdLat.y, sdLatDiff,
-                  meanLong.x, meanLong.y, meanLongDiff,
-                  sdLong.x, sdLong.y, sdLongDiff,
-                  meanDist.x, meanDist.y, meanDistDiff,
-                  sdDist.x, sdDist.y, sdDistDiff,
-                  meanCourse.x, meanCourse.y, meanCourseDiff,
-                  sdCourse.x, sdCourse.y, sdCourseDiff,
-                  meanRate.x, meanRate.y, meanRateDiff,
-                  sdRate.x, sdRate.y, sdRateDiff,
-                  meanElev.x, meanElev.y, meanElevDiff,
-                  sdElev.x, sdElev.y, sdElevDiff)
+   if(daily) {
+     summary_all %>% 
+       dplyr::select(GPS, Date,
+                     n.x, n.y, nDiff,
+                     meanLat.x, meanLat.y, meanLatDiff,
+                     sdLat.x, sdLat.y, sdLatDiff,
+                     meanLong.x, meanLong.y, meanLongDiff,
+                     sdLong.x, sdLong.y, sdLongDiff,
+                     meanDist.x, meanDist.y, meanDistDiff,
+                     sdDist.x, sdDist.y, sdDistDiff,
+                     meanCourse.x, meanCourse.y, meanCourseDiff,
+                     sdCourse.x, sdCourse.y, sdCourseDiff,
+                     meanRate.x, meanRate.y, meanRateDiff,
+                     sdRate.x, sdRate.y, sdRateDiff,
+                     meanElev.x, meanElev.y, meanElevDiff,
+                     sdElev.x, sdElev.y, sdElevDiff)
+   }
+   else {
+     summary_all %>% 
+     dplyr::select(1,
+                   n.x, n.y, nDiff,
+                   meanLat.x, meanLat.y, meanLatDiff,
+                   sdLat.x, sdLat.y, sdLatDiff,
+                   meanLong.x, meanLong.y, meanLongDiff,
+                   sdLong.x, sdLong.y, sdLongDiff,
+                   meanDist.x, meanDist.y, meanDistDiff,
+                   sdDist.x, sdDist.y, sdDistDiff,
+                   meanCourse.x, meanCourse.y, meanCourseDiff,
+                   sdCourse.x, sdCourse.y, sdCourseDiff,
+                   meanRate.x, meanRate.y, meanRateDiff,
+                   sdRate.x, sdRate.y, sdRateDiff,
+                   meanElev.x, meanElev.y, meanElevDiff,
+                   sdElev.x, sdElev.y, sdElevDiff)
+   }
 }
 
-# 127590, 130036
-
-violin_gps_compare <- function(correct, candidate, col) {
-  col <- dplyr::enquo(col)
-  correct <- correct %>% 
-    dplyr::mutate(GPS = as.factor(GPS)) %>% 
-    dplyr::mutate(Data = "Correct") %>% 
-    dplyr::select(GPS, !!col, Data)
-  candidate <- candidate %>% 
-    dplyr::mutate(GPS = as.factor(GPS)) %>% 
-    dplyr::mutate(Data = "Candidate") %>% 
-    dplyr::select(GPS, !!col, Data)
-  plot_data <- dplyr::bind_rows(correct, candidate)
-  ggplot(plot_data, aes(x=GPS, y=!!col, fill=Data)) +
-    geom_violin()
+#'
+#'Compares summary statistics from two datasets as side-by-side violin plots
+#'
+#'@param df_summary data frame of summary statistics from both datasets to be compared
+#'@param by GPS or Date
+#'@param col_name variable in df_summary to be used for the y-axis, as a string
+#'@param out file name to save plot
+#'@return side-by-side violin plots
+#'@export
+#'
+violin_compare <- function(df_summary, by, col_name, out) {
+  by <- dplyr::enquo(by)
+  
+  df_summary <- df_summary %>% 
+    dplyr::select(!!by, paste0(col_name, ".x"), paste0(col_name, ".y")) %>% 
+    tidyr::gather("source", obs, -!!by) %>% 
+    dplyr::mutate(source = gsub(paste0(col_name, "\\."), "", source)) %>% 
+    dplyr::mutate(source = gsub("x", "Correct", source)) %>% 
+    dplyr::mutate(source = gsub("y", "Candidate", source))
+  
+  violin <- ggplot(df_summary, aes(x = source, y=obs, fill=source)) +
+    geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
+    scale_x_discrete(limits=c("Correct", "Candidate")) +
+    xlab("Data") +
+    ylab(col_name) + 
+    theme_minimal() +
+    theme(legend.position = "none") 
+  
+  ggsave(out, violin)
+  
+  return(violin)
 }
 
-line_compare_dev <- function(correct, candidate, col) {
+#'
+#'Compares moving averages of a variable for two datasets over time, grouped by GPS
+#'GPS, Date, and col columns should match
+#'
+#'@param correct reference df
+#'@param candidate df to be compared to the reference
+#'@param col variable to plot the moving average for
+#'@param out file name to save plot
+#'@return faceted line plot of moving averages over time grouped by GPS
+#'
+line_compare <- function(correct, candidate, col, out) {
   col_name <- dplyr::enquo(col)
+  
   correct <- correct %>% 
-    dplyr::rename(GPS = collar) %>% 
-    dplyr::mutate(Date = as.Date(date)) %>% 
-    dplyr::mutate(Data = "Correct") %>% 
     dplyr::group_by(GPS, Date) %>% 
-    dplyr::mutate(avg = mean(!!col_name)) %>% 
-    dplyr::select(GPS, Date, Data, avg) %>% 
-    dplyr::distinct()
-  candidate <- candidate %>% 
-    dplyr::mutate(Data = "Candidate") %>% 
-    dplyr::group_by(GPS, Date) %>% 
-    dplyr::mutate(avg = mean(!!col_name)) %>% 
-    dplyr::select(GPS, Date, Data, avg) %>% 
-    dplyr::distinct()
-  plot_data <- dplyr::bind_rows(correct, candidate)
-  ggplot(plot_data, aes(x=Date, y=avg, group=Data, color=Data)) +
-    geom_line() +
-    ylab(paste0("Mean ", deparse(substitute(col)))) +
-    facet_wrap(vars(GPS))
-}
-
-line_compare <- function(correct, candidate, col) {
-  col_name <- dplyr::enquo(col)
-  correct <- correct %>% 
-    dplyr::mutate(Date = as.Date(date)) %>%
-    dplyr::group_by(Date) %>% 
     dplyr::summarise(avg = mean(!!col_name)) %>% 
-    dplyr::mutate(Data = "Correct") 
+    dplyr::mutate(Data = "Correct")
+  
   candidate <- candidate %>% 
-    dplyr::group_by(Date) %>% 
+    dplyr::group_by(GPS, Date) %>% 
     dplyr::summarise(avg = mean(!!col_name)) %>% 
     dplyr::mutate(Data = "Candidate")
+  
   plot_data <- dplyr::bind_rows(correct, candidate)
-  ggplot(plot_data, aes(x=Date, y=avg, group=Data, color=Data)) +
+  
+  line <- ggplot(plot_data, aes(x=Date, y=avg, group=Data, color=Data)) +
     geom_line() +
-    ylab(paste0("Mean ", deparse(substitute(col)))) 
+    ylab(paste0("Mean ", deparse(substitute(col)))) +
+    scale_color_discrete(guide = guide_legend(reverse = T)) +
+    facet_wrap(vars(GPS))
+  
+  ggsave(out, line)
+  
+  return(line)
+}
+
+#'
+#'Compares two animal datasets and calculates daily summary statistics. 
+#'GPS, date, lat, long, course, distance, rate, elevation column names should match. 
+#'
+#'@param correct reference df
+#'@param candidate df to be compared to the reference
+#'@param gps_out desired file name of .csv output summary 
+#'@return summary df
+#'@export
+#'
+compare_summarise_daily <- function(correct, candidate, out) {
+  correct_summary <- correct %>% 
+    summarise_anidf(NULL, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=T)
+  
+  candidate_summary <- candidate %>% 
+    summarise_anidf(NULL, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=T)
+  
+  summary_all <- join_summaries(correct_summary, candidate_summary, daily=T)
+  
+  write.csv(summary_all, out, row.names = F)
+  
+  return(summary_all)
 }
