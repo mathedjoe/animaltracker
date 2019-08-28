@@ -376,7 +376,7 @@ line_compare <- function(correct, candidate, col, out) {
 #'
 #'@param correct reference df
 #'@param candidate df to be compared to the reference
-#'@param gps_out desired file name of .csv output summary 
+#'@param out desired file name of .csv output summary 
 #'@return summary df
 #'@export
 #'

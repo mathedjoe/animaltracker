@@ -9,10 +9,6 @@
 #'
 
 app_ui <- function(){
-    require(shiny)
-    require(shinyjs)
-    require(V8)
-    require(shinyBS)
     navbarPage(theme = shinytheme("yeti"),
              # shinythemes::themeSelector(),  # <--- run this to choose a style theme
              header = div(useShinyjs(),

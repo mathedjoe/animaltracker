@@ -4,7 +4,7 @@
 \alias{read_zip_to_rasters}
 \title{Read an archive of altitude mask files and convert the first file into a raster object}
 \usage{
-read_zip_to_rasters(filename, exdir = "data/elev")
+read_zip_to_rasters(filename, exdir = "inst/extdata/elev")
 }
 \arguments{
 \item{filename}{path of altitude mask file archive}

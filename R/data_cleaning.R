@@ -38,9 +38,9 @@ get_file_meta <- function(data_dir){
 clean_location_data<- function (df, autocleans = TRUE, filters = TRUE, 
                                 aniid = NA, gpsid = NA, 
                                 maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC"){
-  require(dplyr)
-  require(tibble)
-  require(forecast)
+  requireNamespace(dplyr)
+  requireNamespace(tibble)
+  requireNamespace(forecast)
   df <- df %>% 
     tibble::add_column(Order = df$Index, .before="Index")%>%  # add Order column
     tibble::add_column(Animal = aniid, .after="Index") %>%      # add Animal column 

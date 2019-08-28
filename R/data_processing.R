@@ -7,12 +7,7 @@
 #'@param get_slope logical, whether to compute slope (in degrees)
 #'@param get_aspect logical, whether to compute aspect (in degrees)
 #'@return original data frame, with terrain column(s) appended
-#'@examples 
-#' data(demo)
-#' library(dplyr)
-#' xelev <- lookup_elevation(demo, zoom = 11)
-#' plot(xelev$Altitude, xelev$Elevation)
-#' @export
+#'@export
 lookup_elevation <- function(elev, anidf, zoom = 11, get_slope=TRUE, get_aspect=TRUE) {
   
   # extract coordinates from the animal data
@@ -52,7 +47,7 @@ lookup_elevation <- function(elev, anidf, zoom = 11, get_slope=TRUE, get_aspect=
 #'@param exdir path to extract files 
 #'@return the first altitude mask file as a raster object
 #'
-read_zip_to_rasters <- function(filename, exdir = "data/elev"){
+read_zip_to_rasters <- function(filename, exdir = "inst/extdata/elev"){
   
   ff <- utils::unzip(filename, exdir=dirname(exdir))
   f <- ff[substr(ff, nchar(ff)-3, nchar(ff)) == '.grd']
@@ -70,13 +65,9 @@ read_zip_to_rasters <- function(filename, exdir = "data/elev"){
 #'
 #'@param datapts GPS data with measured Altitude and computed Elevation data
 #'@return histogram of the distribution of modeled elevation - measured altitude
-#'@examples 
-#' library(dplyr)
-#' xelev <- lookup_elevation(demo, zoom = 10)
-#' histogram_animal_elevation(xelev)
-#' @export
+#'@export
 histogram_animal_elevation <- function(datapts) {
- require(ggplot2)
+ requireNamespace(ggplot2)
   histogram <- ggplot(datapts, aes(x = Elevation - Altitude)) +
     xlim(-100,100)+
     geom_histogram(aes(y=..density..), colour="blue", fill="lightblue", binwidth = 2 )+

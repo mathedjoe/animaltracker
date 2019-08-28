@@ -24,9 +24,3 @@ original data frame, with terrain column(s) appended
 \description{
 Add elevation data from terrain tiles to long/lat coordinates of animal gps data
 }
-\examples{
-data(demo)
-library(dplyr)
-xelev <- lookup_elevation(demo, zoom = 11)
-plot(xelev$Altitude, xelev$Elevation)
-}

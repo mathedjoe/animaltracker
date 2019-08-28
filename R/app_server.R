@@ -14,11 +14,11 @@
 app_server <- function(input, output, session) {
   
   ## the data were aggregated from SRTM 90 m resolution data between -60 and 60 latitude.
-  elev <- read_zip_to_rasters("data/elev/USA_msk_alt.zip")
+  elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
   
   raw_dat <- reactive({
     if(is.null(input$zipInput)) {
-      return(demo_raw)
+      return(demo_info)
     }
     return(store_batch_list(input$zipInput))
   })
@@ -29,7 +29,7 @@ app_server <- function(input, output, session) {
     if(is.null(input$zipInput)) {
       return(demo_unfiltered)
     }
-    if(!identical(raw_dat(), demo_raw)) {
+    if(!identical(raw_dat(), demo_info)) {
       return(clean_batch_df(raw_dat(), autocleans = FALSE, filters = FALSE))
     }
   })
@@ -38,7 +38,7 @@ app_server <- function(input, output, session) {
     if(is.null(input$zipInput)) {
       return(demo_filtered)
     }
-    if(!identical(raw_dat(), demo_raw)) {
+    if(!identical(raw_dat(), demo_info)) {
       return(clean_batch_df(raw_dat(), autocleans = FALSE, filters = TRUE))
     }
   })
@@ -49,7 +49,7 @@ app_server <- function(input, output, session) {
   
   
   observeEvent(input$processButton, {
-    if(!identical(raw_dat(), demo_raw)) {
+    if(!identical(raw_dat(), demo_info)) {
       uploaded(TRUE)
       if(!is.null(input$selected_lat) && !is.null(input$selected_long)) {
         meta(clean_store_batch(raw_dat(), input$autocleanBox, filters = TRUE, elev,
