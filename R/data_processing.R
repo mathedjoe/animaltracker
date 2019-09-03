@@ -76,9 +76,9 @@ lookup_elevation <- function(elev, anidf, zoom = 11, get_slope = TRUE, get_aspec
 #'@export 
 read_zip_to_rasters <- function(filename, exdir = "inst/extdata/elev"){
   
-  ff <- utils::unzip(filename, exdir=dirname(exdir))
+  ff <- utils::unzip(filename, exdir=dirname(exdir))  
   f <- ff[substr(ff, nchar(ff)-3, nchar(ff)) == '.grd']
-  
+
   rs <- raster::raster(f[[1]])
   
   raster::projection(rs) <- "+proj=longlat +datum=WGS84"
