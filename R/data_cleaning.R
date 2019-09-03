@@ -50,7 +50,7 @@ get_file_meta <- function(data_dir){
 #'
 #'## Read data frame
 #'bannock_df <- read.csv(system.file("extdata", "demo_aug19/Bannock_2017_101_1149.csv", 
-#'package = "animaltracker"))
+#'package = "animaltracker"), skipNul=TRUE)
 #'
 #'## Clean and filter
 #'clean_location_data(bannock_df, autocleans = FALSE, filters = TRUE, aniid = 1149, 
@@ -196,7 +196,7 @@ clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", c
                                         
                                         data=df)
       
-      rgdal::writeOGR(obj=output,dsn=cleaned_dir,layer= substr(aniid, 1, nchar(aniid)-4) ,
+      rgdal::writeOGR(obj=output,dsn=cleaned_dir,layer= paste0("layer_", i,"_", substr(aniid, 1, nchar(aniid)-4)),
                       
                       driver="ESRI Shapefile")
     }
