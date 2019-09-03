@@ -14,3 +14,7 @@ run_shiny_animaltracker(browser = TRUE, showcase = FALSE)
 \description{
 You can run the animaltracker Shiny app by calling this function.
 }
+\examples{
+# Run the animaltracker app
+run_shiny_animaltracker()
+}

@@ -17,3 +17,8 @@ distribution of time between GPS measurements by GPS unit, as a boxplot
 Generates a boxplot to visualize the distribution of time between
 GPS measurements by GPS unit.
 }
+\examples{
+# Boxplot of GPS measurement time differences for demo data .rds
+
+boxplot_time_unit(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
+}

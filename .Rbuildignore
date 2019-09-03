@@ -4,3 +4,5 @@
 ^resources$
 ^R/scratch$
 ^manual\.pdf$
+^data_compare_arizona\.Rmd$
+^data_compare_arizona\.html$

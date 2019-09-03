@@ -17,3 +17,8 @@ approximate time difference values corresponding to quantiles (.05 intervals)
 Determines the GPS measurement time value difference values
 roughly corresponding to quantiles with .05 intervals.
 }
+\examples{
+# Read in .rds of demo data and calculate time difference quantiles
+
+quantile_time(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
+}
