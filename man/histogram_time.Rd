@@ -17,3 +17,8 @@ distribution of time between GPS measurements, as a histogram
 Generates a histogram to visualize the distribution of time
 between GPS measurements.
 }
+\examples{
+# Histogram of GPS measurement time differences for demo data .rds
+
+histogram_time(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
+}

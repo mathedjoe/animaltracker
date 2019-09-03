@@ -2,14 +2,13 @@
 % Please edit documentation in R/data_analysis.R
 \name{summarise_anidf}
 \alias{summarise_anidf}
-\title{Helper function for compare_summarise_data and compare_summarise_daily
-Calculates summary statistics for an animal dataset}
+\title{Calculates summary statistics for an animal data frame}
 \usage{
 summarise_anidf(anidf, by, lat, long, dist, course, rate, elev,
   daily = F)
 }
 \arguments{
-\item{anidf}{the animal dataset}
+\item{anidf}{the animal data frame}
 
 \item{by}{column to group by, null if daily=T}
 
@@ -28,6 +27,11 @@ summarise_anidf(anidf, by, lat, long, dist, course, rate, elev,
 \item{daily}{whether to group by both GPS and Date for daily summary, defaults to False}
 }
 \description{
-Helper function for compare_summarise_data and compare_summarise_daily
-Calculates summary statistics for an animal dataset
+Calculates summary statistics for an animal data frame
+}
+\examples{
+# Summary of demo data by date
+
+summarise_anidf(demo, Date, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=F)
+
 }

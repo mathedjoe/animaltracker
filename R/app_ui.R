@@ -18,10 +18,10 @@ app_ui <- function(){
     var clearButton = document.querySelector(\'[title="Clear all layers"]\');
     !clearButton.dispatchEvent(event);
   }'
-    navbarPage(theme = shinytheme("yeti"),
+    navbarPage(theme = shinythemes::shinytheme("yeti"),
              # shinythemes::themeSelector(),  # <--- run this to choose a style theme
-             header = div(useShinyjs(),
-                          extendShinyjs(text = jsCode)),
+             header = div(shinyjs::useShinyjs(),
+                          shinyjs::extendShinyjs(text = jsCode)),
              title = "Animal Tracker",
              
              ## DATA PANEL
@@ -37,12 +37,12 @@ app_ui <- function(){
                           hr(),
                           
                           h4("Data Processing"),
-                          bsCollapse(id = "uploadOptions",
-                                     bsCollapsePanel("Cleaning Options",
+                          shinyBS::bsCollapse(id = "uploadOptions",
+                                     shinyBS::bsCollapsePanel("Cleaning Options",
                                                      checkboxInput("autocleanBox", label = "Autoclean lat/long/altitude/distance", value = FALSE),
                                                      checkboxInput("filterBox", label = "Filter bad data points", value = TRUE)
                                      ),
-                                     bsCollapsePanel("Elevation Options",
+                                     shinyBS::bsCollapsePanel("Elevation Options",
                                                      uiOutput("lat_bounds"),
                                                      uiOutput("long_bounds"),
                                                      checkboxInput("slopeBox", label = "Include slope", value = TRUE),
@@ -54,7 +54,7 @@ app_ui <- function(){
                           hr(),
                           
                           h4("Select Data"),
-                          uiOutput("choose_site") %>% withSpinner(),
+                          uiOutput("choose_site") %>% shinycssloaders::withSpinner(),
                           uiOutput("choose_ani"),
                           uiOutput("choose_dates"),
                           # uiOutput("choose_times") %>% withSpinner(),
@@ -64,8 +64,8 @@ app_ui <- function(){
                           h4("Download Data"),
                           helpText("Save data to a (potentially large) .csv file."),
                           # Button
-                          bsCollapse(id = "downloadOptionsPanel",
-                                     bsCollapsePanel("Download Options",
+                          shinyBS::bsCollapse(id = "downloadOptionsPanel",
+                                     shinyBS::bsCollapsePanel("Download Options",
                                                      radioButtons("downloadOptions", NULL,
                                                                   c("Processed (unfiltered) data", "Processed (filtered) data", "Currently selected data")))
                                      ),
@@ -74,7 +74,7 @@ app_ui <- function(){
                         ),#sidebarPanel
                         mainPanel(
                           
-                          leafletOutput("mainmap", height = 640) %>% withSpinner(),
+                          leafletOutput("mainmap", height = 640) %>% shinycssloaders::withSpinner(),
                           htmlOutput("mapinfo"),
                           h4("Recent Data"),
                           uiOutput("choose_recent")

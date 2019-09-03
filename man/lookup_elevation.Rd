@@ -14,13 +14,37 @@ lookup_elevation(elev, anidf, zoom = 11, get_slope = TRUE,
 
 \item{zoom}{level of zoom, defaults to 11}
 
-\item{get_slope}{logical, whether to compute slope (in degrees)}
+\item{get_slope}{logical, whether to compute slope (in degrees), defaults to true}
 
-\item{get_aspect}{logical, whether to compute aspect (in degrees)}
+\item{get_aspect}{logical, whether to compute aspect (in degrees), defaults to true}
 }
 \value{
 original data frame, with terrain column(s) appended
 }
 \description{
 Add elevation data from terrain tiles to long/lat coordinates of animal gps data
+}
+\examples{
+# Not run:
+# Add elevation data to demo data frame
+
+## Get elevation
+elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+
+## Lookup with slope and aspect
+lookup_elevation(elev, system.file("extdata", 
+"demo_aug19/Bannock_2017_101_1149.csv", package = "animaltracker"), 
+zoom = 11, get_slope = TRUE, get_aspect = TRUE)
+
+## Lookup with slope only
+lookup_elevation(elev, system.file("extdata", 
+"demo_aug19/Bannock_2017_101_1149.csv", package = "animaltracker"), 
+zoom = 11, get_slope = TRUE, get_aspect = FALSE)
+
+## Lookup with aspect only
+lookup_elevation(elev, system.file("extdata", 
+"demo_aug19/Bannock_2017_101_1149.csv", package = "animaltracker"), 
+zoom = 11, get_slope = FALSE, get_aspect = TRUE)
+
+# End(Not run)
 }

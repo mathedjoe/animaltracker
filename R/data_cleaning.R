@@ -1,8 +1,20 @@
+
+if(getRversion() >= '2.5.1') {
+  globalVariables(c('dplyr', 'tibble', 'forecast',
+                    'Time', 'Altitude', 'Distance', 'TimeDiff', 'Course',
+                    'CourseDiff', 'DistGeo', 'RateFlag', 'CourseFlag', 'DistanceFlag',
+                    'TotalFlags', 'TimeFlag', 'DuplicateDateFlag'))
+}
+
 #'
 #'Generate metadata for a directory of animal data files
 #'
 #'@param data_dir directory of animal data files
 #'@return list of data info as a list of animal IDs and GPS units
+#'@examples
+#'# Get metadata for demo directory
+#'
+#'get_file_meta(system.file("extdata", "demo_aug19", package = "animaltracker"))
 #'@export
 #'
 get_file_meta <- function(data_dir){
@@ -24,7 +36,7 @@ get_file_meta <- function(data_dir){
 #'Cleans a raw animal GPS dataset, implementing a standardized procedure to remove impossible values
 #'
 #'@param df data frame in standardized format (e.g., from a raw spreadsheet)
-#'@param autocleans automatically clean data with ts_clean, defaults to true
+#'@param autocleans automatically clean data with ts_clean, defaults to false - currently experimental
 #'@param filters filter bad data points, defaults to true
 #'@param aniid identification code for the animal
 #'@param gpsid identification code for the GPS device
@@ -33,14 +45,25 @@ get_file_meta <- function(data_dir){
 #'@param maxdist maximum geographic distance (meters) between consecutive points
 #'@param maxtime maximum time (minutes) between consecutive points 
 #'@param timezone time zone, defaults to UTC
+#'@examples
+#'# Clean a data frame from csv
+#'
+#'## Read data frame
+#'bannock_df <- read.csv(system.file("extdata", "demo_aug19/Bannock_2017_101_1149.csv", 
+#'package = "animaltracker"))
+#'
+#'## Clean and filter
+#'clean_location_data(bannock_df, autocleans = FALSE, filters = TRUE, aniid = 1149, 
+#'gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100, timezone = "UTC")
+#'
+#'## Clean without filtering
+#'clean_location_data(bannock_df, autocleans = FALSE, filters = FALSE, aniid = 1149, 
+#'gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100, timezone = "UTC")
 #'@export
 #'
-clean_location_data<- function (df, autocleans = TRUE, filters = TRUE, 
+clean_location_data<- function (df, autocleans = FALSE, filters = TRUE, 
                                 aniid = NA, gpsid = NA, 
                                 maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC"){
-  requireNamespace(dplyr)
-  requireNamespace(tibble)
-  requireNamespace(forecast)
   df <- df %>% 
     tibble::add_column(Order = df$Index, .before="Index")%>%  # add Order column
     tibble::add_column(Animal = aniid, .after="Index") %>%      # add Animal column 
@@ -115,9 +138,17 @@ clean_location_data<- function (df, autocleans = TRUE, filters = TRUE,
 #'@param cleaned_filename full name of output file (ending in .rds), defaults to data/animal_data.rds
 #'@param cleaned_dir directory to save the processed GPS datasets as spreadsheets (.csv), defaults to data/processed
 #'@param tz timezone for cleaned data, defaults to UTC
+#'@examples
+#'# Not run:
+#'# Clean all animal GPS .csv datasets in the demo directory
+#'
+#'clean_export_files(system.file("extdata", "demo_aug19", package = "animaltracker"), 
+#'cleaned_filename = "ex_animal_data.rds", cleaned_dir = "inst/extdata/demo_aug19", tz = "UTC")
+#'
+#'# End(Not run)
 #'@export
 #'
-clean_export_files <- function(data_dir, cleaned_filename = "data/animal_data.rds", cleaned_dir = "data/processed", tz = "UTC") {
+clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", cleaned_dir = "processed", tz = "UTC") {
   data_files <- list.files(data_dir, pattern="*.csv", full.names=T)
   data_info <- get_file_meta(data_dir)
   
@@ -159,7 +190,7 @@ clean_export_files <- function(data_dir, cleaned_filename = "data/animal_data.rd
     print(paste("...saving", nrow(df), "good data points"))
     
     if(!is.null(cleaned_dir)){
-      write.csv(df, file.path(cleaned_dir, paste0(aniid,".csv")), row.names=F)
+      utils::write.csv(df, file.path(cleaned_dir, paste0(aniid,".csv")), row.names=F)
       pts <- df[c("Longitude", "Latitude")]
       output=sp::SpatialPointsDataFrame(coords=pts,proj4string=sp::CRS("+init=epsg:4326"),
                                         
@@ -185,6 +216,13 @@ clean_export_files <- function(data_dir, cleaned_filename = "data/animal_data.rd
 #'Add big files to a .gitignore file
 #'
 #'@param data_dir directory of animal data files
+#'@examples
+#'# Not run:
+#'# Detect large files in the demo directory and add to the .gitignore file
+#'
+#'dev_add_to_gitignore(system.file("extdata", "demo_aug19", package = "animaltracker"))
+#'
+#'# End(Not run)
 #'@export
 #'
 dev_add_to_gitignore <- function(data_dir) {

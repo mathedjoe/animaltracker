@@ -1,46 +1,52 @@
 # bring in helper functions
 source('R/data_analysis.R')
 library(dplyr)
+library(ggplot2)
 
-df_correct <- read.csv('inst/extdata/correct.csv', stringsAsFactors = F)
-df_candidate <- read.csv('inst/extdata/candidate.csv', stringsAsFactors = F)
+df_correct <- read.csv('inst/extdata/correct.csv', stringsAsFactors = F) %>% 
+  dplyr::rename(GPS = collar) %>% 
+  dplyr::rename(Date = date) %>% 
+  dplyr::mutate(Date = as.Date(Date))
 
-dfs<- compare_summarise_data(df_correct, 
+df_candidate <- read.csv('inst/extdata/candidate.csv', stringsAsFactors = F) %>% 
+  dplyr::mutate(Date = as.Date(Date))
+
+dfs <- compare_summarise_data(df_correct, 
                        df_candidate, 
                        'inst/extdata/processed/gps_arizona.csv', 
                        'inst/extdata/processed/date_arizona.csv'
                        )
 
 # summary by gps
-summary(dfs$gps)
+summary(dfs$GPS)
 # close match between lat, lon, course, 
 # approx 90-170 less rows (out of ~6400-7500)
 # underestimates distance, rate, less variable
 # overestimates elevation, less variable
 
 # summary by date
-summary(dfs$date)
+summary(dfs$Date)
 # less dates
-# close math between lat, lon, course
+# close match between lat, lon, course
 # underestimates distance, rate, less variable
 # overestimates elevation, less variable
 
+# Violin plot comparisons by date
 
-plotdata <- dfs$date %>% 
-  dplyr::select(Date, n.x, n.y) %>%
-  tidyr::gather("source","n", -Date)
-require(ggplot2)
+# plot number of observations by date
+violin_compare(dfs$Date, Date, "n", "inst/extdata/processed/n_date_arizona.png")
 
-ggplot(plotdata, aes(x = source, y=n )) +
-  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
-  theme_minimal()
+# plot mean distance by date
+violin_compare(dfs$Date, Date, "meanDist", "inst/extdata/processed/meanDist_date_arizona.png")
+# underestimates distance by ~6m on average
+# roughly symmetrical vs. skewed right 
 
-ggplot(dfs$date %>% 
-         dplyr::select(Date, meanDist.x, meanDist.y) %>%
-         tidyr::gather("source","meanDist", -Date) %>%
-         dplyr::mutate(source = gsub("meanDist\\.","", source)),
-       aes(x = source, y=meanDist )) +
-  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75)) +
-  theme_minimal()
+# plot mean elevation by date
+violin_compare(dfs$Date, Date, "meanElev", "inst/extdata/processed/meanElev_date_arizona.png")
+# overestimates elevation by ~23m on average
+# both bimodal ~1690, 1975m vs. ~1680, 1940m
 
-line_compare_dev(df_correct %>% dplyr::rename(Date = date), df_candidate, "Distance")
+# plot mean rate by date
+violin_compare(dfs$Date, Date, "meanRate", "inst/extdata/processed/meanRate_date_arizona.png")
+# ~29 less dates on average
+# 

@@ -1,14 +1,41 @@
+if(getRversion() >= '2.5.1') {
+  globalVariables(c('ggplot2', 'Altitude', '..density..'))
+}
+
 #'
 #'Add elevation data from terrain tiles to long/lat coordinates of animal gps data
 #'
 #'@param elev elevation data as terrain tiles
 #'@param anidf animal tracking dataframe
 #'@param zoom level of zoom, defaults to 11
-#'@param get_slope logical, whether to compute slope (in degrees)
-#'@param get_aspect logical, whether to compute aspect (in degrees)
+#'@param get_slope logical, whether to compute slope (in degrees), defaults to true
+#'@param get_aspect logical, whether to compute aspect (in degrees), defaults to true
 #'@return original data frame, with terrain column(s) appended
+#'@examples
+#'# Not run:
+#'# Add elevation data to demo data frame
+#'
+#'## Get elevation
+#'elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+#'
+#'## Lookup with slope and aspect
+#'lookup_elevation(elev, system.file("extdata", 
+#'"demo_aug19/Bannock_2017_101_1149.csv", package = "animaltracker"), 
+#'zoom = 11, get_slope = TRUE, get_aspect = TRUE)
+#'
+#'## Lookup with slope only
+#'lookup_elevation(elev, system.file("extdata", 
+#'"demo_aug19/Bannock_2017_101_1149.csv", package = "animaltracker"), 
+#'zoom = 11, get_slope = TRUE, get_aspect = FALSE)
+#'
+#'## Lookup with aspect only
+#'lookup_elevation(elev, system.file("extdata", 
+#'"demo_aug19/Bannock_2017_101_1149.csv", package = "animaltracker"), 
+#'zoom = 11, get_slope = FALSE, get_aspect = TRUE)
+#'
+#'# End(Not run)
 #'@export
-lookup_elevation <- function(elev, anidf, zoom = 11, get_slope=TRUE, get_aspect=TRUE) {
+lookup_elevation <- function(elev, anidf, zoom = 11, get_slope = TRUE, get_aspect = TRUE) {
   
   # extract coordinates from the animal data
   locations <- anidf %>% dplyr::select(x = Longitude, y = Latitude)
@@ -23,7 +50,7 @@ lookup_elevation <- function(elev, anidf, zoom = 11, get_slope=TRUE, get_aspect=
   anidf$Elevation <- round(elevpts$USA1_msk_alt[ datapts_elev$nn.idx ], 1)
   
   if(get_slope | get_aspect){
-    elev_terr <- terrain(elev, opt=c('slope', 'aspect'), unit='degrees')
+    elev_terr <- raster::terrain(elev, opt=c('slope', 'aspect'), unit='degrees')
   }
   
   if(get_slope){
@@ -52,9 +79,9 @@ read_zip_to_rasters <- function(filename, exdir = "inst/extdata/elev"){
   ff <- utils::unzip(filename, exdir=dirname(exdir))
   f <- ff[substr(ff, nchar(ff)-3, nchar(ff)) == '.grd']
   
-  rs <- raster(f[[1]])
+  rs <- raster::raster(f[[1]])
   
-  projection(rs) <- "+proj=longlat +datum=WGS84"
+  raster::projection(rs) <- "+proj=longlat +datum=WGS84"
   
   return(rs)
   
@@ -65,9 +92,12 @@ read_zip_to_rasters <- function(filename, exdir = "inst/extdata/elev"){
 #'
 #'@param datapts GPS data with measured Altitude and computed Elevation data
 #'@return histogram of the distribution of modeled elevation - measured altitude
+#'@examples
+#'# Histogram of elevation - altitude for the demo data
+#'
+#'histogram_animal_elevation(demo)
 #'@export
 histogram_animal_elevation <- function(datapts) {
- requireNamespace(ggplot2)
   histogram <- ggplot(datapts, aes(x = Elevation - Altitude)) +
     xlim(-100,100)+
     geom_histogram(aes(y=..density..), colour="blue", fill="lightblue", binwidth = 2 )+
@@ -82,18 +112,34 @@ histogram_animal_elevation <- function(datapts) {
 #'
 #'Export modeled elevation data from existing animal data file
 #'
-#'@param rds_path animal tracking data file to model elevation from
-#'@param out_path exported file path
-#'@param zoom level of zoom, defaults to 12
+#'@param elev elevation data as terrain tiles
+#'@param zoom level of zoom, defaults to 11
+#'@param get_slope logical, whether to compute slope (in degrees), defaults to true
+#'@param get_aspect logical, whether to compute aspect (in degrees), defaults to true
+#'@param in_path animal tracking data file to model elevation from
+#'@param out_path exported file path, .rds
 #'@return list of data frames with gps data augmented by elevation
+#'@examples
+#'# Not run:
+#'# Export elevation data from demo .rds datasets
+#'
+#'## Get elevation
+#'elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+#'
+#'## Process and export
+#'process_elevation(elev, zoom = 11, get_slope = TRUE, get_aspect = TRUE, 
+#'in_path = system.file("extdata", "demo_aug19.rds", 
+#'package = "animaltracker"), out_path = "demo_aug19_elev.rds")
+#'
+#'# End(Not run)
 #'@export
 #'
-process_elevation <- function(rds_path, out_path, zoom = 12 ) {
-  anidata <- readRDS(rds_path)
+process_elevation <- function(elev, zoom = 11, get_slope=TRUE, get_aspect=TRUE, in_path, out_path) {
+  anidata <- readRDS(in_path)
   
   for ( i in 1:length(anidata) ){
     print(noquote(paste("processing elevation data for file", i, "of", length(anidata))))
-    anidata[[i]]<- lookup_elevation(anidata[[i]], ...)
+    anidata[[i]]<- lookup_elevation(elev, anidata[[i]], get_slope, get_aspect)
     
   }
   saveRDS(anidata, out_path)

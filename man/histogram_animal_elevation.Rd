@@ -15,3 +15,8 @@ histogram of the distribution of modeled elevation - measured altitude
 \description{
 Generate a histogram of the distribution of modeled elevation - measured altitude
 }
+\examples{
+# Histogram of elevation - altitude for the demo data
+
+histogram_animal_elevation(demo)
+}

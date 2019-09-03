@@ -1,5 +1,12 @@
 ### Server Function for the App
 
+if(getRversion() >= '2.5.1') {
+  globalVariables(c('demo_info', 'demo_unfiltered', 'demo_filtered', 'demo_meta', 'demo',
+                    'ani_id', 'Animal', 'Date', 'site', 'LocationID', 'tags', 'js', 'DateTime',
+                    'Elevation', 'TimeDiffMins', 'Rate', 'Longitude', 'Latitude', 'LongBin',
+                    'LatBin', 'Duration', 'stopApp'))
+}
+
 #'
 #'Defines logic for updating the app based on user interaction in the ui
 #'
@@ -8,6 +15,12 @@
 #'@param output see shiny app architecture
 #'@param session see shiny app architecture
 #'@return server function for use in a shiny app
+#'@import shiny
+#'@import ggplot2
+#'@import dplyr
+#'@import leaflet
+#'@import leaflet.extras
+#'
 #'@export
 #'
 # Define server logic for the shiny app
@@ -80,8 +93,8 @@ app_server <- function(input, output, session) {
     meta <- meta()
     
     if(any(meta$ani_id  %in% input$selected_ani) ){
-      meta <- meta%>%
-        filter(ani_id %in% input$selected_ani)
+      meta <- meta %>%
+        dplyr::filter(ani_id %in% input$selected_ani)
     }
     
     ani_names <- paste(input$selected_ani, collapse = ", ")
@@ -94,7 +107,7 @@ app_server <- function(input, output, session) {
     if(!(cache_name %in% names(cache()))) {
       # if no user provided data, use demo data
       if(is.null(input$zipInput)) {
-        current_df <- demo %>% filter(Animal %in% meta$ani_id,
+        current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id,
                  Date <= input$dates[2],
                  Date >= input$dates[1])
       }
@@ -110,7 +123,7 @@ app_server <- function(input, output, session) {
       
       # add LocationID column to the restricted data set
       current_df <- current_df %>% 
-        mutate(LocationID = 1:n())
+        dplyr::mutate(LocationID = 1:dplyr::n())
               
       # enqueue to cache
       updated_cache <- cache()
@@ -141,14 +154,14 @@ app_server <- function(input, output, session) {
     if(!input$filterBox) {
       return()
     }
-    numericRangeInput("selected_lat", "Latitude Range:", value = c(raw_dat()$min_lat, raw_dat()$max_lat))
+    shinyWidgets::numericRangeInput("selected_lat", "Latitude Range:", value = c(raw_dat()$min_lat, raw_dat()$max_lat))
   })
   
   output$long_bounds <- renderUI({
     if(!input$filterBox) {
       return()
     }
-    numericRangeInput("selected_long", "Longitude Range:", value = c(raw_dat()$min_long, raw_dat()$max_long))
+    shinyWidgets::numericRangeInput("selected_long", "Longitude Range:", value = c(raw_dat()$min_long, raw_dat()$max_long))
   })
   
   # select data sites
@@ -159,7 +172,7 @@ app_server <- function(input, output, session) {
     
     site_choices <- as.list(as.character(unique(meta$site)))
     
-    pickerInput("selected_site", "Select Site(s)",
+    shinyWidgets::pickerInput("selected_site", "Select Site(s)",
                 choices = site_choices,
                 selected = site_choices[c(1,2)],
                 multiple = TRUE,
@@ -174,11 +187,11 @@ app_server <- function(input, output, session) {
     req(meta, input$selected_site)
     
     meta <- meta() %>%
-      filter(site %in% input$selected_site) 
+      dplyr::filter(site %in% input$selected_site) 
     
     ani_choices <- as.list(as.character(unique(meta$ani_id)))
    
-    pickerInput("selected_ani", "Select Animal(s)",
+    shinyWidgets::pickerInput("selected_ani", "Select Animal(s)",
                 choices = ani_choices,
                 selected = ani_choices[1:4],
                 multiple = TRUE, 
@@ -194,7 +207,7 @@ app_server <- function(input, output, session) {
     # Get the data set with the appropriate name
     
     meta <- meta() %>%
-      filter(ani_id %in% input$selected_ani)
+      dplyr::filter(ani_id %in% input$selected_ani)
     
     max_date <- max( meta$max_date, na.rm=T)
     min_date <- min( meta$min_date, na.rm=T)
@@ -224,7 +237,7 @@ app_server <- function(input, output, session) {
     req(input$selected_ani) 
     
     var_choices <- c( "Elevation", "TimeDiffMins", "Course", "CourseDiff", "Distance", "Rate", "Slope", "Aspect")
-    pickerInput("selected_cols", "Choose Variables for Statistics",
+    shinyWidgets::pickerInput("selected_cols", "Choose Variables for Statistics",
                 choices = var_choices,
                 selected = var_choices[c(1,2,3,4)],
                 multiple = TRUE,
@@ -237,7 +250,7 @@ app_server <- function(input, output, session) {
     req(input$selected_ani)
     
     stats_choices <- c("N", "Mean", "SD", "Variance", "Min", "Max", "Range", "IQR",  "Q1", "Median", "Q3" )
-    pickerInput("selected_stats", "Choose Summary Statistics",
+    shinyWidgets::pickerInput("selected_stats", "Choose Summary Statistics",
                 choices = stats_choices,
                 selected = stats_choices[1:6],
                 multiple = TRUE,
@@ -252,7 +265,7 @@ app_server <- function(input, output, session) {
     ani_names <- paste(input$selected_ani, collapse = ", ")
     cache_name <- paste0(ani_names,", ",input$dates[1],"-",input$dates[2])
     recent_choices <- names(cache())
-    pickerInput("selected_recent", "Select Data",
+    shinyWidgets::pickerInput("selected_recent", "Select Data",
                 choices = recent_choices,
                 selected = cache_name,
                 multiple = FALSE,
@@ -265,9 +278,9 @@ app_server <- function(input, output, session) {
     # If missing input, return to avoid error later in function
     req(dat_main)
     
-    SpatialPointsDataFrame(coords = dat_main()[c("Longitude", "Latitude")], 
+    sp::SpatialPointsDataFrame(coords = dat_main()[c("Longitude", "Latitude")], 
                            data = dat_main(),
-                           proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+                           proj4string = sp::CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
     
     
   })
@@ -284,7 +297,7 @@ app_server <- function(input, output, session) {
     else{
       return(
         dat_main() %>%
-        filter(LocationID %in% selected_locations())
+        dplyr::filter(LocationID %in% selected_locations())
       )
     }
       
@@ -295,9 +308,9 @@ app_server <- function(input, output, session) {
     # If missing input, return to avoid error later in function
     req(dat )
 
-    SpatialPointsDataFrame(coords = dat()[c("Longitude", "Latitude")], 
+    sp::SpatialPointsDataFrame(coords = dat()[c("Longitude", "Latitude")], 
                            data = dat(),
-                           proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+                           proj4string = sp::CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
  
   
   })
@@ -321,7 +334,7 @@ app_server <- function(input, output, session) {
     req(meta)
     leaflet() %>%  # Add tiles
     addTiles(group="street map") %>%
-    fitBounds(median(meta()$min_long), median(meta()$min_lat), median(meta()$max_long), median(meta()$max_lat)) %>%
+    fitBounds(stats::median(meta()$min_long), stats::median(meta()$min_lat), stats::median(meta()$max_long), stats::median(meta()$max_lat)) %>%
     # addProviderTiles("OpenTopoMap") %>%
     addProviderTiles("Esri.WorldImagery", group = "satellite") %>%
     addDrawToolbar(
@@ -499,12 +512,11 @@ app_server <- function(input, output, session) {
     ggplot(dat(), aes(x=DateTime, y=Elevation, group=Animal, color=Animal)) + 
       labs( title = "Elevation Time Series, by Animal",
             x = "Date",
-            y = "Elevation (meters)")+
-      ylim(1000,2000)+geom_line() + 
+            y = "Elevation (meters)") +
+      ylim(1000,2000) + 
+      geom_line() + 
       geom_point() + 
       theme_minimal()
-    
-    
   })
   
   # Sample Rate Histograms
@@ -527,7 +539,7 @@ app_server <- function(input, output, session) {
   output$plot_rate_violin <- renderPlot({
     req(dat)
     
-    ggplot(dat() %>% filter(Rate < 50), aes(x=Animal, y= Rate, fill=Animal))+
+    ggplot(dat() %>% dplyr::filter(Rate < 50), aes(x=Animal, y= Rate, fill=Animal))+
       geom_violin() + 
       geom_boxplot(width=.2, outlier.color = NA) +
       theme_minimal()+
@@ -548,7 +560,7 @@ app_server <- function(input, output, session) {
     mybreaks <- list(x = round( seq(min(dat$Longitude), max(dat$Longitude), length.out = 10 ),3),
                      y = round( seq(min(dat$Latitude), max(dat$Latitude), length.out = 10 ),3))
     ggplot(dat %>% 
-             mutate( LongBin = cut_number(Longitude, 100, 
+             dplyr::mutate( LongBin = cut_number(Longitude, 100, 
                                           labels= round( seq(min(Longitude), max(Longitude), length.out = 100 ),3)
              ),
              LatBin = cut_number(Latitude, 100, 
@@ -586,7 +598,7 @@ app_server <- function(input, output, session) {
     if(!("TimeDiffMins" %in% input$selected_cols) | is.null(input$selected_stats)) 
       return()
     
-    summary <- summarize_col(dat(), "TimeDiffMins") 
+    summary <- summarise_col(dat(), "TimeDiffMins") 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -604,7 +616,7 @@ app_server <- function(input, output, session) {
     if(!("Elevation" %in% input$selected_cols) | is.null(input$selected_stats)) 
       return()
     
-    summary <- summarize_col(dat(), "Elevation") 
+    summary <- summarise_col(dat(), "Elevation") 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -622,7 +634,7 @@ app_server <- function(input, output, session) {
     if(!("Speed" %in% input$selected_cols) | is.null(input$selected_stats)) 
       return()
     
-    summary <- summarize_col(dat(), "Speed") 
+    summary <- summarise_col(dat(), "Speed") 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -640,7 +652,7 @@ app_server <- function(input, output, session) {
     if(!("Course" %in% input$selected_cols) | is.null(input$selected_stats)) 
       return()
     
-    summary <- summarize_col(dat(), "Course") 
+    summary <- summarise_col(dat(), "Course") 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -658,7 +670,7 @@ app_server <- function(input, output, session) {
     if(!("CourseDiff" %in% input$selected_cols) | is.null(input$selected_stats)) 
       return()
     
-    summary <- summarize_col(dat(), "CourseDiff") 
+    summary <- summarise_col(dat(), "CourseDiff") 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -676,7 +688,7 @@ app_server <- function(input, output, session) {
     if(!("Distance" %in% input$selected_cols) | is.null(input$selected_stats)) 
       return()
     
-    summary <- summarize_col(dat(), "Distance") 
+    summary <- summarise_col(dat(), "Distance") 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -694,7 +706,7 @@ app_server <- function(input, output, session) {
     if(!("Rate" %in% input$selected_cols) | is.null(input$selected_stats)) 
       return()
     
-    summary <- summarize_col(dat(), "Rate") 
+    summary <- summarise_col(dat(), "Rate") 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -712,7 +724,7 @@ app_server <- function(input, output, session) {
     if(!("Slope" %in% input$selected_cols) | is.null(input$selected_stats) | !("Slope" %in% colnames(dat()))) 
       return()
     
-    summary <- summarize_col(dat(), "Slope") 
+    summary <- summarise_col(dat(), "Slope") 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -731,7 +743,7 @@ app_server <- function(input, output, session) {
     if(!("Aspect" %in% input$selected_cols) | is.null(input$selected_stats) | !("Aspect" %in% colnames(dat()))) 
       return()
     
-    summary <- summarize_col(dat(), "Aspect") 
+    summary <- summarise_col(dat(), "Aspect") 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -784,13 +796,13 @@ app_server <- function(input, output, session) {
     },
     content = function(file) {
       if(input$downloadOptions == "Processed (unfiltered) data") {
-        write.csv(clean_unfiltered(), file, row.names = FALSE)
+        utils::write.csv(clean_unfiltered(), file, row.names = FALSE)
       }
       else if(input$downloadOptions == "Processed (filtered) data") {
-        write.csv(clean_filtered(), file, row.names = FALSE)
+        utils::write.csv(clean_filtered(), file, row.names = FALSE)
       }
       else {
-        write.csv(dat(), file, row.names = FALSE)
+        utils::write.csv(dat(), file, row.names = FALSE)
       }
     }
   )

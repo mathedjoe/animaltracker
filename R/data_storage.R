@@ -21,6 +21,10 @@
 #   
 # the shiny app needs to use some of these functions
 
+if(getRversion() >= '2.5.1') {
+  globalVariables(c('data_dir', 'read.csv'))
+}
+
 #'
 #'Generates basic metadata about a directory of animal data files and stores the files as data frames as a list with the meta
 #'
@@ -33,7 +37,7 @@ store_batch_list <- function(data_dir) {
   
   unlink(file.path("temp"), recursive=TRUE)
   
-  data_files <- unzip(data_dir$datapath, exdir="temp")
+  data_files <- utils::unzip(data_dir$datapath, exdir="temp")
   data_files <- list.files("temp", pattern ="*.csv", recursive = TRUE, full.names = T)
   
   rds_name <- paste0(dir_name, ".rds")
@@ -50,7 +54,7 @@ store_batch_list <- function(data_dir) {
   # function to compute max/min lat/long from a dirty dataset
   maxminlatlong <- function(data){
     suppressWarnings(  df <-  data[!is.na(as.numeric(data$Index)), ] ) # discard any rows with text in the first column duplicate header rows
-    df <- type.convert(df) %>% 
+    df <- utils::type.convert(df) %>% 
       dplyr::select( Latitude, Longitude) %>%
       dplyr::filter(!is.na(Latitude), Latitude !=0, !is.na(Longitude), Longitude !=0)
     
@@ -112,7 +116,7 @@ clean_batch_df <- function(data_info, autocleans=F, filters=T) {
     colnames(df)[1] <- "Index"
     
     suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
-    df <- type.convert(df)
+    df <- utils::type.convert(df)
     
     aniid <- data_info$ani[i]
     gpsid <- data_info$gps[i]
@@ -175,7 +179,7 @@ clean_store_batch <- function(data_info, autocleans=F, filters=T, elev, get_slop
     colnames(df)[1] <- "Index"
     
     suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
-    df <- type.convert(df)
+    df <- utils::type.convert(df)
     
     aniid <- data_info$ani[i]
     gpsid <- data_info$gps[i]
@@ -197,7 +201,7 @@ clean_store_batch <- function(data_info, autocleans=F, filters=T, elev, get_slop
                              maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC")
     # add cleaned df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df_out
-    incProgress(1/(2*length(data_info$data)), detail = paste0(i,"/",length(data_info$data), " files cleaned"))
+    #incProgress(1/(2*length(data_info$data)), detail = paste0(i,"/",length(data_info$data), " files cleaned"))
   } #cleaning for loop
     
     all_data_sets <- suppressWarnings(dplyr::bind_rows(data_sets)) 
@@ -242,7 +246,7 @@ clean_store_batch <- function(data_info, autocleans=F, filters=T, elev, get_slop
       meta_df <- save_meta(meta_df, file_meta)
       # replace df with elevation df
       data_sets[[paste0("ani",aniid)]] <- df_out
-      incProgress(1/(2*length(data_info$data)), detail = paste0(i,"/",length(data_info$data), " files completed"))
+      #incProgress(1/(2*length(data_info$data)), detail = paste0(i,"/",length(data_info$data), " files completed"))
     }
     
   }) #progress bar

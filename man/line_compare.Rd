@@ -23,3 +23,13 @@ faceted line plot of moving averages over time grouped by GPS
 Compares moving averages of a variable for two datasets over time, grouped by GPS
 GPS, Date, and col columns should match
 }
+\examples{
+# Not run:
+# Faceted line plot comparing moving averages over time 
+# grouped by GPS for unfiltered and filtered demo data
+
+## Set distance as the y axis
+line_compare(demo_unfiltered, demo_filtered, Distance, "ex_line_dist.png")
+
+# End(Not run)
+}

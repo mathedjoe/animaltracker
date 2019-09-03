@@ -4,14 +4,14 @@
 \alias{clean_location_data}
 \title{Cleans a raw animal GPS dataset, implementing a standardized procedure to remove impossible values}
 \usage{
-clean_location_data(df, autocleans = TRUE, filters = TRUE,
+clean_location_data(df, autocleans = FALSE, filters = TRUE,
   aniid = NA, gpsid = NA, maxrate = 84, maxcourse = 100,
   maxdist = 840, maxtime = 100, timezone = "UTC")
 }
 \arguments{
 \item{df}{data frame in standardized format (e.g., from a raw spreadsheet)}
 
-\item{autocleans}{automatically clean data with ts_clean, defaults to true}
+\item{autocleans}{automatically clean data with ts_clean, defaults to false - currently experimental}
 
 \item{filters}{filter bad data points, defaults to true}
 
@@ -31,4 +31,19 @@ clean_location_data(df, autocleans = TRUE, filters = TRUE,
 }
 \description{
 Cleans a raw animal GPS dataset, implementing a standardized procedure to remove impossible values
+}
+\examples{
+# Clean a data frame from csv
+
+## Read data frame
+bannock_df <- read.csv(system.file("extdata", "demo_aug19/Bannock_2017_101_1149.csv", 
+package = "animaltracker"))
+
+## Clean and filter
+clean_location_data(bannock_df, autocleans = FALSE, filters = TRUE, aniid = 1149, 
+gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100, timezone = "UTC")
+
+## Clean without filtering
+clean_location_data(bannock_df, autocleans = FALSE, filters = FALSE, aniid = 1149, 
+gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100, timezone = "UTC")
 }

@@ -4,18 +4,39 @@
 \alias{process_elevation}
 \title{Export modeled elevation data from existing animal data file}
 \usage{
-process_elevation(rds_path, out_path, zoom = 12)
+process_elevation(elev, zoom = 11, get_slope = TRUE,
+  get_aspect = TRUE, in_path, out_path)
 }
 \arguments{
-\item{rds_path}{animal tracking data file to model elevation from}
+\item{elev}{elevation data as terrain tiles}
 
-\item{out_path}{exported file path}
+\item{zoom}{level of zoom, defaults to 11}
 
-\item{zoom}{level of zoom, defaults to 12}
+\item{get_slope}{logical, whether to compute slope (in degrees), defaults to true}
+
+\item{get_aspect}{logical, whether to compute aspect (in degrees), defaults to true}
+
+\item{in_path}{animal tracking data file to model elevation from}
+
+\item{out_path}{exported file path, .rds}
 }
 \value{
 list of data frames with gps data augmented by elevation
 }
 \description{
 Export modeled elevation data from existing animal data file
+}
+\examples{
+# Not run:
+# Export elevation data from demo .rds datasets
+
+## Get elevation
+elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+
+## Process and export
+process_elevation(elev, zoom = 11, get_slope = TRUE, get_aspect = TRUE, 
+in_path = system.file("extdata", "demo_aug19.rds", 
+package = "animaltracker"), out_path = "demo_aug19_elev.rds")
+
+# End(Not run)
 }

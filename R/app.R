@@ -2,6 +2,9 @@
 #'You can run the animaltracker Shiny app by calling this function.
 #'@param browser logical, whether to launch the app in your default browser (defaults to TRUE)
 #'@param showcase logical, whether to launch the app in 'showcase' mode (defaults to FALSE)
+#'@examples
+#'# Run the animaltracker app
+#'run_shiny_animaltracker()
 #'@export
 run_shiny_animaltracker <- function( browser = TRUE, showcase=FALSE) {
   requireNamespace("shiny")

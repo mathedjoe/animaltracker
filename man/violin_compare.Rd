@@ -21,3 +21,33 @@ side-by-side violin plots
 \description{
 Compares summary statistics from two datasets as side-by-side violin plots
 }
+\examples{
+# Not run:
+# Violin plot comparing unfiltered and filtered demo data summaries by date for a single variable
+
+## Get elevation
+elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+
+## Get elevation data for unfiltered demo
+unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, get_slope=F, get_aspect=F)
+
+## Get elevation data for filtered demo
+filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=F, get_aspect=F)
+
+## Summarise unfiltered demo
+unfiltered_summary <- summarise_anidf(unfiltered_elev, Date, Latitude, Longitude, 
+Distance, Course, Rate, Elevation, daily=F)
+
+## Summarise filtered demo
+filtered_summary <- summarise_anidf(filtered_elev, Date, Latitude, Longitude, 
+Distance, Course, Rate, Elevation, daily=F)
+
+## Join
+summary <- join_summaries(unfiltered_summary, filtered_summary, "Date", daily=F)
+
+## Violin plot
+
+violin_compare(summary, Date, Elevation, "ex_elev_violin.png")
+
+# End(Not run)
+}

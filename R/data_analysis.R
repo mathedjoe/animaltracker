@@ -1,21 +1,38 @@
 
 ### Summary Functions
 
+if(getRversion() >= '2.5.1') {
+  globalVariables(c('GPS', 'Altitude', 'Distance', 'Course',
+                    'n.x', 'n.y', 'meanLat.x', 'meanLat.y', 'sdLat.x', 'sdLat.y',
+                    'meanLong.x', 'meanLong.y', 'sdLong.x', 'sdLong.y', 'meanDist.x',
+                    'meanDist.y', 'sdDist.x', 'sdDist.y', 'meanCourse.x', 'meanCourse.y',
+                    'sdCourse.x', 'sdCourse.y', 'meanRate.x', 'meanRate.y', 'sdRate.x',
+                    'sdRate.y', 'meanElev.x', 'meanElev.y', 'sdElev.x', 'sdElev.y',
+                    'nDiff', 'meanLatDiff', 'meanLongDiff', 'sdLongDiff', 'meanDistDiff',
+                    'sdDistDiff', 'meanCourseDiff', 'sdCourseDiff', 'meanRateDiff',
+                    'sdRateDiff', 'meanElevDiff', 'sdLatDiff', 'sdElevDiff',
+                    'avg', 'Data', 'obs'))
+}
+
 #'
-#'Summarize by GPS unit
+#'Summarise a number of animal datasets by GPS unit
 #'
 #'@param rds_path Path of .rds cow data file to read in
 #'@return summary statistics for animals by GPS unit
+#'@examples
+#'# Read in .rds of demo data and summarise by GPS unit
+#'
+#'summarise_unit(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
 #'@export
 #'
-summarize_unit <- function(rds_path) {
+summarise_unit <- function(rds_path) {
   ani <- readRDS(rds_path)
   anidata <- bind_rows(ani) 
   summary <- anidata %>% 
     group_by(GPS) %>%
     summarize( nani = length(unique(Animal)),
                meanAlt = mean(Altitude),
-               sdAlt = sd(Altitude),
+               sdAlt = stats::sd(Altitude),
                minAlt = min(Altitude),
                maxAlt = max(Altitude))
   return(summary)
@@ -27,6 +44,10 @@ summarize_unit <- function(rds_path) {
 #'
 #'@param rds_path Path of .rds animal data file to read in
 #'@return approximate time difference values corresponding to quantiles (.05 intervals)
+#'@examples
+#'# Read in .rds of demo data and calculate time difference quantiles
+#'
+#'quantile_time(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
 #'@export
 #'
 quantile_time <- function(rds_path) {
@@ -42,18 +63,24 @@ quantile_time <- function(rds_path) {
 #'@param df animal data frame
 #'@param col column to get summary stats for, as a string
 #'@return data frame of summary stats for col
-summarize_col <- function(df, col) {
+#'@examples
+#'# Get summary statistics for Distance column of demo data
+#'
+#'summarise_col(demo, Distance)
+#'
+#'@export
+summarise_col <- function(df, col) {
   summary <- df %>%
     dplyr::group_by(Animal) %>%
     dplyr::summarise(
       N = n(),
       Mean = mean(!! sym(col)),
-      Median = median(!! sym(col)),
-      SD = sd(!! sym(col)),
-      Variance = var(!! sym(col)),
-      Q1 = quantile(!! sym(col), 0.25),
-      Q3 = quantile(!! sym(col), 0.75),
-      IQR = IQR(!! sym(col)),
+      Median = stats::median(!! sym(col)),
+      SD = stats::sd(!! sym(col)),
+      Variance = stats::var(!! sym(col)),
+      Q1 = stats::quantile(!! sym(col), 0.25),
+      Q3 = stats::quantile(!! sym(col), 0.75),
+      IQR = stats::IQR(!! sym(col)),
       Range = (max(!! sym(col))-min(!! sym(col))),
       Min = min(!! sym(col)),
       Max = max(!! sym(col))
@@ -69,6 +96,10 @@ summarize_col <- function(df, col) {
 #'
 #'@param rds_path Path of .rds animal data file to read in
 #'@return overall boxplot of altitude by GPS
+#'@examples
+#'# Boxplot of altitude for demo data .rds
+#'
+#'boxplot_altitude(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
 #'@export
 #'
 boxplot_altitude <- function(rds_path) {
@@ -87,6 +118,10 @@ boxplot_altitude <- function(rds_path) {
 #'
 #'@param rds_path Path of .rds cow data file to read in
 #'@return distribution of time between GPS measurements, as a histogram
+#'@examples
+#'# Histogram of GPS measurement time differences for demo data .rds
+#'
+#'histogram_time(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
 #'@export
 #'
 histogram_time <- function(rds_path) {
@@ -105,6 +140,10 @@ histogram_time <- function(rds_path) {
 #'
 #'@param rds_path Path of .rds animal data file to read in
 #'@return distribution of time between GPS measurements by GPS unit, as a histogram
+#'@examples
+#'# Histogram of GPS measurement time differences by GPS unit for demo data .rds
+#'
+#'histogram_time_unit(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
 #'@export
 #'
 histogram_time_unit <- function(rds_path) {
@@ -124,6 +163,10 @@ histogram_time_unit <- function(rds_path) {
 #'
 #'@param rds_path Path of .rds animal data file to read in
 #'@return distribution of time between GPS measurements by GPS unit, as a boxplot
+#'@examples
+#'# Boxplot of GPS measurement time differences for demo data .rds
+#'
+#'boxplot_time_unit(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
 #'@export
 #'
 boxplot_time_unit <- function(rds_path) {
@@ -142,6 +185,10 @@ boxplot_time_unit <- function(rds_path) {
 #' 
 #'@param rds_path Path of .rds animal data file to read in
 #'@return quantile-quantile plot to show distribution of time between GPS measurements
+#'@examples
+#'# QQ plot of GPS measurment time differences for demo data .rds
+#'
+#'qqplot_time(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
 #'@export
 #'
 qqplot_time <- function(rds_path) {
@@ -153,7 +200,7 @@ qqplot_time <- function(rds_path) {
 }
 
 #'
-#'Compares two animal datasets and calculates summary statistics. 
+#'Compares two animal data frames and calculates summary statistics. 
 #'GPS, date, lat, long, course, distance, rate, elevation column names should match. 
 #'
 #'@param correct reference df
@@ -161,6 +208,20 @@ qqplot_time <- function(rds_path) {
 #'@param gps_out desired file name of .csv output summary by GPS collar
 #'@param date_out desired file name of .csv output summary by date
 #'@return list containing gps_out and date_out as dfs
+#'@examples
+#'# Not run:
+#'# Compare and summarise unfiltered demo cows to filtered 
+#'
+#'## Get elevation data for unfiltered demo
+#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, get_slope=F, get_aspect=F)
+#'
+#'## Get elevation data for filtered demo
+#'filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=F, get_aspect=F)
+#'
+#'## Compare and summarise
+#'compare_summarise_data(unfiltered_elev, filtered_elev, "ex_gps_compare.csv", "ex_date_compare.csv")
+#'
+#'# End(Not run)
 #'@export
 #'
 compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
@@ -177,20 +238,19 @@ compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
   candidate_date_summary <- candidate %>% 
     summarise_anidf(Date, Latitude, Longitude, Distance, Course, Rate, Elevation)
   
-  gps_summary <- join_summaries(correct_gps_summary, candidate_gps_summary, by="GPS")
-  date_summary <- join_summaries(correct_date_summary, candidate_date_summary, by="Date")
+  gps_summary <- join_summaries(correct_gps_summary, candidate_gps_summary, by_str="GPS")
+  date_summary <- join_summaries(correct_date_summary, candidate_date_summary, by_str="Date")
   
-  write.csv(gps_summary, gps_out, row.names = F)
-  write.csv(date_summary, date_out, row.names = F)
+  utils::write.csv(gps_summary, gps_out, row.names = F)
+  utils::write.csv(date_summary, date_out, row.names = F)
   
   return(list(GPS = gps_summary, Date = date_summary))
 }
 
 #'
-#'Helper function for compare_summarise_data and compare_summarise_daily
-#'Calculates summary statistics for an animal dataset
+#'Calculates summary statistics for an animal data frame
 #'
-#'@param anidf the animal dataset
+#'@param anidf the animal data frame
 #'@param by column to group by, null if daily=T
 #'@param lat latitude column
 #'@param long longitude column
@@ -199,7 +259,12 @@ compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
 #'@param rate rate column
 #'@param elev elevation column
 #'@param daily whether to group by both GPS and Date for daily summary, defaults to False
+#'@examples
+#'# Summary of demo data by date
 #'
+#'summarise_anidf(demo, Date, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=F)
+#'
+#'@export
 #'
 summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev, daily=F) {
   by <- dplyr::enquo(by)
@@ -220,34 +285,60 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev, dail
   anidf %>% 
     dplyr::summarise(n = n(),
                      meanLat = mean(!!lat),
-                     sdLat = sd(!!lat),
+                     sdLat = stats::sd(!!lat),
                      meanLong = mean(!!long),
-                     sdLong = sd(!!long),
+                     sdLong = stats::sd(!!long),
                      meanDist = mean(!!dist),
-                     sdDist = sd(!!dist),
+                     sdDist = stats::sd(!!dist),
                      meanCourse = mean(!!course),
-                     sdCourse = sd(!!course),
+                     sdCourse = stats::sd(!!course),
                      meanRate = mean(!!rate),
-                     sdRate = sd(!!rate),
+                     sdRate = stats::sd(!!rate),
                      meanElev = mean(!!elev),
-                     sdElev = sd(!!elev))
+                     sdElev = stats::sd(!!elev))
 }
 
 #'
-#'Helper function for compare_summarise_data
-#'Joins two animal dataset summaries by a column and appends differences
+#'Joins two animal data frame summaries by a column and appends differences
 #'
 #'@param correct_summary summary df of reference dataset, returned by summarise_anidf
 #'@param candidate_summary summary df of dataset to be compared to reference, returned by summarise_anidf
-#'@param by column to join by , null if daily=T
+#'@param by_str column to join by as a string, null if daily=T
 #'@param daily whether to group by both GPS and Date for daily summary, defaults to False
+#'@examples
+#'# Not run:
+#'# Join date summaries of unfiltered and filtered demo data
 #'
-join_summaries <- function(correct_summary, candidate_summary, by, daily=F) {
+#'## Get elevation 
+#'elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+#'
+#'## Get elevation data for unfiltered demo
+#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, get_slope=F, get_aspect=F)
+#'
+#'## Get elevation data for filtered demo
+#'filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=F, get_aspect=F)
+#'
+#'## Summarise unfiltered demo by date
+#'unfiltered_summary <- summarise_anidf(unfiltered_elev, Date, Latitude, Longitude, 
+#'Distance, Course, Rate, Elevation, daily=F)
+#'
+#'## Summarise filtered demo by date
+#'filtered_summary <- summarise_anidf(filtered_elev, Date, Latitude, Longitude, 
+#'Distance, Course, Rate, Elevation, daily=F)
+#'
+#'## Join
+#'join_summaries(unfiltered_summary, filtered_summary, "Date", daily=F)
+#'
+#'# End(Not run)
+#'@export
+#'
+#'
+join_summaries <- function(correct_summary, candidate_summary, by_str, daily=F) {
   if(daily) {
     summary_all <- dplyr::full_join(correct_summary, candidate_summary, by=c("GPS", "Date"))
   }
   else {
-    summary_all <- dplyr::full_join(correct_summary, candidate_summary, by=by)
+    summary_all <- dplyr::full_join(correct_summary, candidate_summary, by=by_str)
   }
    summary_all <- summary_all %>% 
     # create difference columns
@@ -309,6 +400,35 @@ join_summaries <- function(correct_summary, candidate_summary, by, daily=F) {
 #'@param col_name variable in df_summary to be used for the y-axis, as a string
 #'@param out file name to save plot
 #'@return side-by-side violin plots
+#'@examples
+#'# Not run:
+#'# Violin plot comparing unfiltered and filtered demo data summaries by date for a single variable
+#'
+#'## Get elevation
+#'elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+#'
+#'## Get elevation data for unfiltered demo
+#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, get_slope=F, get_aspect=F)
+#'
+#'## Get elevation data for filtered demo
+#'filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=F, get_aspect=F)
+#'
+#'## Summarise unfiltered demo
+#'unfiltered_summary <- summarise_anidf(unfiltered_elev, Date, Latitude, Longitude, 
+#'Distance, Course, Rate, Elevation, daily=F)
+#'
+#'## Summarise filtered demo
+#'filtered_summary <- summarise_anidf(filtered_elev, Date, Latitude, Longitude, 
+#'Distance, Course, Rate, Elevation, daily=F)
+#'
+#'## Join
+#'summary <- join_summaries(unfiltered_summary, filtered_summary, "Date", daily=F)
+#'
+#'## Violin plot
+#'
+#'violin_compare(summary, Date, Elevation, "ex_elev_violin.png")
+#'
+#'# End(Not run)
 #'@export
 #'
 violin_compare <- function(df_summary, by, col_name, out) {
@@ -343,6 +463,16 @@ violin_compare <- function(df_summary, by, col_name, out) {
 #'@param col variable to plot the moving average for
 #'@param out file name to save plot
 #'@return faceted line plot of moving averages over time grouped by GPS
+#'@examples
+#'# Not run:
+#'# Faceted line plot comparing moving averages over time 
+#'# grouped by GPS for unfiltered and filtered demo data
+#'
+#'## Set distance as the y axis
+#'line_compare(demo_unfiltered, demo_filtered, Distance, "ex_line_dist.png")
+#'
+#'# End(Not run)
+#'@export
 #'
 line_compare <- function(correct, candidate, col, out) {
   col_name <- dplyr::enquo(col)
@@ -371,13 +501,30 @@ line_compare <- function(correct, candidate, col, out) {
 }
 
 #'
-#'Compares two animal datasets and calculates daily summary statistics. 
+#'Compares two animal datasets and calculates daily summary statistics by GPS
 #'GPS, date, lat, long, course, distance, rate, elevation column names should match. 
 #'
 #'@param correct reference df
-#'@param candidate df to be compared to the reference
+#'@param candidate df to be compared to the references
 #'@param out desired file name of .csv output summary 
 #'@return summary df
+#'@examples
+#'# Not run:
+#'# Compare and summarise unfiltered demo cows to filtered, grouped by both Date and GPS
+#'
+#'## Get elevation
+#'elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+#'
+#'## Get elevation data for unfiltered demo
+#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, get_slope=F, get_aspect=F)
+#'
+#'## Get elevation data for filtered demo
+#'filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=F, get_aspect=F)
+#'
+#'## Compare and summarise
+#'compare_summarise_daily(unfiltered_elev, filtered_elev, "ex_compare_daily.csv")
+#'
+#'# End(Not run)
 #'@export
 #'
 compare_summarise_daily <- function(correct, candidate, out) {
@@ -389,7 +536,7 @@ compare_summarise_daily <- function(correct, candidate, out) {
   
   summary_all <- join_summaries(correct_summary, candidate_summary, daily=T)
   
-  write.csv(summary_all, out, row.names = F)
+  utils::write.csv(summary_all, out, row.names = F)
   
   return(summary_all)
 }
