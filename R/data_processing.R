@@ -73,7 +73,7 @@ lookup_elevation <- function(elev, anidf, zoom = 11, get_slope = TRUE, get_aspec
 #'@param filename path of altitude mask file archive
 #'@param exdir path to extract files 
 #'@return the first altitude mask file as a raster object
-#'
+#'@export 
 read_zip_to_rasters <- function(filename, exdir = "inst/extdata/elev"){
   
   ff <- utils::unzip(filename, exdir=dirname(exdir))
