@@ -1,20 +1,5 @@
-.Rhistory
-.RData
-.Rd2pdf
 **/elevation/**
 *.zip
 *.tar
 *.tar.gz
-data/animal_data.rds
-data/animal_data_with_elev.rds
-data/animaldb.sqlite
-data/P3_S129_2017.csv
-data/processed/export_P3_brennan_2019_01_27.csv
-data/processed/to_process.rds
-data/temp/Bannock_2017_118_2237.csv
-.Rproj.user/**
-bannock_test.rds
-test_unknown.rds
-resources/
 .Rproj.user
-test (1).rds

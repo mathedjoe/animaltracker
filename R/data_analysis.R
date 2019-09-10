@@ -70,20 +70,21 @@ quantile_time <- function(rds_path) {
 #'
 #'@export
 summarise_col <- function(df, col) {
+  col <- enquo(col)
   summary <- df %>%
     dplyr::group_by(Animal) %>%
     dplyr::summarise(
       N = n(),
-      Mean = mean(!! sym(col)),
-      Median = stats::median(!! sym(col)),
-      SD = stats::sd(!! sym(col)),
-      Variance = stats::var(!! sym(col)),
-      Q1 = stats::quantile(!! sym(col), 0.25),
-      Q3 = stats::quantile(!! sym(col), 0.75),
-      IQR = stats::IQR(!! sym(col)),
-      Range = (max(!! sym(col))-min(!! sym(col))),
-      Min = min(!! sym(col)),
-      Max = max(!! sym(col))
+      Mean = mean(!!col),
+      Median = stats::median(!!col),
+      SD = stats::sd(!!col),
+      Variance = stats::var(!!col),
+      Q1 = stats::quantile(!!col, 0.25),
+      Q3 = stats::quantile(!!col, 0.75),
+      IQR = stats::IQR(!!col),
+      Range = (max(!!col)-min(!!col)),
+      Min = min(!!col),
+      Max = max(!!col)
     )
   return(summary)
 }
@@ -209,23 +210,24 @@ qqplot_time <- function(rds_path) {
 #'@param date_out desired file name of .csv output summary by date
 #'@return list containing gps_out and date_out as dfs
 #'@examples
-#'# Not run:
 #'# Compare and summarise unfiltered demo cows to filtered 
-#'
-#'#'## Get elevation
+#'\donttest{
+#'\dontrun{
+#'## Get elevation
 #'elevfile <- system.file("extdata/elev", "USA_msk_alt.zip", package="animaltracker")
 #'elev <- read_zip_to_rasters( elevfile )
 #'
 #'## Get elevation data for unfiltered demo
-#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
+#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, 
+#'get_slope=FALSE, get_aspect=FALSE)
 #'
 #'## Get elevation data for filtered demo
 #'filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
 #'
 #'## Compare and summarise
 #'compare_summarise_data(unfiltered_elev, filtered_elev, "ex_gps_compare.csv", "ex_date_compare.csv")
-#'
-#'# End(Not run)
+#'}
+#'}
 #'@export
 #'
 compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
@@ -266,7 +268,7 @@ compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
 #'@examples
 #'# Summary of demo data by date
 #'
-#'summarise_anidf(demo, Date, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=F)
+#'summarise_anidf(demo, Date, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=FALSE)
 #'
 #'@export
 #'
@@ -310,15 +312,16 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev, dail
 #'@param by_str column to join by as a string, null if daily=T
 #'@param daily whether to group by both GPS and Date for daily summary, defaults to False
 #'@examples
-#'# Not run:
 #'# Join date summaries of unfiltered and filtered demo data
-#'
+#'\donttest{
+#'\dontrun{
 #'## Get elevation 
 #'elevfile <- system.file("extdata/elev", "USA_msk_alt.zip", package="animaltracker")
 #'elev <- read_zip_to_rasters(elevfile )
 #'
 #'## Get elevation data for unfiltered demo
-#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
+#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, 
+#'get_slope=FALSE, get_aspect=FALSE)
 #'
 #'## Get elevation data for filtered demo
 #'filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
@@ -334,7 +337,8 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev, dail
 #'## Join
 #'join_summaries(unfiltered_summary, filtered_summary, "Date", daily=F)
 #'
-#'# End(Not run)
+#'}
+#'}
 #'@export
 #'
 #'
@@ -406,15 +410,16 @@ join_summaries <- function(correct_summary, candidate_summary, by_str, daily=F) 
 #'@param out file name to save plot
 #'@return side-by-side violin plots
 #'@examples
-#'# Not run:
 #'# Violin plot comparing unfiltered and filtered demo data summaries by date for a single variable
-#'
+#'\donttest{
+#'\dontrun{
 #'## Get elevation
 #'elevfile <- system.file("extdata/elev", "USA_msk_alt.zip", package="animaltracker")
-#'elev <- read_zip_to_rasters(elevfile )
+#'elev <- read_zip_to_rasters(elevfile)
 #'
 #'## Get elevation data for unfiltered demo
-#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
+#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, 
+#'get_slope=FALSE, get_aspect=FALSE)
 #'
 #'## Get elevation data for filtered demo
 #'filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
@@ -432,9 +437,10 @@ join_summaries <- function(correct_summary, candidate_summary, by_str, daily=F) 
 #'
 #'## Violin plot
 #'
-#'violin_compare(summary, Date, Elevation, "ex_elev_violin.png")
+#'violin_compare(summary, Date, "meanElev", "ex_elev_violin.png")
 #'
-#'# End(Not run)
+#'}
+#'}
 #'@export
 #'
 violin_compare <- function(df_summary, by, col_name, out) {
@@ -470,14 +476,14 @@ violin_compare <- function(df_summary, by, col_name, out) {
 #'@param out file name to save plot
 #'@return faceted line plot of moving averages over time grouped by GPS
 #'@examples
-#'# Not run:
 #'# Faceted line plot comparing moving averages over time 
 #'# grouped by GPS for unfiltered and filtered demo data
-#'
+#'\donttest{
+#'\dontrun{
 #'## Set distance as the y axis
 #'line_compare(demo_unfiltered, demo_filtered, Distance, "ex_line_dist.png")
-#'
-#'# End(Not run)
+#'}
+#'}
 #'@export
 #'
 line_compare <- function(correct, candidate, col, out) {
@@ -511,27 +517,28 @@ line_compare <- function(correct, candidate, col, out) {
 #'GPS, date, lat, long, course, distance, rate, elevation column names should match. 
 #'
 #'@param correct reference df
-#'@param candidate df to be compared to the references
+#'@param candidate df to be compared to the reference
 #'@param out desired file name of .csv output summary 
 #'@return summary df
 #'@examples
-#'# Not run:
 #'# Compare and summarise unfiltered demo cows to filtered, grouped by both Date and GPS
-#'
+#'\donttest{
+#'\dontrun{
 #'## Get elevation
 #'elevfile <- system.file("extdata/elev", "USA_msk_alt.zip", package="animaltracker")
 #'elev <- read_zip_to_rasters( elevfile )
 #'
 #'## Get elevation data for unfiltered demo
-#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
+#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, 
+#'get_slope=FALSE, get_aspect=FALSE)
 #'
 #'## Get elevation data for filtered demo
 #'filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
 #'
 #'## Compare and summarise
 #'compare_summarise_daily(unfiltered_elev, filtered_elev, "ex_compare_daily.csv")
-#'
-#'# End(Not run)
+#'}
+#'}
 #'@export
 #'
 compare_summarise_daily <- function(correct, candidate, out) {

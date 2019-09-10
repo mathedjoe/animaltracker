@@ -19,28 +19,31 @@ join_summaries(correct_summary, candidate_summary, by_str, daily = F)
 Joins two animal data frame summaries by a column and appends differences
 }
 \examples{
-# Not run:
 # Join date summaries of unfiltered and filtered demo data
-
+\donttest{
+\dontrun{
 ## Get elevation 
-elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+elevfile <- system.file("extdata/elev", "USA_msk_alt.zip", package="animaltracker")
+elev <- read_zip_to_rasters(elevfile )
 
 ## Get elevation data for unfiltered demo
-unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, get_slope=F, get_aspect=F)
+unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, 
+get_slope=FALSE, get_aspect=FALSE)
 
 ## Get elevation data for filtered demo
-filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=F, get_aspect=F)
+filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
 
 ## Summarise unfiltered demo by date
 unfiltered_summary <- summarise_anidf(unfiltered_elev, Date, Latitude, Longitude, 
-Distance, Course, Rate, Elevation, daily=F)
+Distance, Course, Rate, Elevation, daily=FALSE)
 
 ## Summarise filtered demo by date
 filtered_summary <- summarise_anidf(filtered_elev, Date, Latitude, Longitude, 
-Distance, Course, Rate, Elevation, daily=F)
+Distance, Course, Rate, Elevation, daily=FALSE)
 
 ## Join
 join_summaries(unfiltered_summary, filtered_summary, "Date", daily=F)
 
-# End(Not run)
+}
+}
 }

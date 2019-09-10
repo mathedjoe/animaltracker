@@ -32,6 +32,6 @@ Calculates summary statistics for an animal data frame
 \examples{
 # Summary of demo data by date
 
-summarise_anidf(demo, Date, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=F)
+summarise_anidf(demo, Date, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=FALSE)
 
 }

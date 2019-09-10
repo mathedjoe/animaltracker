@@ -37,7 +37,7 @@ Cleans a raw animal GPS dataset, implementing a standardized procedure to remove
 
 ## Read data frame
 bannock_df <- read.csv(system.file("extdata", "demo_aug19/Bannock_2017_101_1149.csv", 
-package = "animaltracker"))
+package = "animaltracker"), skipNul=TRUE)
 
 ## Clean and filter
 clean_location_data(bannock_df, autocleans = FALSE, filters = TRUE, aniid = 1149, 

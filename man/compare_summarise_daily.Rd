@@ -10,7 +10,7 @@ compare_summarise_daily(correct, candidate, out)
 \arguments{
 \item{correct}{reference df}
 
-\item{candidate}{df to be compared to the references}
+\item{candidate}{df to be compared to the reference}
 
 \item{out}{desired file name of .csv output summary}
 }
@@ -22,20 +22,22 @@ Compares two animal datasets and calculates daily summary statistics by GPS
 GPS, date, lat, long, course, distance, rate, elevation column names should match.
 }
 \examples{
-# Not run:
 # Compare and summarise unfiltered demo cows to filtered, grouped by both Date and GPS
-
+\donttest{
+\dontrun{
 ## Get elevation
-elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+elevfile <- system.file("extdata/elev", "USA_msk_alt.zip", package="animaltracker")
+elev <- read_zip_to_rasters( elevfile )
 
 ## Get elevation data for unfiltered demo
-unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, get_slope=F, get_aspect=F)
+unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, 
+get_slope=FALSE, get_aspect=FALSE)
 
 ## Get elevation data for filtered demo
-filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=F, get_aspect=F)
+filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
 
 ## Compare and summarise
 compare_summarise_daily(unfiltered_elev, filtered_elev, "ex_compare_daily.csv")
-
-# End(Not run)
+}
+}
 }

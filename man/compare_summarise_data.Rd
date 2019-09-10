@@ -24,17 +24,22 @@ Compares two animal data frames and calculates summary statistics.
 GPS, date, lat, long, course, distance, rate, elevation column names should match.
 }
 \examples{
-# Not run:
 # Compare and summarise unfiltered demo cows to filtered 
+\donttest{
+\dontrun{
+## Get elevation
+elevfile <- system.file("extdata/elev", "USA_msk_alt.zip", package="animaltracker")
+elev <- read_zip_to_rasters( elevfile )
 
 ## Get elevation data for unfiltered demo
-unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, get_slope=F, get_aspect=F)
+unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, 
+get_slope=FALSE, get_aspect=FALSE)
 
 ## Get elevation data for filtered demo
-filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=F, get_aspect=F)
+filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
 
 ## Compare and summarise
 compare_summarise_data(unfiltered_elev, filtered_elev, "ex_gps_compare.csv", "ex_date_compare.csv")
-
-# End(Not run)
+}
+}
 }
