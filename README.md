@@ -40,7 +40,7 @@ This app can be installed and run through RStudio (or the basic R console).
 #### devtools
 Before installing Animal Tracker, ensure that you have the [devtools](https://github.com/r-lib/devtools) package installed and loaded:
 ```
-install.packages(devtools) 
+install.packages("devtools") 
 library(devtools)
 ```
 
