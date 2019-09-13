@@ -16,7 +16,7 @@ if(getRversion() >= '2.5.1') {
 #'\donttest{
 #'\dontrun{
 #'## Get elevation
-#'elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+#'elev <- read_zip_to_rasters(system.file("extdata", "elev/USA_msk_alt.zip", package="animaltracker"))
 #'
 #'## Lookup with slope and aspect
 #'lookup_elevation(elev, read.csv(system.file("extdata", 
@@ -114,7 +114,7 @@ histogram_animal_elevation <- function(datapts) {
 #'\donttest{
 #'\dontrun{
 #'## Get elevation
-#'elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+#'elev <- read_zip_to_rasters(system.file("extdata", "elev/USA_msk_alt.zip", package="animaltracker"))
 #'
 #'## Process and export
 #'process_elevation(elev, zoom = 11, get_slope = TRUE, get_aspect = TRUE, 
