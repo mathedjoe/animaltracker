@@ -123,7 +123,7 @@ clean_location_data<- function (df, autocleans = FALSE, filters = TRUE,
   else {
     df <- df %>% 
       dplyr::mutate(
-        TimeFlag = 1*(is.na(DateTime) || is.na(Date) || is.na(Time))
+        TimeFlag = 1*(is.na(DateTime) | is.na(Date) | is.na(Time))
       ) %>%
       tibble::add_column(DuplicateDateFlag = 1*duplicated(df$DateTime)) %>%
       dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistanceFlag + TimeFlag + DuplicateDateFlag)
@@ -139,13 +139,13 @@ clean_location_data<- function (df, autocleans = FALSE, filters = TRUE,
 #'@param cleaned_dir directory to save the processed GPS datasets as spreadsheets (.csv), defaults to data/processed
 #'@param tz timezone for cleaned data, defaults to UTC
 #'@examples
-#'# Not run:
 #'# Clean all animal GPS .csv datasets in the demo directory
-#'
+#'\donttest{
+#'\dontrun{
 #'clean_export_files(system.file("extdata", "demo_aug19", package = "animaltracker"), 
-#'cleaned_filename = "ex_animal_data.rds", cleaned_dir = "inst/extdata/demo_aug19", tz = "UTC")
-#'
-#'# End(Not run)
+#'cleaned_filename = "ex_animal_data.rds", cleaned_dir = "clean_export_ex", tz = "UTC")
+#'}
+#'}
 #'@export
 #'
 clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", cleaned_dir = "processed", tz = "UTC") {
@@ -217,12 +217,10 @@ clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", c
 #'
 #'@param data_dir directory of animal data files
 #'@examples
-#'# Not run:
 #'# Detect large files in the demo directory and add to the .gitignore file
-#'
+#'\dontrun{
 #'dev_add_to_gitignore(system.file("extdata", "demo_aug19", package = "animaltracker"))
-#'
-#'# End(Not run)
+#'}
 #'@export
 #'
 dev_add_to_gitignore <- function(data_dir) {

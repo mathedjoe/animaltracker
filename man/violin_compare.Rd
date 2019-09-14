@@ -22,32 +22,35 @@ side-by-side violin plots
 Compares summary statistics from two datasets as side-by-side violin plots
 }
 \examples{
-# Not run:
 # Violin plot comparing unfiltered and filtered demo data summaries by date for a single variable
-
+\donttest{
+\dontrun{
 ## Get elevation
-elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+elevfile <- system.file("extdata/elev", "USA_msk_alt.zip", package="animaltracker")
+elev <- read_zip_to_rasters(elevfile)
 
 ## Get elevation data for unfiltered demo
-unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, get_slope=F, get_aspect=F)
+unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, 
+get_slope=FALSE, get_aspect=FALSE)
 
 ## Get elevation data for filtered demo
-filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=F, get_aspect=F)
+filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
 
 ## Summarise unfiltered demo
 unfiltered_summary <- summarise_anidf(unfiltered_elev, Date, Latitude, Longitude, 
-Distance, Course, Rate, Elevation, daily=F)
+Distance, Course, Rate, Elevation, daily=FALSE)
 
 ## Summarise filtered demo
 filtered_summary <- summarise_anidf(filtered_elev, Date, Latitude, Longitude, 
-Distance, Course, Rate, Elevation, daily=F)
+Distance, Course, Rate, Elevation, daily=FALSE)
 
 ## Join
-summary <- join_summaries(unfiltered_summary, filtered_summary, "Date", daily=F)
+summary <- join_summaries(unfiltered_summary, filtered_summary, "Date", daily=FALSE)
 
 ## Violin plot
 
-violin_compare(summary, Date, Elevation, "ex_elev_violin.png")
+violin_compare(summary, Date, "meanElev", "ex_elev_violin.png")
 
-# End(Not run)
+}
+}
 }

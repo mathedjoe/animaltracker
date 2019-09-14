@@ -12,28 +12,18 @@ if(getRversion() >= '2.5.1') {
 #'@param get_aspect logical, whether to compute aspect (in degrees), defaults to true
 #'@return original data frame, with terrain column(s) appended
 #'@examples
-#'# Not run:
 #'# Add elevation data to demo data frame
-#'
+#'\donttest{
+#'\dontrun{
 #'## Get elevation
-#'elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+#'elev <- read_zip_to_rasters(system.file("extdata", "elev/USA_msk_alt.zip", package="animaltracker"))
 #'
 #'## Lookup with slope and aspect
-#'lookup_elevation(elev, system.file("extdata", 
-#'"demo_aug19/Bannock_2017_101_1149.csv", package = "animaltracker"), 
+#'lookup_elevation(elev, read.csv(system.file("extdata", 
+#'"demo_aug19/Bannock_2017_101_1149.csv", package = "animaltracker"), skipNul = TRUE), 
 #'zoom = 11, get_slope = TRUE, get_aspect = TRUE)
-#'
-#'## Lookup with slope only
-#'lookup_elevation(elev, system.file("extdata", 
-#'"demo_aug19/Bannock_2017_101_1149.csv", package = "animaltracker"), 
-#'zoom = 11, get_slope = TRUE, get_aspect = FALSE)
-#'
-#'## Lookup with aspect only
-#'lookup_elevation(elev, system.file("extdata", 
-#'"demo_aug19/Bannock_2017_101_1149.csv", package = "animaltracker"), 
-#'zoom = 11, get_slope = FALSE, get_aspect = TRUE)
-#'
-#'# End(Not run)
+#'}
+#'}
 #'@export
 lookup_elevation <- function(elev, anidf, zoom = 11, get_slope = TRUE, get_aspect = TRUE) {
   
@@ -120,18 +110,19 @@ histogram_animal_elevation <- function(datapts) {
 #'@param out_path exported file path, .rds
 #'@return list of data frames with gps data augmented by elevation
 #'@examples
-#'# Not run:
 #'# Export elevation data from demo .rds datasets
-#'
+#'\donttest{
+#'\dontrun{
 #'## Get elevation
-#'elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+#'elev <- read_zip_to_rasters(system.file("extdata", "elev/USA_msk_alt.zip", package="animaltracker"))
 #'
 #'## Process and export
 #'process_elevation(elev, zoom = 11, get_slope = TRUE, get_aspect = TRUE, 
 #'in_path = system.file("extdata", "demo_aug19.rds", 
 #'package = "animaltracker"), out_path = "demo_aug19_elev.rds")
 #'
-#'# End(Not run)
+#'}
+#'}
 #'@export
 #'
 process_elevation <- function(elev, zoom = 11, get_slope=TRUE, get_aspect=TRUE, in_path, out_path) {

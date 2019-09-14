@@ -20,11 +20,11 @@ clean_export_files(data_dir, cleaned_filename = "animal_data.rds",
 Cleans all animal GPS datasets (in .csv format) in a chosen directory. Optionally exports the clean data as spreadsheets, a single .rds data file, or as a list of data frames
 }
 \examples{
-# Not run:
 # Clean all animal GPS .csv datasets in the demo directory
-
+\donttest{
+\dontrun{
 clean_export_files(system.file("extdata", "demo_aug19", package = "animaltracker"), 
-cleaned_filename = "ex_animal_data.rds", cleaned_dir = "inst/extdata/demo_aug19", tz = "UTC")
-
-# End(Not run)
+cleaned_filename = "ex_animal_data.rds", cleaned_dir = "clean_export_ex", tz = "UTC")
+}
+}
 }
