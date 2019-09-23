@@ -554,3 +554,37 @@ compare_summarise_daily <- function(correct, candidate, out) {
   
   return(summary_all)
 }
+
+
+#'
+#'Joins and reformats two animal data frames for the purpose of flag comparison
+#'
+#'@param correct reference df
+#'@param candidate df to be compared to the reference
+#'
+compare_flags <- function(correct, candidate) {
+    dplyr::full_join(correct, candidate, by=c("GPS", "DateTime", "Date")) %>% 
+    dplyr::select(GPS, DateTime, Date,
+                  Latitude.x, Latitude.y, Longitude.x, Longitude.y,
+                  Distance.x, Distance.y, Rate.x, Rate.y,
+                  Elevation.x, Elevation.y, Slope.x, Slope.y,
+                  RateFlag, CourseFlag, DistanceFlag, TotalFlags) %>% 
+    tibble::add_column(TimeDiff = NA, .after="DateTime") %>% 
+    tibble::add_column(TimeDiffMins = NA, .after="TimeDiff") %>%
+    tibble::add_column(cumDist.x=NA, .after="Distance.x") %>% 
+    tibble::add_column(cumDist.y=NA, .after="Distance.y") %>% 
+    dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S")) %>% 
+    dplyr::mutate(Date = as.Date(DateTime, format="%Y-%m-%d")) %>% 
+    dplyr::group_by(GPS, Date) %>% 
+    dplyr::arrange(DateTime, .by_group = TRUE) %>% 
+    dplyr::mutate(Distance.y = dplyr::lag(Distance.y,1), 
+                  Distance.x = ifelse(is.na(Distance.x), 0, Distance.x),
+                  Distance.y = ifelse(is.na(Distance.y), 0, Distance.y),
+                  
+                  cumDist.x = cumsum(Distance.x),
+                  cumDist.y = cumsum(Distance.y),
+                  
+                  TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > 100), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), 
+                  TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
+                  Dropped = ifelse((TotalFlags < 2 & !DistanceFlag), 0, 1))
+}
