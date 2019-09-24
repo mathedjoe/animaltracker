@@ -12,8 +12,8 @@ run_validation_app <- function() {
     sidebarLayout(
       sidebarPanel(
         h4("Upload Data"),
-        helpText("Please select a reference and candidate file from your computer."),
-        fileInput("correctInput", "Upload reference data (.csv)", accept=c(".csv")),
+        helpText("Please select a correct (reference) and candidate file from your computer."),
+        fileInput("correctInput", "Upload correct data (.csv)", accept=c(".csv")),
         fileInput("candidateInput", "Upload candidate data (.csv)", accept=c(".csv")),
         dateInput("date", "Date", value="2018-03-05",
                   min="2018-03-05", max="2018-05-26"),
@@ -40,9 +40,11 @@ run_validation_app <- function() {
   
   server <- function(input, output, session) {
     
+    ### UPDATE AND SELECT DATA
     comparison <- reactive({
       req(input$correctInput, input$candidateInput)
-      compare_flags(read.csv(input$correctInput$datapath, skipNul = TRUE), read.csv(input$candidateInput$datapath, skipNul = TRUE))
+      compare_flags(read.csv(input$correctInput$datapath, skipNul = TRUE), 
+                    read.csv(input$candidateInput$datapath, skipNul = TRUE))
     })
     
     current_data <- reactive({
@@ -50,7 +52,7 @@ run_validation_app <- function() {
     })
     
     gps_totals <- reactive({ 
-      current_data() %>% 
+      comparison() %>% 
       dplyr::group_by(GPS) %>% 
       dplyr::summarise(
         RateFlags = sum(RateFlag, na.rm=TRUE),
@@ -78,15 +80,6 @@ run_validation_app <- function() {
         )
     }
     
-    output$plot <- renderPlot(
-      ggplot(data=current_data(), aes(x=DateTime, y=VAR, group=Source, color=Source)) +
-        geom_line(aes(size = Source)) +
-        scale_color_discrete(guide = guide_legend(reverse = T)) +
-        scale_size_manual(values=c(2, 1))+
-        facet_wrap(vars(GPS), ncol=3) +
-        theme_minimal()
-    )
-    
     get_column <- function(df, choice, date) {
       df <- df %>% dplyr::ungroup() %>% dplyr::filter(Date == as.Date(date))
       if(choice == "Cumulative Distance (+Flags)") {
@@ -112,12 +105,24 @@ run_validation_app <- function() {
       date_gps <- df %>% dplyr::select(GPS, DateTime)
       x <- x %>% dplyr::mutate(Source = "Correct") %>% dplyr::bind_cols(date_gps)
       y <- y %>% dplyr::mutate(Source = "Candidate") %>% dplyr::bind_cols(date_gps)
+      
+      print(bind_rows(x,y))
       return(dplyr::bind_rows(x, y))
     }
     
+    ### UPDATE PLOTS AND SUMMARY TABLES
+    output$plot <- renderPlot(
+      ggplot(data=current_data(), aes(x=DateTime, y=VAR, group=Source, color=Source)) +
+        geom_line(aes(size = Source)) +
+        scale_color_discrete(guide = guide_legend(reverse = T)) +
+        scale_size_manual(values=c(2, 1))+
+        facet_wrap(vars(GPS), ncol=3) +
+        theme_minimal()
+    )
+    
     output$gps_totals <- renderTable(gps_totals())
-    output$gps_distance <- renderTable(summarise_flag(current_data(), Distance.y, DistanceFlag))
-    output$gps_distance_time <- renderTable(summarise_flag(current_data(), TimeDiffMins, DistanceFlag))
+    output$gps_distance <- renderTable(summarise_flag(comparison(), Distance.y, DistanceFlag))
+    output$gps_distance_time <- renderTable(summarise_flag(comparison(), TimeDiffMins, DistanceFlag))
     
     session$onSessionEnded(stopApp)
   }

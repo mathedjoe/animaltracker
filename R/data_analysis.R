@@ -563,16 +563,17 @@ compare_summarise_daily <- function(correct, candidate, out) {
 #'@param candidate df to be compared to the reference
 #'
 compare_flags <- function(correct, candidate) {
-    correct <- correct %>% dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S")) %>% 
-      dplyr::mutate(Date = as.Date(DateTime, format="%Y-%m-%d"))
-    candidate <- candidate %>% dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S")) %>% 
-      dplyr::mutate(Date = as.Date(DateTime, format="%Y-%m-%d")) 
-    joined <- dplyr::full_join(correct, candidate, by=c("GPS", "DateTime", "Date")) %>% 
-      dplyr::select(GPS, DateTime, Date,
+    correct <- correct %>% dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S"))
+      # dplyr::mutate(Date = as.Date(DateTime, format="%Y-%m-%d"))
+    candidate <- candidate %>% dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S"))  
+      # dplyr::mutate(Date = as.Date(DateTime, format="%Y-%m-%d")) 
+    joined <- dplyr::full_join(correct, candidate, by=c( "DateTime", "GPS")) %>% 
+      dplyr::select(DateTime, GPS,
                   Latitude.x, Latitude.y, Longitude.x, Longitude.y,
                   Distance.x, Distance.y, Rate.x, Rate.y,
                   Elevation.x, Elevation.y, Slope.x, Slope.y,
                   RateFlag, CourseFlag, DistanceFlag, TotalFlags) %>% 
+    dplyr::mutate( Date = as.Date(DateTime, format="%Y-%m-%d")) %>%
     tibble::add_column(TimeDiff = NA, .after="DateTime") %>% 
     tibble::add_column(TimeDiffMins = NA, .after="TimeDiff") %>%
     tibble::add_column(cumDist.x=NA, .after="Distance.x") %>% 
