@@ -571,6 +571,7 @@ compare_flags <- function(correct, candidate) {
       dplyr::select(DateTime, GPS,
                   Latitude.x, Latitude.y, Longitude.x, Longitude.y,
                   Distance.x, Distance.y, Rate.x, Rate.y,
+                  Course.x, Course.y,
                   Elevation.x, Elevation.y, Slope.x, Slope.y,
                   RateFlag, CourseFlag, DistanceFlag, TotalFlags) %>% 
     dplyr::mutate( Date = as.Date(DateTime, format="%Y-%m-%d")) %>%
@@ -589,6 +590,7 @@ compare_flags <- function(correct, candidate) {
                   
                   TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > 100), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), 
                   TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
-                  Dropped = ifelse((TotalFlags < 2 & !DistanceFlag), 0, 1))
+                  Dropped.x = ifelse(!is.na(Latitude.x), 0, 1),
+                  Dropped.y = ifelse((TotalFlags < 2 & !DistanceFlag), 0, 1))
     return(joined)
 }

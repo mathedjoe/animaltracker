@@ -24,10 +24,14 @@ run_validation_app <- function() {
       ),
       mainPanel(
         tabsetPanel(
-          tabPanel("Plot", plotOutput("plot", height="1000px")),
+          tabPanel("Plot", plotOutput("plot", height="1000px") %>% shinycssloaders::withSpinner()),
           tabPanel("Summary", 
                    h4("Total Flags by GPS"),
                    tableOutput("gps_totals"),
+                   h4("Summary of Rate Flags by GPS"),
+                   tableOutput("gps_rate"),
+                   h4("Summary of Course Flags by GPS"),
+                   tableOutput("gps_course"),
                    h4("Summary of Distance Flags by GPS"),
                    tableOutput("gps_distance"),
                    h4("Summary of Distance Flag Time Differences by GPS"),
@@ -59,7 +63,8 @@ run_validation_app <- function() {
         CourseFlags = sum(CourseFlag, na.rm=TRUE),
         DistFlags = sum(DistanceFlag, na.rm=TRUE),
         TotalFlags = sum(TotalFlags, na.rm=TRUE),
-        Dropped = sum(Dropped, na.rm=TRUE)
+        Dropped.x = sum(Dropped.x, na.rm=TRUE),
+        Dropped.y = sum(Dropped.y, na.rm=TRUE)
       )
     })
     
@@ -121,6 +126,8 @@ run_validation_app <- function() {
     )
     
     output$gps_totals <- renderTable(gps_totals())
+    output$gps_rate <- renderTable(summarise_flag(comparison(), Rate.y, RateFlag))
+    output$gps_course <- renderTable(summarise_flag(comparison(), Course.y, CourseFlag))
     output$gps_distance <- renderTable(summarise_flag(comparison(), Distance.y, DistanceFlag))
     output$gps_distance_time <- renderTable(summarise_flag(comparison(), TimeDiffMins, DistanceFlag))
     

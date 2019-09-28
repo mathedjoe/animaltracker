@@ -6,7 +6,7 @@
 \usage{
 clean_location_data(df, autocleans = FALSE, filters = TRUE,
   aniid = NA, gpsid = NA, maxrate = 84, maxcourse = 100,
-  maxdist = 840, maxtime = 100, timezone = "UTC")
+  maxdist = 840, maxtime = 100, tz_in = "UTC", tz_out = "UTC")
 }
 \arguments{
 \item{df}{data frame in standardized format (e.g., from a raw spreadsheet)}
@@ -27,7 +27,9 @@ clean_location_data(df, autocleans = FALSE, filters = TRUE,
 
 \item{maxtime}{maximum time (minutes) between consecutive points}
 
-\item{timezone}{time zone, defaults to UTC}
+\item{tz_in}{input time zone, defaults to UTC}
+
+\item{tz_out}{output time zone, defaults to UTC}
 }
 \description{
 Cleans a raw animal GPS dataset, implementing a standardized procedure to remove impossible values

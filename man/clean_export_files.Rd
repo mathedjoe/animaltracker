@@ -5,7 +5,7 @@
 \title{Cleans all animal GPS datasets (in .csv format) in a chosen directory. Optionally exports the clean data as spreadsheets, a single .rds data file, or as a list of data frames}
 \usage{
 clean_export_files(data_dir, cleaned_filename = "animal_data.rds",
-  cleaned_dir = "processed", tz = "UTC")
+  cleaned_dir = "processed", tz_in = "UTC", tz_out = "UTC")
 }
 \arguments{
 \item{data_dir}{directory of GPS tracking files (in csv)}
@@ -14,7 +14,9 @@ clean_export_files(data_dir, cleaned_filename = "animal_data.rds",
 
 \item{cleaned_dir}{directory to save the processed GPS datasets as spreadsheets (.csv), defaults to data/processed}
 
-\item{tz}{timezone for cleaned data, defaults to UTC}
+\item{tz_in}{input time zone, defaults to UTC}
+
+\item{tz_out}{output time zone, defaults to UTC}
 }
 \description{
 Cleans all animal GPS datasets (in .csv format) in a chosen directory. Optionally exports the clean data as spreadsheets, a single .rds data file, or as a list of data frames
