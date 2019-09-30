@@ -89,15 +89,15 @@ run_validation_app <- function() {
       df <- df %>% dplyr::ungroup() %>% dplyr::filter(Date == as.Date(date))
       if(choice == "Cumulative Distance (+Flags)") {
         x <- df %>% dplyr::select(cumDist.x) %>% dplyr::mutate(VAR = cumDist.x)
-        y <- df %>% dplyr::select(cumDist.y) %>% dplyr::mutate(VAR = cumDist.y)
+        y <- df %>% dplyr::select(cumDist.y, DistanceFlag) %>% dplyr::mutate(VAR = cumDist.y, Flag = DistanceFlag)
       }
       else if(choice == "Rate (+Flags)") {
         x <- df %>% dplyr::select(Rate.x) %>% dplyr::mutate(VAR = Rate.x)
-        y <- df %>% dplyr::select(Rate.y) %>% dplyr::mutate(VAR = Rate.y)
+        y <- df %>% dplyr::select(Rate.y, RateFlag) %>% dplyr::mutate(VAR = Rate.y, Flag = RateFlag)
       }
       else if(choice == "Course (+Flags)") {
         x <- df %>% dplyr::select(Course.x) %>% dplyr::mutate(VAR = Course.x)
-        y <- df %>% dplyr::select(Course.y) %>% dplyr::mutate(VAR = Course.y)
+        y <- df %>% dplyr::select(Course.y, CourseFlag) %>% dplyr::mutate(VAR = Course.y, Flag = CourseFlag)
       }
       else if(choice == "Elevation") {
         x <- df %>% dplyr::select(Elevation.x) %>% dplyr::mutate(VAR = Elevation.x)
@@ -110,19 +110,28 @@ run_validation_app <- function() {
       date_gps <- df %>% dplyr::select(GPS, DateTime)
       x <- x %>% dplyr::mutate(Source = "Correct") %>% dplyr::bind_cols(date_gps)
       y <- y %>% dplyr::mutate(Source = "Candidate") %>% dplyr::bind_cols(date_gps)
-      
-      print(bind_rows(x,y))
       return(dplyr::bind_rows(x, y))
     }
     
     ### UPDATE PLOTS AND SUMMARY TABLES
     output$plot <- renderPlot(
-      ggplot(data=current_data(), aes(x=DateTime, y=VAR, group=Source, color=Source)) +
-        geom_line(aes(size = Source)) +
-        scale_color_discrete(guide = guide_legend(reverse = T)) +
-        scale_size_manual(values=c(2, 1))+
-        facet_wrap(vars(GPS), ncol=3) +
-        theme_minimal()
+      if(input$var == "Cumulative Distance (+Flags)" | input$var == "Rate (+Flags)" | input$var == "Course (+Flags)") {
+        ggplot(data=current_data(), aes(x=DateTime, y=VAR, group=Source, color=Source)) +
+          geom_line(aes(size = Source)) +
+          geom_point(data=current_data() %>% dplyr::mutate(Flag = ifelse(is.na(Flag), 0, Flag)) %>% dplyr::filter(Flag==1), aes(x=DateTime, y=VAR), color="black") +
+          scale_color_discrete(guide = guide_legend(reverse = T)) +
+          scale_size_manual(values=c(2, 1))+
+          facet_wrap(vars(GPS), ncol=3) +
+          theme_minimal()
+      }
+      else {
+        ggplot(data=current_data(), aes(x=DateTime, y=VAR, group=Source, color=Source)) +
+          geom_line(aes(size = Source)) +
+          scale_color_discrete(guide = guide_legend(reverse = T)) +
+          scale_size_manual(values=c(2, 1))+
+          facet_wrap(vars(GPS), ncol=3) +
+          theme_minimal()
+      }
     )
     
     output$gps_totals <- renderTable(gps_totals())
