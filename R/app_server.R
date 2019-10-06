@@ -20,7 +20,6 @@ if(getRversion() >= '2.5.1') {
 #'@import dplyr
 #'@import leaflet
 #'@import leaflet.extras
-#'@import lubridate
 #'
 #'@export
 #'

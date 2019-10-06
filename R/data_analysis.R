@@ -561,6 +561,7 @@ compare_summarise_daily <- function(correct, candidate, out) {
 #'
 #'@param correct reference df
 #'@param candidate df to be compared to the reference
+#'@export
 #'
 compare_flags <- function(correct, candidate) {
     correct <- correct %>% dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S"))
@@ -591,6 +592,33 @@ compare_flags <- function(correct, candidate) {
                   TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > 100), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), 
                   TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
                   Dropped.x = ifelse(!is.na(Latitude.x), 0, 1),
-                  Dropped.y = ifelse((TotalFlags < 2 & !DistanceFlag), 0, 1))
-    return(joined)
+                  Dropped.y = ifelse((TotalFlags < 2 & !DistanceFlag), 0, 1)) %>% 
+    dplyr::ungroup()
+    return(as.data.frame(joined))
+}
+
+
+#'
+#'Alternative implementation of the robust peak detection algorithm by van Brakel 2014 
+#'Classifies data points with modified z-scores greater than max_score as outliers ccording to Iglewicz and Hoaglin 1993
+#'
+#'@param df_comparison output of compare_flags 
+#'@param lag width of interval to compute rolling median and MAD, defaults to 5
+#'@param max_score modified z-score cutoff to classify observations as outliers, defaults to 3.5
+#'@export
+#'
+detect_peak_modz <- function(df_comparison, lag=5, max_score=3.5) {
+  peak_comparison <- df_comparison %>% 
+    dplyr::group_by(GPS, Date) %>% 
+    dplyr::arrange(DateTime, .by_group = TRUE) %>% 
+    dplyr::mutate(
+      cumDistLower = zoo::rollmedianr(cumDist.y, lag, fill=NA) - max_score*zoo::rollapplyr(cumDist.y, lag, stats::mad, fill=NA)/0.6745,
+      cumDistUpper = zoo::rollmedianr(cumDist.y, lag, fill=NA) + max_score*zoo::rollapplyr(cumDist.y, lag, stats::mad, fill=NA)/0.6745,
+      cumDistSignal = ifelse(0.6745*(abs(cumDist.y - zoo::rollmedianr(cumDist.y, lag, fill=NA))/zoo::rollapplyr(cumDist.y, lag, stats::mad, fill=NA)) > max_score, 1, 0),
+      RateLower = zoo::rollmedianr(Rate.y, lag, fill=NA) - max_score*zoo::rollapplyr(Rate.y, lag, stats::mad, fill=NA)/0.6745,
+      RateUpper = zoo::rollmedianr(Rate.y, lag, fill=NA) + max_score*zoo::rollapplyr(Rate.y, lag, stats::mad, fill=NA)/0.6745,
+      RateSignal = ifelse(0.6745*(abs(Rate.y - zoo::rollmedianr(Rate.y, lag, fill=NA))/zoo::rollapplyr(Rate.y, lag, stats::mad, fill=NA)) > max_score, 1, 0)
+    ) %>% 
+    dplyr::ungroup()
+  return(as.data.frame(peak_comparison))
 }

@@ -27,3 +27,9 @@
 #' @format A data frame with 49331 rows and 26 variables
 #'
 "demo_filtered"
+
+#' Demo comparison of two animal datasets
+#'
+#' @format A data frame with 7785 rows and 33 variables
+#'
+"demo_comparison"
