@@ -1,7 +1,12 @@
 ## ATTEMPT TO APPLY ML TO CLASSIFY "FILTERED DATA"
-  
+
+library(mlr)
+library(dplyr)
+library(parallelMap)
+library(parallel)
+
 load("data/demo_comparison.rda")
-require(dplyr)
+
 df<- demo_comparison %>%
   select(time = TimeDiff,
          lat = Latitude.x,
@@ -14,55 +19,51 @@ df<- demo_comparison %>%
          drop =Dropped.x) %>%
   mutate(drop = factor(drop))
 
-library(mlr)
-df_imp <- mlr::impute(df, target = "drop", classes = list(numeric = imputeMedian()) )
+### PREPROCESSING 
 
-df_imp <- df_imp$data %>%
-  mutate_if(is.numeric, scale)
+# Median imputation
+df_imp <- mlr::impute(df, target = "drop", classes = list(numeric = imputeMedian()) ) 
 
+# Standardize features
+df_imp <- normalizeFeatures(df_imp$data, target = "drop", method = "standardize")
+
+# Train-test split: 2/3 - 1/3
 set.seed(0)
+
 train_rows <- sample(1:nrow(df_imp), floor(nrow(df_imp)*2/3))
-set.seed(1)
 test_rows <- setdiff(1:nrow(df_imp), train_rows)
 
-train <- df_imp[train_rows,]
-test <- df_imp[test_rows,]
 
-setDT(train)
-setDT(test)
-library(data.table)
-library(mlr)
+#setDT(train)
+#setDT(test)
+#library(data.table)
+#library(mlr)
 
-setDT(train)[,.N/nrow(train),drop]
-setDT(test)[,.N/nrow(test),drop]
+#setDT(train)[,.N/nrow(train),drop]
+#setDT(test)[,.N/nrow(test),drop]
 
 # clean target in test data set
-test$drop = NA
-
+# test$drop = NA
 
 #create a task
-traintask <- mlr::makeClassifTask(data = as.data.frame(train), target = "drop")
-testtask <- mlr::makeClassifTask(data = as.data.frame(test), target = "drop")
+task <- mlr::makeClassifTask(data = df_imp, target = "drop", positive = "1")
 
 
 #create learner
-bag <- makeLearner("classif.rpart",predict.type = "response")
-bag.lrn <- makeBaggingWrapper(learner = bag, bw.iters = 100, bw.replace = TRUE)
+#bag <- makeLearner("classif.rpart",predict.type = "response")
+#bag.lrn <- makeBaggingWrapper(learner = bag, bw.iters = 100, bw.replace = TRUE)
 
 #set 5 fold cross validation
-rdesc <- makeResampleDesc("CV",iters=5L)
+#rdesc <- makeResampleDesc("CV",iters=5L)
 
-#set parallel backend (Windows)
-library(parallelMap)
-library(parallel)
-parallelStartSocket(cpus = detectCores())
+#parallelStartSocket(cpus = detectCores())
 
 
-r <- mlr::resample(learner = bag.lrn
-                   ,task = traintask
-                   ,resampling = rdesc
-                   ,measures = list(tpr,fpr,fnr,fpr,acc)
-                   ,show.info = T)
+#r <- mlr::resample(learner = bag.lrn
+                   #,task = traintask
+                   #,resampling = rdesc
+                   #,measures = list(tpr,fpr,fnr,fpr,acc)
+                   #,show.info = T)
 
 
 #make randomForest learner
@@ -101,14 +102,30 @@ tune <- tuneParams(learner = rf.lrn
                    ,show.info = T)
 
 #train model
-fmodel <- train(rf.lrn,traintask)
+fmodel <- train(rf.lrn, task, subset = train_rows)
 getLearnerModel(fmodel)
 
 #predict on test data
-fpmodel <- predict(fmodel, testtask)
+fpmodel <- predict(fmodel, task, subset = test_rows)
+fpmodel
 
 parallelStop()
 
-table(fpmodel$data$response,df_imp$drop[test_rows] )
+calculateROCMeasures(fpmodel)
 
+# Try logistic regression
 
+traintask <- mlr::makeClassifTask(data = df_imp[train_rows,], target = "drop", positive = "1")
+
+logistic.learner <- makeLearner("classif.logreg",predict.type = "response")
+
+# 5-fold CV
+cv.logistic <- crossval(learner = logistic.learner, task = traintask, iters = 5, stratify = TRUE, measures = acc)
+
+fmodel_logistic <- train(logistic.learner, task, subset = train_rows)
+
+fpmodel_logistic <- predict(fmodel_logistic, task, subset = test_rows)
+
+calculateROCMeasures(fpmodel_logistic)
+
+# High Type 1 error.
