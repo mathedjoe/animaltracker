@@ -561,6 +561,7 @@ compare_summarise_daily <- function(correct, candidate, out) {
 #'
 #'@param correct reference df
 #'@param candidate df to be compared to the reference
+#'@return joined and reformatted df
 #'@export
 #'
 compare_flags <- function(correct, candidate) {
@@ -605,6 +606,7 @@ compare_flags <- function(correct, candidate) {
 #'@param df_comparison output of compare_flags 
 #'@param lag width of interval to compute rolling median and MAD, defaults to 5
 #'@param max_score modified z-score cutoff to classify observations as outliers, defaults to 3.5
+#'@return df with classifications
 #'@export
 #'
 detect_peak_modz <- function(df_comparison, lag=5, max_score=3.5) {
@@ -621,4 +623,64 @@ detect_peak_modz <- function(df_comparison, lag=5, max_score=3.5) {
     ) %>% 
     dplyr::ungroup()
   return(as.data.frame(peak_comparison))
+}
+
+#'
+#'Train a k-nearest neighbors model on a comparison data frame to classify points that should be dropped
+#'
+#'@param df_comparison output of compare_flags
+#'@param normalize_type how to normalize the data, defaults to standardize
+#'@param train proportion of the data used for training
+#'@return model and test performance as a list
+#'@export
+#'
+detect_peak_knn <- function(df_comparison, normalize_type = "standardize", train = 2/3) {
+  df_imp <- df_comparison %>% 
+    ffimp() %>% 
+    dplyr::select(time = TimeDiff,
+         lat = Latitude.x,
+         lon = Longitude.x,
+         dist = Distance.y,
+         rate = Rate.y,
+         course = Course.y,
+         elev = Elevation.x,
+         slope = Slope.x,
+         drop = Dropped.x) %>%
+    dplyr::mutate(drop = factor(drop))
+  
+  df_imp <- normalizeFeatures(df_imp$data, target = "drop", method = normalize_type)
+  
+  set.seed(0)
+  
+  train_rows <- sample(1:nrow(df_imp), floor(nrow(df_imp)*train))
+  test_rows <- setdiff(1:nrow(df_imp), train_rows)
+  
+  task_imp <- mlr::makeClassifTask(data = df_imp %>% select(dist, rate, drop), target = "drop", positive = "1")
+  
+  knn.learner <- mlr::makeLearner("classif.knn", predict.type="response")
+  
+  fmodel_knn <- mlr::train(knn.learner, task_imp, subset = train_rows)
+  
+  fpmodel_knn <- mlr::predict(fmodel_knn, task_imp, subset = test_rows)
+  
+  return(list(fmodel_knn, calculateROCMeasures(fpmodel_knn)))
+}
+
+
+#'
+#'Feed-forward imputation on a comparison data frame
+#'Helper function for detect_peak_knn
+#'
+#'@param df_comparison output of compare_flags 
+#'@return imputed data frame
+#'
+ffimp <- function(df_comparison) {
+  df_comparison %>% 
+    dplyr::group_by(GPS, Date) %>%
+    dplyr::mutate(Distance.y = ifelse(is.na(Distance.y), dplyr::lag(Distance.y, 1, dplyr::lead(Distance.y, 1)), Distance.y),
+                  Rate.y = ifelse(is.na(Rate.y), dplyr::lag(Rate.y, 1, dplyr::lead(Rate.y, 1)), Rate.y),
+                  Course.y = ifelse(is.na(Course.y), dplyr::lag(Course.y, 1, dplyr::lead(Course.y, 1)), Course.y),
+                  Elevation.x = ifelse(is.na(Elevation.x), dplyr::lag(Elevation.x, 1, dplyr::lead(Elevation.x, 1)), Elevation.x),
+                  Slope.x = ifelse(is.na(Slope.x), dplyr::lag(Slope.x, 1, dplyr::lead(Slope.x, 1)), Slope.x)) %>% 
+    dplyr::ungroup()
 }

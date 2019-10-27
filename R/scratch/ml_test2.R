@@ -151,6 +151,8 @@ fpmodel_knn <- predict(fmodel_knn, task_imp, subset = test_rows)
 
 calculateROCMeasures(fpmodel_knn)
 
+# Try to generalize to datasets outside of Arizona
+
 data(demo)
 
 wacky_testdata <- demo %>% select(Distance, Rate) %>%

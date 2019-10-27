@@ -11,6 +11,9 @@ compare_flags(correct, candidate)
 
 \item{candidate}{df to be compared to the reference}
 }
+\value{
+joined and reformatted df
+}
 \description{
 Joins and reformats two animal data frames for the purpose of flag comparison
 }
