@@ -634,7 +634,7 @@ detect_peak_modz <- function(df_comparison, lag=5, max_score=3.5) {
 #'@return model and test performance as a list
 #'@export
 #'
-detect_peak_knn <- function(df_comparison, normalize_type = "standardize", train = 2/3) {
+train_peak_knn <- function(df_comparison, normalize_type = "standardize", train = 2/3) {
   df_imp <- df_comparison %>% 
     ffimp() %>% 
     dplyr::select(time = TimeDiff,
@@ -648,7 +648,7 @@ detect_peak_knn <- function(df_comparison, normalize_type = "standardize", train
          drop = Dropped.x) %>%
     dplyr::mutate(drop = factor(drop))
   
-  df_imp <- normalizeFeatures(df_imp$data, target = "drop", method = normalize_type)
+  df_imp <- normalizeFeatures(df_imp, target = "drop", method = normalize_type)
   
   set.seed(0)
   
@@ -661,9 +661,43 @@ detect_peak_knn <- function(df_comparison, normalize_type = "standardize", train
   
   fmodel_knn <- mlr::train(knn.learner, task_imp, subset = train_rows)
   
-  fpmodel_knn <- mlr::predict(fmodel_knn, task_imp, subset = test_rows)
+  fpmodel_knn <- stats::predict(fmodel_knn, task_imp, subset = test_rows)
   
-  return(list(fmodel_knn, calculateROCMeasures(fpmodel_knn)))
+  return(list(model = fmodel_knn, performance = calculateROCMeasures(fpmodel_knn)))
+}
+
+#'
+#'Evaluate a k-nearest neighbors model on a comparison data frame to classify points that should be dropped
+#'
+#'@param df_comparison output of compare_flags
+#'@param model output of train_peak_knn
+#'@return df_comparison with predictions
+#'@export
+#'
+predict_peak_knn <- function(df_comparison, model) {
+  df_imp <- df_comparison %>% 
+    ffimp() %>% 
+    dplyr::select(time = TimeDiff,
+                  lat = Latitude.x,
+                  lon = Longitude.x,
+                  dist = Distance.y,
+                  rate = Rate.y,
+                  course = Course.y,
+                  elev = Elevation.x,
+                  slope = Slope.x,
+                  drop = Dropped.x) %>%
+    dplyr::mutate(drop = factor(drop))
+  
+  df_imp <- normalizeFeatures(df_imp, target = "drop", method = "standardize")
+  
+  task_imp <- mlr::makeClassifTask(data = df_imp %>% select(dist, rate, drop), target = "drop", positive = "1")
+  
+  fpmodel_knn <- stats::predict(model, task_imp)
+  
+  df_comparison <- df_comparison %>% 
+    dplyr::mutate(Response = as.numeric(fpmodel_knn$data$response))
+  
+  return(df_comparison)
 }
 
 
@@ -673,14 +707,19 @@ detect_peak_knn <- function(df_comparison, normalize_type = "standardize", train
 #'
 #'@param df_comparison output of compare_flags 
 #'@return imputed data frame
+#'@export
 #'
 ffimp <- function(df_comparison) {
-  df_comparison %>% 
+  df_comparison <- df_comparison %>% 
     dplyr::group_by(GPS, Date) %>%
-    dplyr::mutate(Distance.y = ifelse(is.na(Distance.y), dplyr::lag(Distance.y, 1, dplyr::lead(Distance.y, 1)), Distance.y),
+    dplyr::mutate(TimeDiff = ifelse(is.na(TimeDiff), dplyr::lag(TimeDiff, 1, dplyr::lead(TimeDiff, 1)), TimeDiff),
+                  Latitude.x = ifelse(is.na(Latitude.x), dplyr::lag(Latitude.x, 1, dplyr::lead(Latitude.x, 1)), Latitude.x),
+                  Longitude.x = ifelse(is.na(Longitude.x), dplyr::lag(Longitude.x, 1, dplyr::lead(Longitude.x, 1)), Longitude.x),
+                  Distance.y = ifelse(is.na(Distance.y), dplyr::lag(Distance.y, 1, dplyr::lead(Distance.y, 1)), Distance.y),
                   Rate.y = ifelse(is.na(Rate.y), dplyr::lag(Rate.y, 1, dplyr::lead(Rate.y, 1)), Rate.y),
                   Course.y = ifelse(is.na(Course.y), dplyr::lag(Course.y, 1, dplyr::lead(Course.y, 1)), Course.y),
                   Elevation.x = ifelse(is.na(Elevation.x), dplyr::lag(Elevation.x, 1, dplyr::lead(Elevation.x, 1)), Elevation.x),
                   Slope.x = ifelse(is.na(Slope.x), dplyr::lag(Slope.x, 1, dplyr::lead(Slope.x, 1)), Slope.x)) %>% 
     dplyr::ungroup()
+  return(as.data.frame(df_comparison))
 }

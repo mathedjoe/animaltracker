@@ -33,3 +33,9 @@
 #' @format A data frame with 7785 rows and 33 variables
 #'
 "demo_comparison"
+
+#' k-nearest neighbors classifier for data validation
+#'
+#' @format A Learner object
+#'
+"knnclassifier"

@@ -164,3 +164,30 @@ task_wacky <- mlr::makeClassifTask(data = wacky_testdata, target = "drop", posit
 wacky_fpmodel_knn <- predict( fmodel_knn, task_wacky)
 calculateROCMeasures(wacky_fpmodel_knn)
 
+# Try feed-forward imputation knn
+
+ffimp_knn <- train_peak_knn(df_big)
+ffimp_knn$performance
+
+df_imp_demo <- demo_comparison %>% 
+  ffimp() %>% 
+  dplyr::select(time = TimeDiff,
+                lat = Latitude.x,
+                lon = Longitude.x,
+                dist = Distance.y,
+                rate = Rate.y,
+                course = Course.y,
+                elev = Elevation.x,
+                slope = Slope.x,
+                drop = Dropped.x) %>%
+  dplyr::mutate(drop = factor(drop))
+
+df_imp <- normalizeFeatures(df_imp_demo, target = "drop", method = "standardize")
+
+task_imp <- mlr::makeClassifTask(data = df_imp_demo %>% select(dist, rate, drop), target = "drop", positive = "1")
+
+fpmodel_knn_demo <- stats::predict(ffimp_knn$model, task_imp)
+
+calculateROCMeasures(fpmodel_knn_demo)
+
+

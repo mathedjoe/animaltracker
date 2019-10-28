@@ -16,7 +16,7 @@ run_validation_app <- function() {
         fileInput("correctInput", "Upload correct data (.csv)", accept=c(".csv")),
         fileInput("candidateInput", "Upload candidate data (.csv)", accept=c(".csv")),
         h4("Data Options"),
-        radioButtons("outliers", "Extreme Value Detection", choices=c("None", "Modified Z-Score"), selected="None"),
+        radioButtons("outliers", "Extreme Value Detection", choices=c("None", "Modified Z-Score", "kNN Classifier"), selected="None"),
         uiOutput("choose_lag"),
         uiOutput("choose_max_score"),
         width = 2
@@ -68,10 +68,19 @@ run_validation_app <- function() {
       }
     })
     
+    comparison_knn <- reactive({
+      if(input$outliers == "kNN Classifier") {
+        comparison() %>% predict_peak_knn(knnclassifier)
+      }
+    })
+    
     current_data <- reactive({
       req(input$date)
       if(input$outliers == "Modified Z-Score") {
         get_column(comparison_peaks(), input$var, input$date)
+      }
+      else if(input$outliers == "kNN Classifier") {
+        get_column(comparison_knn(), input$var, input$date)
       }
       else {
         get_column(comparison(), input$var, input$date)
@@ -91,6 +100,19 @@ run_validation_app <- function() {
             TotalFlags = sum(TotalFlags, na.rm=TRUE),
             Dropped.x = sum(Dropped.x, na.rm=TRUE),
             Dropped.y = sum(Dropped.y, na.rm=TRUE)
+          )
+      }
+      else if(input$outliers == "kNN Classifier") {
+        comparison_knn() %>% 
+          dplyr::group_by(GPS) %>% 
+          dplyr::summarise(
+            RateFlags = sum(RateFlag, na.rm=TRUE),
+            CourseFlags = sum(CourseFlag, na.rm=TRUE),
+            DistFlags = sum(DistanceFlag, na.rm=TRUE),
+            TotalFlags = sum(TotalFlags, na.rm=TRUE),
+            Dropped.x = sum(Dropped.x, na.rm=TRUE),
+            Dropped.y = sum(Dropped.y, na.rm=TRUE),
+            Response = sum(Response, na.rm=TRUE)
           )
       }
       else {
@@ -186,7 +208,12 @@ run_validation_app <- function() {
         x <- df %>% dplyr::select(Slope.x) %>% dplyr::mutate(VAR = Slope.x)
         y <- df %>% dplyr::select(Slope.y) %>% dplyr::mutate(VAR = Slope.y)
       }
-      date_gps <- df %>% dplyr::select(GPS, DateTime)
+      if(input$outliers == "kNN Classifier") {
+        date_gps <- df %>% dplyr::select(GPS, DateTime, Response) 
+      }
+      else {
+        date_gps <- df %>% dplyr::select(GPS, DateTime)
+      }
       x <- x %>% dplyr::mutate(Source = "Correct") %>% dplyr::bind_cols(date_gps)
       y <- y %>% dplyr::mutate(Source = "Candidate") %>% dplyr::bind_cols(date_gps)
       return(dplyr::bind_rows(x, y))
@@ -205,6 +232,15 @@ run_validation_app <- function() {
               scale_size_manual(values=c(2, 1))+
               facet_wrap(vars(GPS), ncol=3) +
               theme_minimal()
+        }
+        else if(input$outliers == "kNN Classifier") {
+          ggplot(data=current_data(), aes(x=DateTime, y=VAR, group=Source, color=Source)) +
+            geom_line(aes(size = Source)) +
+            geom_point(data=current_data() %>% dplyr::filter(Source == "Candidate") %>% dplyr::mutate(Response = ifelse(is.na(Response), 0, Response)) %>% dplyr::filter(Response==1), aes(x=DateTime, y=VAR), color="black") +
+            scale_color_discrete(guide = guide_legend(reverse = T)) +
+            scale_size_manual(values=c(2, 1))+
+            facet_wrap(vars(GPS), ncol=3) +
+            theme_minimal()
         }
         else {
           ggplot(data=current_data(), aes(x=DateTime, y=VAR, group=Source, color=Source)) +
