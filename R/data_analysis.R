@@ -554,3 +554,172 @@ compare_summarise_daily <- function(correct, candidate, out) {
   
   return(summary_all)
 }
+
+
+#'
+#'Joins and reformats two animal data frames for the purpose of flag comparison
+#'
+#'@param correct reference df
+#'@param candidate df to be compared to the reference
+#'@return joined and reformatted df
+#'@export
+#'
+compare_flags <- function(correct, candidate) {
+    correct <- correct %>% dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S"))
+      # dplyr::mutate(Date = as.Date(DateTime, format="%Y-%m-%d"))
+    candidate <- candidate %>% dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S"))  
+      # dplyr::mutate(Date = as.Date(DateTime, format="%Y-%m-%d")) 
+    joined <- dplyr::full_join(correct, candidate, by=c( "DateTime", "GPS")) %>% 
+      dplyr::select(DateTime, GPS,
+                  Latitude.x, Latitude.y, Longitude.x, Longitude.y,
+                  Distance.x, Distance.y, Rate.x, Rate.y,
+                  Course.x, Course.y,
+                  Elevation.x, Elevation.y, Slope.x, Slope.y,
+                  RateFlag, CourseFlag, DistanceFlag, TotalFlags) %>% 
+    dplyr::mutate( Date = as.Date(DateTime, format="%Y-%m-%d")) %>%
+    tibble::add_column(TimeDiff = NA, .after="DateTime") %>% 
+    tibble::add_column(TimeDiffMins = NA, .after="TimeDiff") %>%
+    tibble::add_column(cumDist.x=NA, .after="Distance.x") %>% 
+    tibble::add_column(cumDist.y=NA, .after="Distance.y") %>%
+    dplyr::group_by(GPS, Date) %>% 
+    dplyr::arrange(DateTime, .by_group = TRUE) %>% 
+    dplyr::mutate(Distance.y = dplyr::lag(Distance.y,1), 
+                  Distance.x = ifelse(is.na(Distance.x), 0, Distance.x),
+                  Distance.y = ifelse(is.na(Distance.y), 0, Distance.y),
+                  
+                  cumDist.x = cumsum(Distance.x),
+                  cumDist.y = cumsum(Distance.y),
+                  
+                  TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > 100), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), 
+                  TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
+                  Dropped.x = ifelse(!is.na(Latitude.x), 0, 1),
+                  Dropped.y = ifelse((TotalFlags < 2 & !DistanceFlag), 0, 1)) %>% 
+    dplyr::ungroup()
+    return(as.data.frame(joined))
+}
+
+
+#'
+#'Alternative implementation of the robust peak detection algorithm by van Brakel 2014 
+#'Classifies data points with modified z-scores greater than max_score as outliers ccording to Iglewicz and Hoaglin 1993
+#'
+#'@param df_comparison output of compare_flags 
+#'@param lag width of interval to compute rolling median and MAD, defaults to 5
+#'@param max_score modified z-score cutoff to classify observations as outliers, defaults to 3.5
+#'@return df with classifications
+#'@export
+#'
+detect_peak_modz <- function(df_comparison, lag=5, max_score=3.5) {
+  peak_comparison <- df_comparison %>% 
+    dplyr::group_by(GPS, Date) %>% 
+    dplyr::arrange(DateTime, .by_group = TRUE) %>% 
+    dplyr::mutate(
+      cumDistLower = zoo::rollmedianr(cumDist.y, lag, fill=NA) - max_score*zoo::rollapplyr(cumDist.y, lag, stats::mad, fill=NA)/0.6745,
+      cumDistUpper = zoo::rollmedianr(cumDist.y, lag, fill=NA) + max_score*zoo::rollapplyr(cumDist.y, lag, stats::mad, fill=NA)/0.6745,
+      cumDistSignal = ifelse(0.6745*(abs(cumDist.y - zoo::rollmedianr(cumDist.y, lag, fill=NA))/zoo::rollapplyr(cumDist.y, lag, stats::mad, fill=NA)) > max_score, 1, 0),
+      RateLower = zoo::rollmedianr(Rate.y, lag, fill=NA) - max_score*zoo::rollapplyr(Rate.y, lag, stats::mad, fill=NA)/0.6745,
+      RateUpper = zoo::rollmedianr(Rate.y, lag, fill=NA) + max_score*zoo::rollapplyr(Rate.y, lag, stats::mad, fill=NA)/0.6745,
+      RateSignal = ifelse(0.6745*(abs(Rate.y - zoo::rollmedianr(Rate.y, lag, fill=NA))/zoo::rollapplyr(Rate.y, lag, stats::mad, fill=NA)) > max_score, 1, 0)
+    ) %>% 
+    dplyr::ungroup()
+  return(as.data.frame(peak_comparison))
+}
+
+#'
+#'Train a k-nearest neighbors model on a comparison data frame to classify points that should be dropped
+#'
+#'@param df_comparison output of compare_flags
+#'@param normalize_type how to normalize the data, defaults to standardize
+#'@param train proportion of the data used for training
+#'@return model and test performance as a list
+#'@export
+#'
+train_peak_knn <- function(df_comparison, normalize_type = "standardize", train = 2/3) {
+  df_imp <- df_comparison %>% 
+    ffimp() %>% 
+    dplyr::select(time = TimeDiff,
+         lat = Latitude.x,
+         lon = Longitude.x,
+         dist = Distance.y,
+         rate = Rate.y,
+         course = Course.y,
+         elev = Elevation.x,
+         slope = Slope.x,
+         drop = Dropped.x) %>%
+    dplyr::mutate(drop = factor(drop))
+  
+  df_imp <- normalizeFeatures(df_imp, target = "drop", method = normalize_type)
+  
+  set.seed(0)
+  
+  train_rows <- sample(1:nrow(df_imp), floor(nrow(df_imp)*train))
+  test_rows <- setdiff(1:nrow(df_imp), train_rows)
+  
+  task_imp <- mlr::makeClassifTask(data = df_imp %>% select(dist, rate, drop), target = "drop", positive = "1")
+  
+  knn.learner <- mlr::makeLearner("classif.knn", predict.type="response")
+  
+  fmodel_knn <- mlr::train(knn.learner, task_imp, subset = train_rows)
+  
+  fpmodel_knn <- stats::predict(fmodel_knn, task_imp, subset = test_rows)
+  
+  return(list(model = fmodel_knn, performance = calculateROCMeasures(fpmodel_knn)))
+}
+
+#'
+#'Evaluate a k-nearest neighbors model on a comparison data frame to classify points that should be dropped
+#'
+#'@param df_comparison output of compare_flags
+#'@param model output of train_peak_knn
+#'@return df_comparison with predictions
+#'@export
+#'
+predict_peak_knn <- function(df_comparison, model) {
+  df_imp <- df_comparison %>% 
+    ffimp() %>% 
+    dplyr::select(time = TimeDiff,
+                  lat = Latitude.x,
+                  lon = Longitude.x,
+                  dist = Distance.y,
+                  rate = Rate.y,
+                  course = Course.y,
+                  elev = Elevation.x,
+                  slope = Slope.x,
+                  drop = Dropped.x) %>%
+    dplyr::mutate(drop = factor(drop))
+  
+  df_imp <- normalizeFeatures(df_imp, target = "drop", method = "standardize")
+  
+  task_imp <- mlr::makeClassifTask(data = df_imp %>% select(dist, rate, drop), target = "drop", positive = "1")
+  
+  fpmodel_knn <- stats::predict(model, task_imp)
+  
+  df_comparison <- df_comparison %>% 
+    dplyr::mutate(Response = as.numeric(fpmodel_knn$data$response))
+  
+  return(df_comparison)
+}
+
+
+#'
+#'Feed-forward imputation on a comparison data frame
+#'Helper function for detect_peak_knn
+#'
+#'@param df_comparison output of compare_flags 
+#'@return imputed data frame
+#'@export
+#'
+ffimp <- function(df_comparison) {
+  df_comparison <- df_comparison %>% 
+    dplyr::group_by(GPS, Date) %>%
+    dplyr::mutate(TimeDiff = ifelse(is.na(TimeDiff), dplyr::lag(TimeDiff, 1, dplyr::lead(TimeDiff, 1)), TimeDiff),
+                  Latitude.x = ifelse(is.na(Latitude.x), dplyr::lag(Latitude.x, 1, dplyr::lead(Latitude.x, 1)), Latitude.x),
+                  Longitude.x = ifelse(is.na(Longitude.x), dplyr::lag(Longitude.x, 1, dplyr::lead(Longitude.x, 1)), Longitude.x),
+                  Distance.y = ifelse(is.na(Distance.y), dplyr::lag(Distance.y, 1, dplyr::lead(Distance.y, 1)), Distance.y),
+                  Rate.y = ifelse(is.na(Rate.y), dplyr::lag(Rate.y, 1, dplyr::lead(Rate.y, 1)), Rate.y),
+                  Course.y = ifelse(is.na(Course.y), dplyr::lag(Course.y, 1, dplyr::lead(Course.y, 1)), Course.y),
+                  Elevation.x = ifelse(is.na(Elevation.x), dplyr::lag(Elevation.x, 1, dplyr::lead(Elevation.x, 1)), Elevation.x),
+                  Slope.x = ifelse(is.na(Slope.x), dplyr::lag(Slope.x, 1, dplyr::lead(Slope.x, 1)), Slope.x)) %>% 
+    dplyr::ungroup()
+  return(as.data.frame(df_comparison))
+}

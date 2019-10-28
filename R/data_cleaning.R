@@ -44,7 +44,8 @@ get_file_meta <- function(data_dir){
 #'@param maxcourse maximum distance (meters) between consecutive points
 #'@param maxdist maximum geographic distance (meters) between consecutive points
 #'@param maxtime maximum time (minutes) between consecutive points 
-#'@param timezone time zone, defaults to UTC
+#'@param tz_in input time zone, defaults to UTC
+#'@param tz_out output time zone, defaults to UTC
 #'@examples
 #'# Clean a data frame from csv
 #'
@@ -63,7 +64,7 @@ get_file_meta <- function(data_dir){
 #'
 clean_location_data<- function (df, autocleans = FALSE, filters = TRUE, 
                                 aniid = NA, gpsid = NA, 
-                                maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = "UTC"){
+                                maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = "UTC", tz_out = "UTC"){
   df <- df %>% 
     tibble::add_column(Order = df$Index, .before="Index")%>%  # add Order column
     tibble::add_column(Animal = aniid, .after="Index") %>%      # add Animal column 
@@ -75,9 +76,9 @@ clean_location_data<- function (df, autocleans = FALSE, filters = TRUE,
     tibble::add_column(CourseDiff = NA, .after="Course") %>%
     dplyr::mutate(
       Animal = as.factor(Animal), # reclassify Animal column as a categorical (factor) variable
-      DateTime = as.POSIXct(paste(Date, Time), "%Y/%m/%d %H:%M:%S", tz=timezone), # reclassify Date as a Date variable
-      Date = as.Date(Date, "%Y/%m/%d"), # reclassify Date as a Date variable
-      Time = as.character(Time)
+      DateTime = lubridate::with_tz(lubridate::ymd_hms(paste(Date, Time), tz=tz_in), tz=tz_out),  # reclassify Date as a Date variable
+      Date = strftime(DateTime, format="%Y-%m-%d", tz=tz_out), # reclassify Date as a Date variable
+      Time = strftime(DateTime, format="%H:%M:%S", tz=tz_out)
     )
   if(autocleans) {
     df <- df %>% 
@@ -137,7 +138,8 @@ clean_location_data<- function (df, autocleans = FALSE, filters = TRUE,
 #'@param data_dir directory of GPS tracking files (in csv)
 #'@param cleaned_filename full name of output file (ending in .rds), defaults to data/animal_data.rds
 #'@param cleaned_dir directory to save the processed GPS datasets as spreadsheets (.csv), defaults to data/processed
-#'@param tz timezone for cleaned data, defaults to UTC
+#'@param tz_in input time zone, defaults to UTC
+#'@param tz_out output time zone, defaults to UTC
 #'@examples
 #'# Clean all animal GPS .csv datasets in the demo directory
 #'\donttest{
@@ -148,7 +150,7 @@ clean_location_data<- function (df, autocleans = FALSE, filters = TRUE,
 #'}
 #'@export
 #'
-clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", cleaned_dir = "processed", tz = "UTC") {
+clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", cleaned_dir = "processed", tz_in = "UTC", tz_out = "UTC") {
   data_files <- list.files(data_dir, pattern="*.csv", full.names=T)
   data_info <- get_file_meta(data_dir)
   
@@ -183,7 +185,7 @@ clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", c
     df<- clean_location_data(df, 
                              aniid = aniid, 
                              gpsid = gpsid, 
-                             maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, timezone = tz)
+                             maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = tz_in, tz_out = tz_out)
    
     print(paste("...", nstart - nrow(df), "points removed"))
     print(paste("...total distance traveled =", round(sum(df$DistGeo)/1000, 1), "km"))

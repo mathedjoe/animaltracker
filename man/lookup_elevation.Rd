@@ -29,7 +29,7 @@ Add elevation data from terrain tiles to long/lat coordinates of animal gps data
 \donttest{
 \dontrun{
 ## Get elevation
-elev <- read_zip_to_rasters("inst/extdata/elev/USA_msk_alt.zip")
+elev <- read_zip_to_rasters(system.file("extdata", "elev/USA_msk_alt.zip", package="animaltracker"))
 
 ## Lookup with slope and aspect
 lookup_elevation(elev, read.csv(system.file("extdata", 
