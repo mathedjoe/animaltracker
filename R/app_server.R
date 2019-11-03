@@ -598,7 +598,7 @@ app_server <- function(input, output, session) {
     if(!("TimeDiffMins" %in% input$selected_cols) | is.null(input$selected_stats)) 
       return()
     
-    summary <- summarise_col(dat(), "TimeDiffMins") 
+    summary <- summarise_col(dat(), TimeDiffMins) 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -616,7 +616,7 @@ app_server <- function(input, output, session) {
     if(!("Elevation" %in% input$selected_cols) | is.null(input$selected_stats)) 
       return()
     
-    summary <- summarise_col(dat(), "Elevation") 
+    summary <- summarise_col(dat(), Elevation) 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -634,7 +634,7 @@ app_server <- function(input, output, session) {
     if(!("Speed" %in% input$selected_cols) | is.null(input$selected_stats)) 
       return()
     
-    summary <- summarise_col(dat(), "Speed") 
+    summary <- summarise_col(dat(), Speed) 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -652,7 +652,7 @@ app_server <- function(input, output, session) {
     if(!("Course" %in% input$selected_cols) | is.null(input$selected_stats)) 
       return()
     
-    summary <- summarise_col(dat(), "Course") 
+    summary <- summarise_col(dat(), Course) 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -670,7 +670,7 @@ app_server <- function(input, output, session) {
     if(!("CourseDiff" %in% input$selected_cols) | is.null(input$selected_stats)) 
       return()
     
-    summary <- summarise_col(dat(), "CourseDiff") 
+    summary <- summarise_col(dat(), CourseDiff) 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -688,7 +688,7 @@ app_server <- function(input, output, session) {
     if(!("Distance" %in% input$selected_cols) | is.null(input$selected_stats)) 
       return()
     
-    summary <- summarise_col(dat(), "Distance") 
+    summary <- summarise_col(dat(), Distance) 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -706,7 +706,7 @@ app_server <- function(input, output, session) {
     if(!("Rate" %in% input$selected_cols) | is.null(input$selected_stats)) 
       return()
     
-    summary <- summarise_col(dat(), "Rate") 
+    summary <- summarise_col(dat(), Rate) 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -724,7 +724,7 @@ app_server <- function(input, output, session) {
     if(!("Slope" %in% input$selected_cols) | is.null(input$selected_stats) | !("Slope" %in% colnames(dat()))) 
       return()
     
-    summary <- summarise_col(dat(), "Slope") 
+    summary <- summarise_col(dat(), Slope) 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
@@ -743,7 +743,7 @@ app_server <- function(input, output, session) {
     if(!("Aspect" %in% input$selected_cols) | is.null(input$selected_stats) | !("Aspect" %in% colnames(dat()))) 
       return()
     
-    summary <- summarise_col(dat(), "Aspect") 
+    summary <- summarise_col(dat(), Aspect) 
     subset(summary, select=c("Animal", input$selected_stats))
     
   })
