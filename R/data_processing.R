@@ -69,6 +69,7 @@ lookup_elevation <- function(elev, anidf, zoom = 11, get_slope = TRUE, get_aspec
 #'@export
 lookup_elevation_aws <- function(anidf, zoom = 12, get_slope = TRUE, get_aspect = TRUE) {
   
+  
   # extract coordinates from the animal data
   locations <- anidf %>% dplyr::select(x = Longitude, y = Latitude)
   

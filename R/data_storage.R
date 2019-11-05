@@ -241,7 +241,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
       incProgress(0, detail = paste0("Appending elevation for lat. bounds (", min_lat, ",", max_lat, 
                                      ") and long. bounds (", min_long, ",", max_long, ") at zoom = ", zoom, "..." ))
       #elev_data_sets <- lookup_elevation(elev, elev_data_sets, get_slope = get_slope, get_aspect = get_aspect)
-      elev_data_sets <- lookup_elevation_aws(all_data_sets, zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
+      elev_data_sets <- lookup_elevation_aws(elev_data_sets, zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
     }
     
     
