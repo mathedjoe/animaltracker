@@ -36,7 +36,6 @@ get_file_meta <- function(data_dir){
 #'Cleans a raw animal GPS dataset, implementing a standardized procedure to remove impossible values
 #'
 #'@param df data frame in standardized format (e.g., from a raw spreadsheet)
-#'@param autocleans automatically clean data with ts_clean, defaults to false - currently experimental
 #'@param filters filter bad data points, defaults to true
 #'@param aniid identification code for the animal
 #'@param gpsid identification code for the GPS device
@@ -54,15 +53,15 @@ get_file_meta <- function(data_dir){
 #'package = "animaltracker"), skipNul=TRUE)
 #'
 #'## Clean and filter
-#'clean_location_data(bannock_df, autocleans = FALSE, filters = TRUE, aniid = 1149, 
+#'clean_location_data(bannock_df, filters = TRUE, aniid = 1149, 
 #'gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100, timezone = "UTC")
 #'
 #'## Clean without filtering
-#'clean_location_data(bannock_df, autocleans = FALSE, filters = FALSE, aniid = 1149, 
+#'clean_location_data(bannock_df, filters = FALSE, aniid = 1149, 
 #'gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100, timezone = "UTC")
 #'@export
 #'
-clean_location_data<- function (df, autocleans = FALSE, filters = TRUE, 
+clean_location_data<- function (df, filters = TRUE, 
                                 aniid = NA, gpsid = NA, 
                                 maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = "UTC", tz_out = "UTC"){
   df <- df %>% 
@@ -80,15 +79,6 @@ clean_location_data<- function (df, autocleans = FALSE, filters = TRUE,
       Date = strftime(DateTime, format="%Y-%m-%d", tz=tz_out), # reclassify Date as a Date variable
       Time = strftime(DateTime, format="%H:%M:%S", tz=tz_out)
     )
-  if(autocleans) {
-    df <- df %>% 
-      dplyr::mutate(
-        Latitude = forecast::tsclean(Latitude),
-        Longitude = forecast::tsclean(Longitude),
-        Altitude = forecast::tsclean(Altitude),
-        Distance = forecast::tsclean(Distance)
-      )
-  }
   if(filters) {
     df <- df %>% 
       dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time)) %>% # filter missing time slots before calculating differences

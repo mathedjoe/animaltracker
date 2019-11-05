@@ -57,6 +57,54 @@ lookup_elevation <- function(elev, anidf, zoom = 11, get_slope = TRUE, get_aspec
   return(anidf)
 }
 
+
+
+#'Add elevation data from public AWS terrain tiles to long/lat coordinates of animal gps data
+#'
+#'@param anidf animal tracking dataframe
+#'@param zoom level of zoom, defaults to 12
+#'@param get_slope logical, whether to compute slope (in degrees), defaults to true
+#'@param get_aspect logical, whether to compute aspect (in degrees), defaults to true
+#'@return original data frame, with Elevation column appended
+#'@export
+lookup_elevation_aws <- function(anidf, zoom = 12, get_slope = TRUE, get_aspect = TRUE) {
+  
+  # extract coordinates from the animal data
+  locations <- anidf %>% dplyr::select(x = Longitude, y = Latitude)
+  
+  # retrieve terrain data for the region containing the animal data
+  ## DEM source = Amazon Web Services (https://aws.amazon.com/public-datasets/terrain/) terrain tiles.
+  elev <- elevatr::get_elev_raster(locations, prj = "+proj=longlat", z=zoom)
+  
+  # convert terrain data to spatial pts
+  elevpts <- raster::rasterToPoints(elev, spatial=TRUE) 
+  
+  # determine nearest neighbors in the terrain data for the animal locations
+  datapts_elev <- nabor::knn(data = sp::coordinates(elevpts), query = locations, k=1)
+  
+  # add Elevation column to the animal data
+  anidf$Elevation <- elevpts$layer[ datapts_elev$nn.idx]
+  
+  if(get_slope | get_aspect){
+    elev_terr <- raster::terrain(elev, opt=c('slope', 'aspect'), unit='degrees')
+  }
+  
+  if(get_slope){
+    slope <- elev_terr$slope
+    slopepts <- raster::rasterToPoints(slope, spatial=TRUE)
+    anidf$Slope <- round(slopepts$slope[ datapts_elev$nn.idx  ], 1)
+  }
+  
+  if(get_aspect){
+    aspect <- elev_terr$aspect
+    aspectpts <- raster::rasterToPoints(aspect, spatial=TRUE)
+    anidf$Aspect <- round(aspectpts$aspect[ datapts_elev$nn.idx  ], 1)
+  }
+  return(anidf)
+}
+
+
+
 #'
 #'Read an archive of altitude mask files and convert the first file into a raster object
 #'
