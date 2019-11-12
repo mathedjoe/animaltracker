@@ -4,21 +4,21 @@
 \alias{lookup_elevation_aws}
 \title{Add elevation data from public AWS terrain tiles to long/lat coordinates of animal gps data}
 \usage{
-lookup_elevation_aws(anidf, zoom = 12)
+lookup_elevation_aws(anidf, zoom = 12, get_slope = TRUE,
+  get_aspect = TRUE)
 }
 \arguments{
 \item{anidf}{animal tracking dataframe}
 
 \item{zoom}{level of zoom, defaults to 12}
+
+\item{get_slope}{logical, whether to compute slope (in degrees), defaults to true}
+
+\item{get_aspect}{logical, whether to compute aspect (in degrees), defaults to true}
 }
 \value{
 original data frame, with Elevation column appended
 }
 \description{
 Add elevation data from public AWS terrain tiles to long/lat coordinates of animal gps data
-}
-\examples{
-data(demo)
-xelev <- lookup_elevation(demo, zoom = 12)
-plot(xelev$Altitude, xelev$Elevation)
 }

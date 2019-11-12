@@ -38,12 +38,12 @@ store_batch_list <- function(data_dir) {
   unlink(file.path("temp"), recursive=TRUE)
   
   data_files <- utils::unzip(data_dir$datapath, exdir="temp")
-  data_files <- list.files("temp", pattern ="*.csv", recursive = TRUE, full.names = T)
-  
+  data_files <- list.files("temp", pattern = "*.(csv|txt|TXT)", recursive = TRUE, full.names = T)
+
   rds_name <- paste0(dir_name, ".rds")
   
-  data_sets <- lapply(data_files, read.csv, skipNul = T, stringsAsFactors = F)
-  
+  data_sets <- lapply(data_files, read_gps)
+    
   # remove "temp" from file name
   file_names <- gsub("(temp)(\\/)", "", data_files)
   
@@ -52,8 +52,13 @@ store_batch_list <- function(data_dir) {
   
   site_names <- c()
   # function to compute max/min lat/long from a dirty dataset
-  maxminlatlong <- function(data){
-    suppressWarnings(  df <-  data[!is.na(as.numeric(data$Index)), ] ) # discard any rows with text in the first column duplicate header rows
+  maxminlatlong <- function(data, dtype){
+    if(dtype == "igotu") {
+      suppressWarnings(  df <-  data[!is.na(as.numeric(data$Index)), ] ) # discard any rows with text in the first column duplicate header rows
+    }
+    else {
+      df <- data
+    }
     df <- utils::type.convert(df) %>% 
       dplyr::select( Latitude, Longitude) %>%
       dplyr::filter(!is.na(Latitude), Latitude !=0, !is.na(Longitude), Longitude !=0)
@@ -65,21 +70,22 @@ store_batch_list <- function(data_dir) {
             )
          )
   }
+
   # function to update a global max/min lat/long with a new dataset
-  update_maxminlatlong <- function(mmll, newdata){
-    new_mmll <- maxminlatlong(newdata)
+  update_maxminlatlong <- function(mmll, newdata, newdtype){
+    new_mmll <- maxminlatlong(newdata, newdtype)
     c(max(mmll[1], new_mmll[1]),
       min(mmll[2], new_mmll[2]),
       max(mmll[3], new_mmll[3]),
       min(mmll[4], new_mmll[4]))
     
   }
-  maxminsll <- maxminlatlong(data_sets[[1]])
-  
+  maxminsll <- maxminlatlong(data_sets[[1]]$df, data_sets[[1]]$dtype)
+
   for(i in 1:length(file_names)) {
     site_names[i] <-  ifelse( grepl("\\_", file_names[i]), tolower(sub("\\_.*","", file_names[i])), paste0("Unknown (", file_names[i], ")"))
     if(i > 1 ){
-      maxminsll <- update_maxminlatlong(maxminsll, data_sets[[i]])
+      maxminsll <- update_maxminlatlong(maxminsll, data_sets[[i]]$df, data_sets[[i]]$dtype)
     }
       
   }
@@ -111,12 +117,15 @@ clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "U
     
   for(i in 1:length(data_info$data)) {
     
-    df <- data_info$data[[i]] 
+    df <- data_info$data[[i]]$df 
+    dtype <- data_info$data[[i]]$dtype
     
-    df <- df[!duplicated(as.list(df))] # discard any columns that are duplicates of index
-    colnames(df)[1] <- "Index"
+    if(dtype == "igotu") {
+      df <- df[!duplicated(as.list(df))] # discard any columns that are duplicates of index
+      colnames(df)[1] <- "Index"
+      suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
+    }
     
-    suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
     df <- utils::type.convert(df)
     
     aniid <- data_info$ani[i]
@@ -131,9 +140,8 @@ clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "U
       gpsid <- paste0("Unknown (", data_info$file[i], ")")
       data_info$gps[i] <- gpsid
     }
-    
     # clean df
-    df_out<- clean_location_data(df, filters,
+    df_out<- clean_location_data(df, dtype, filters,
                                  aniid = aniid, 
                                  gpsid = gpsid, 
                                  maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = tz_in, tz_out = tz_out)
@@ -168,19 +176,23 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
   colnames(meta_df) <- meta_cols
  
   num_saved_rds <- 0
-  
-  withProgress(message = "Processing data", detail = paste0("0/",length(data_info$data), " files processed"), value = 0, {
+
+  #withProgress(message = "Processing data", detail = paste0("0/",length(data_info$data), " files processed"), value = 0, {
 
   data_sets <- list()
   
   for(i in 1:length(data_info$data)) {
    
-    df <- data_info$data[[i]]
+    df <- data_info$data[[i]]$df 
+    dtype <- data_info$data[[i]]$dtype
     
-    df <- df[!duplicated(as.list(df))] # discard any columns that are duplicates of index
-    colnames(df)[1] <- "Index"
     
-    suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
+    if(dtype == "igotu") {
+      df <- df[!duplicated(as.list(df))] # discard any columns that are duplicates of index
+      colnames(df)[1] <- "Index"
+      suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
+    }
+    
     df <- utils::type.convert(df)
     
     aniid <- data_info$ani[i]
@@ -197,10 +209,11 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
     }
     
     # clean df
-    df_out<- clean_location_data(df, filters,
+    df_out<- clean_location_data(df, dtype, filters,
                              aniid = aniid, 
                              gpsid = gpsid, 
                              maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = tz_in, tz_out = tz_out)
+    print(str(df_out))
     # add cleaned df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df_out
     #incProgress(1/(2*length(data_info$data)), detail = paste0(i,"/",length(data_info$data), " files cleaned"))
@@ -233,13 +246,13 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
       ))
     }
     if(nrow(elev_data_sets) == 0) {
-      incProgress(0, detail = "Appending elevation at zoom = ", zoom, " for invalid bounds. Defaulting to all data.")
+      #incProgress(0, detail = "Appending elevation at zoom = ", zoom, " for invalid bounds. Defaulting to all data.")
       #elev_data_sets <- lookup_elevation(elev, all_data_sets, get_slope = get_slope, get_aspect = get_aspect)
       elev_data_sets <- lookup_elevation_aws(all_data_sets, zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
     }
     else {
-      incProgress(0, detail = paste0("Appending elevation for lat. bounds (", min_lat, ",", max_lat, 
-                                     ") and long. bounds (", min_long, ",", max_long, ") at zoom = ", zoom, "..." ))
+      #incProgress(0, detail = paste0("Appending elevation for lat. bounds (", min_lat, ",", max_lat, 
+                                     #") and long. bounds (", min_long, ",", max_long, ") at zoom = ", zoom, "..." ))
       #elev_data_sets <- lookup_elevation(elev, elev_data_sets, get_slope = get_slope, get_aspect = get_aspect)
       elev_data_sets <- lookup_elevation_aws(elev_data_sets, zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
     }
@@ -260,7 +273,6 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
       }
       
       df_out <- elev_data_sets %>% dplyr::filter(Animal == aniid)
-      
       # get meta from df
       file_meta <- get_meta(df_out, i, data_info$file[i], data_info$site[i], aniid, data_info$rds_name)
       # save meta to the designated meta df
@@ -270,7 +282,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
       #incProgress(1/(2*length(data_info$data)), detail = paste0(i,"/",length(data_info$data), " files completed"))
     }
     
-  }) #progress bar
+  #}) #progress bar
   #save remaining data files
   saveRDS(data_sets, data_info$rds_name)
   return(meta_df)

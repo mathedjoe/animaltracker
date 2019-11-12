@@ -36,6 +36,7 @@ get_file_meta <- function(data_dir){
 #'Cleans a raw animal GPS dataset, implementing a standardized procedure to remove impossible values
 #'
 #'@param df data frame in standardized format (e.g., from a raw spreadsheet)
+#'@param dtype data type, iGotU or Columbus P-1
 #'@param filters filter bad data points, defaults to true
 #'@param aniid identification code for the animal
 #'@param gpsid identification code for the GPS device
@@ -61,64 +62,105 @@ get_file_meta <- function(data_dir){
 #'gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100, timezone = "UTC")
 #'@export
 #'
-clean_location_data<- function (df, filters = TRUE, 
+clean_location_data <- function (df, dtype, filters = TRUE, 
                                 aniid = NA, gpsid = NA, 
                                 maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = "UTC", tz_out = "UTC"){
+  if(dtype == "columbus") {
+    df <- df %>%
+      # exclude unneeded information
+      dplyr::select(-c( RMCRecord, ChecksumRMC, GGARecord, AltitudeM, HeightM, DGPSUpdate, ChecksumGGA) ) %>%
+      
+      dplyr::mutate(
+        DateTimeChar = paste(DateMMDDYY, Time),
+        DateTime = lubridate::with_tz(as.POSIXct(DateTimeChar, format = "%d%m%y %H%M%OS", tz = tz_in), tz = tz_out),
+        Status = forcats::fct_recode(Status, Active ="A", Void="V"),
+        Latitude = deg_to_dec(Latitude, LatDir),
+        Longitude = deg_to_dec(Longitude, LonDir),
+        LatitudeFix = deg_to_dec(LatitudeFix, LatDirFix),
+        LongitudeFix = deg_to_dec(LongitudeFix, LonDirFix),
+        MagVar = deg_to_dec(MagVar, MagVarDir),
+        QualFix = forcats::fct_recode(as.character(QualFix), 
+                                       Invalid = '0', GPSFix = '1', DGPSFix = '2', PPSFix = '3',
+                                       RealTimeKine = '4', FloatRTK = '5', EstDeadReck = '6', ManInpMode = '7', SimMode ='8'
+        )
+        
+      ) %>% 
+      dplyr::select(
+        Time, DateTime, Latitude, Longitude, Altitude, nSatellites, GroundSpeed, 
+        TrackAngle, hDilution, Height, Status, LatitudeFix, LongitudeFix, MagVar
+      ) %>% 
+      tibble::add_column(Date = NA, .before="Time")
+  }
+  else {
+    df <- df %>% 
+      tibble::add_column(Order = df$Index, .before="Index")%>%  # add Order column
+      tibble::add_column(Animal = aniid, .after="Index") %>%      # add Animal column 
+      tibble::add_column(GPS = gpsid, .after="Animal") %>%      # add Animal column 
+      tibble::add_column(DateTime = NA, .after="GPS") %>%      # add Date/Time column
+      tibble::add_column(Rate = NA, .after="Distance") %>%
+      tibble::add_column(CourseDiff = NA, .after="Course") %>%
+      dplyr::mutate(
+        DateTime = lubridate::with_tz(lubridate::ymd_hms(paste(Date, Time), tz=tz_in), tz=tz_out),  # reclassify Date as a Date variable
+        Animal = as.factor(Animal) # reclassify Animal column as a categorical (factor) variable
+      )
+  }
+
   df <- df %>% 
-    tibble::add_column(Order = df$Index, .before="Index")%>%  # add Order column
-    tibble::add_column(Animal = aniid, .after="Index") %>%      # add Animal column 
-    tibble::add_column(GPS = gpsid, .after="Animal") %>%      # add Animal column 
-    tibble::add_column(DateTime = NA, .after="GPS") %>%      # add Date/Time column
     tibble::add_column(TimeDiff = NA, .after="DateTime") %>% 
-    tibble::add_column(TimeDiffMins = NA, .after="TimeDiff") %>%
-    tibble::add_column(Rate = NA, .after="Distance") %>%
-    tibble::add_column(CourseDiff = NA, .after="Course") %>%
+    tibble::add_column(TimeDiffMins = NA, .after="TimeDiff") %>% 
     dplyr::mutate(
-      Animal = as.factor(Animal), # reclassify Animal column as a categorical (factor) variable
-      DateTime = lubridate::with_tz(lubridate::ymd_hms(paste(Date, Time), tz=tz_in), tz=tz_out),  # reclassify Date as a Date variable
       Date = strftime(DateTime, format="%Y-%m-%d", tz=tz_out), # reclassify Date as a Date variable
-      Time = strftime(DateTime, format="%H:%M:%S", tz=tz_out)
-    )
+      Time = strftime(DateTime, format="%H:%M:%S", tz=tz_out))
+  
   if(filters) {
     df <- df %>% 
       dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time)) %>% # filter missing time slots before calculating differences
       dplyr::distinct(DateTime, .keep_all = TRUE) # remove duplicate timestamps
   }
+  
   df <- df %>% 
     dplyr::mutate(
       TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), # compute sequential time differences (in seconds)
-      TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))), # compute sequential time differences (in mins)
-      Rate = ifelse(TimeDiffMins != 0, Distance/TimeDiffMins, 0), # compute rate of travel (meters/min), default to 0 to prevent divide by 0 error
-      CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
-      DistGeo = geosphere::distGeo(cbind(Longitude, Latitude), 
-                                   cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))), #compute geodesic distance between points
-      RateFlag = 1*(Rate > maxrate), # flag any data points representing too fast travel
-      CourseFlag = 1*(CourseDiff >= maxcourse) ,
-      DistanceFlag = 1*(DistGeo >= maxdist )
+      TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))) # compute sequential time differences (in mins)
     ) 
-  if(filters) {
-    df <- df %>%
-      dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistanceFlag ) %>%
-      dplyr::filter(TotalFlags < 2,
-                    !DistanceFlag ) %>%
-      dplyr::mutate( # recalculate columns affected by filtering
-        TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), 
-        TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
-        Rate = ifelse(TimeDiffMins != 0, Distance/TimeDiffMins, 0),
-        CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
-        DistGeo = geosphere::distGeo(cbind(Longitude, Latitude),
-                                     cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude))))
-      ) %>%
-      dplyr::select(-c("RateFlag", "CourseFlag", "DistanceFlag", "TotalFlags")) # remove flags after use
-  }
-  else {
+  
+  if(dtype == "igotu") {
     df <- df %>% 
       dplyr::mutate(
-        TimeFlag = 1*(is.na(DateTime) | is.na(Date) | is.na(Time))
-      ) %>%
-      tibble::add_column(DuplicateDateFlag = 1*duplicated(df$DateTime)) %>%
-      dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistanceFlag + TimeFlag + DuplicateDateFlag)
+        Rate = ifelse(TimeDiffMins != 0, Distance/TimeDiffMins, 0), # compute rate of travel (meters/min), default to 0 to prevent divide by 0 error
+        CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
+        DistGeo = geosphere::distGeo(cbind(Longitude, Latitude), 
+                                     cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))), #compute geodesic distance between points
+        RateFlag = 1*(Rate > maxrate), # flag any data points representing too fast travel
+        CourseFlag = 1*(CourseDiff >= maxcourse),
+        DistanceFlag = 1*(DistGeo >= maxdist)
+      )
+    
+    if(filters) {
+      df <- df %>%
+        dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistanceFlag ) %>%
+        dplyr::filter(TotalFlags < 2,
+                      !DistanceFlag ) %>%
+        dplyr::mutate( # recalculate columns affected by filtering
+          TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), 
+          TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
+          Rate = ifelse(TimeDiffMins != 0, Distance/TimeDiffMins, 0),
+          CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
+          DistGeo = geosphere::distGeo(cbind(Longitude, Latitude),
+                                       cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude))))
+        ) %>%
+        dplyr::select(-c("RateFlag", "CourseFlag", "DistanceFlag", "TotalFlags")) # remove flags after use
+    }
+    else {
+      df <- df %>% 
+        dplyr::mutate(
+          TimeFlag = 1*(is.na(DateTime) | is.na(Date) | is.na(Time))
+        ) %>%
+        tibble::add_column(DuplicateDateFlag = 1*duplicated(df$DateTime)) %>%
+        dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistanceFlag + TimeFlag + DuplicateDateFlag)
+    }
   }
+  return(df)
 }
 
 

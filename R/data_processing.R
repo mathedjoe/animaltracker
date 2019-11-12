@@ -127,6 +127,84 @@ read_zip_to_rasters <- function(filename, exdir = "inst/extdata/elev"){
 }
 
 #'
+#'Read and process a Columbus P-1 data file containing NMEA records into a data frame
+#'
+#'@param filename path of Columbus P-1 data file
+#'@return NMEA records in RMC and GGA formats as a data frame
+#'@export
+#'
+read_columbus <- function(filename){
+  
+  gps_raw <- readLines(filename)
+  
+  # parse nmea records, two lines at a time
+  nmea_rmc <- grepl("^\\$GPRMC", gps_raw)
+  nmea_gga <- grepl("^\\$GPGGA", gps_raw)
+  
+  #RMC via specs https://www.gpsinformation.org/dale/nmea.htm#RMC
+  gps_rmc <- read.table(text = gps_raw[nmea_rmc], sep = ",", fill = TRUE, as.is = TRUE)
+  
+  names(gps_rmc) <- c("RMCRecord", "Time", "Status", 
+                      "Latitude", "LatDir","Longitude", "LonDir", 
+                      "GroundSpeed", "TrackAngle","DateMMDDYY", 
+                      "MagVar", "MagVarDir", "ChecksumRMC")
+  
+  #GGA via specs at https://www.gpsinformation.org/dale/nmea.htm#GGA
+  gps_gga <- read.table(text = gps_raw[nmea_gga], sep = ",", fill = TRUE, as.is = TRUE)
+  
+  names(gps_gga) <- c("GGARecord", "TimeFix", 
+                      "LatitudeFix", "LatDirFix", "LongitudeFix", "LonDirFix",
+                      "QualFix", "nSatellites", "hDilution", "Altitude", "AltitudeM", "Height", "HeightM",
+                      "DGPSUpdate", "ChecksumGGA")
+  
+  return(bind_cols(gps_rmc, gps_gga))
+}
+
+
+
+#'
+#'Helper function for cleaning Columbus P-1 datasets.
+#'Given lat/long data in degrees and a direction, convert to decimal. 
+#'
+#'@param x vector of lat/long data in degrees
+#'@param direction direction of lat/long
+#'@return converted x
+#'
+deg_to_dec <- function(x, direction){
+  xparts <-  strsplit(as.character(x), "\\.")[[1]]
+  deg <- as.numeric(substr(xparts[1], 1, nchar(xparts[1])-2))
+  min <- as.numeric(substr(xparts[1], nchar(xparts[1])-1, nchar(xparts[1])))
+  sec <- as.numeric(xparts[2])
+  
+  return(ifelse(direction %in% c("W", "S"), -1 , 1)*(deg + min/60 + sec/3600))
+}
+
+#'
+#'Reads a GPS dataset of unknown format at location filename 
+#'
+#'@param filename location of the GPS dataset
+#'@return list containing the dataset as a df and the format
+#'
+read_gps <- function(filename){
+  
+  # get first line of data to determine data format
+  data_row1 <- readLines(filename, 1, skipNul = TRUE)
+  
+  # determine data format
+  
+  data_type <- ifelse( grepl("^\\$GPRMC", data_row1), "columbus", "igotu")
+  
+  if(data_type == "columbus"){
+    gps_data <- read_columbus(filename)
+  }
+  else {
+    gps_data <- read.csv(filename, skipNul = TRUE, stringsAsFactors = FALSE)
+  }
+  
+  return(list(df = gps_data, dtype = data_type))
+}
+
+#'
 #'Generate a histogram of the distribution of modeled elevation - measured altitude
 #'
 #'@param datapts GPS data with measured Altitude and computed Elevation data
