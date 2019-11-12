@@ -213,7 +213,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
                              aniid = aniid, 
                              gpsid = gpsid, 
                              maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = tz_in, tz_out = tz_out)
-    print(str(df_out))
+    # print(str(df_out))
     # add cleaned df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df_out
     #incProgress(1/(2*length(data_info$data)), detail = paste0(i,"/",length(data_info$data), " files cleaned"))
@@ -257,9 +257,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
       elev_data_sets <- lookup_elevation_aws(elev_data_sets, zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
     }
     
-    
-    
-    
+
     for(i in 1:length(data_info$data)) {
       
       aniid <- data_info$ani[i]
@@ -273,6 +271,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
       }
       
       df_out <- elev_data_sets %>% dplyr::filter(Animal == aniid)
+
       # get meta from df
       file_meta <- get_meta(df_out, i, data_info$file[i], data_info$site[i], aniid, data_info$rds_name)
       # save meta to the designated meta df

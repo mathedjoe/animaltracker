@@ -69,39 +69,22 @@ clean_location_data <- function (df, dtype, filters = TRUE,
     df <- df %>%
       # exclude unneeded information
       dplyr::select(-c( RMCRecord, ChecksumRMC, GGARecord, AltitudeM, HeightM, DGPSUpdate, ChecksumGGA) ) %>%
-      
-      dplyr::mutate(
-        DateTimeChar = paste(DateMMDDYY, Time),
+      dplyr::mutate( 
         DateTime = lubridate::with_tz(as.POSIXct(DateTimeChar, format = "%d%m%y %H%M%OS", tz = tz_in), tz = tz_out),
-        Status = forcats::fct_recode(Status, Active ="A", Void="V"),
-        Latitude = deg_to_dec(Latitude, LatDir),
-        Longitude = deg_to_dec(Longitude, LonDir),
-        LatitudeFix = deg_to_dec(LatitudeFix, LatDirFix),
-        LongitudeFix = deg_to_dec(LongitudeFix, LonDirFix),
-        MagVar = deg_to_dec(MagVar, MagVarDir),
-        QualFix = forcats::fct_recode(as.character(QualFix), 
-                                       Invalid = '0', GPSFix = '1', DGPSFix = '2', PPSFix = '3',
-                                       RealTimeKine = '4', FloatRTK = '5', EstDeadReck = '6', ManInpMode = '7', SimMode ='8'
-        )
-        
-      ) %>% 
+        Date = NA
+      ) %>%
       dplyr::select(
-        Time, DateTime, Latitude, Longitude, Altitude, nSatellites, GroundSpeed, 
+        Date, Time, DateTime, Latitude, Longitude, Altitude, nSatellites, GroundSpeed, 
         TrackAngle, hDilution, Height, Status, LatitudeFix, LongitudeFix, MagVar
-      ) %>% 
-      tibble::add_column(Date = NA, .before="Time")
+      ) 
   }
-  else {
+  if(dtype == "igotu") {
     df <- df %>% 
       tibble::add_column(Order = df$Index, .before="Index")%>%  # add Order column
-      tibble::add_column(Animal = aniid, .after="Index") %>%      # add Animal column 
-      tibble::add_column(GPS = gpsid, .after="Animal") %>%      # add Animal column 
-      tibble::add_column(DateTime = NA, .after="GPS") %>%      # add Date/Time column
       tibble::add_column(Rate = NA, .after="Distance") %>%
       tibble::add_column(CourseDiff = NA, .after="Course") %>%
       dplyr::mutate(
         DateTime = lubridate::with_tz(lubridate::ymd_hms(paste(Date, Time), tz=tz_in), tz=tz_out),  # reclassify Date as a Date variable
-        Animal = as.factor(Animal) # reclassify Animal column as a categorical (factor) variable
       )
   }
 
@@ -109,8 +92,12 @@ clean_location_data <- function (df, dtype, filters = TRUE,
     tibble::add_column(TimeDiff = NA, .after="DateTime") %>% 
     tibble::add_column(TimeDiffMins = NA, .after="TimeDiff") %>% 
     dplyr::mutate(
+      GPS = gpsid,
+      Animal = aniid,
+      Animal = as.factor(Animal),
       Date = strftime(DateTime, format="%Y-%m-%d", tz=tz_out), # reclassify Date as a Date variable
-      Time = strftime(DateTime, format="%H:%M:%S", tz=tz_out))
+      Time = strftime(DateTime, format="%H:%M:%S", tz=tz_out)
+    )
   
   if(filters) {
     df <- df %>% 
