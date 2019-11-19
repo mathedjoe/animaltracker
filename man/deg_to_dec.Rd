@@ -3,12 +3,12 @@
 \name{deg_to_dec}
 \alias{deg_to_dec}
 \title{Helper function for cleaning Columbus P-1 datasets.
-Given lat/long data in degrees and a direction, convert to decimal.}
+Given lat/long coords in degrees and a direction, convert to decimal.}
 \usage{
 deg_to_dec(x, direction)
 }
 \arguments{
-\item{x}{vector of lat/long data in degrees}
+\item{x}{lat/long coords in degrees}
 
 \item{direction}{direction of lat/long}
 }
@@ -17,5 +17,5 @@ converted x
 }
 \description{
 Helper function for cleaning Columbus P-1 datasets.
-Given lat/long data in degrees and a direction, convert to decimal.
+Given lat/long coords in degrees and a direction, convert to decimal.
 }

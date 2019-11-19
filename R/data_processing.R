@@ -72,7 +72,6 @@ lookup_elevation_aws <- function(anidf, zoom = 12, get_slope = TRUE, get_aspect 
   
   # extract coordinates from the animal data
   locations <- anidf %>% dplyr::select(x = Longitude, y = Latitude)
-  
   # retrieve terrain data for the region containing the animal data
   ## DEM source = Amazon Web Services (https://aws.amazon.com/public-datasets/terrain/) terrain tiles.
   elev <- elevatr::get_elev_raster(locations, prj = "+proj=longlat", z=zoom)
@@ -162,17 +161,20 @@ read_columbus <- function(filename){
     dplyr::mutate(
       DateTimeChar = paste(DateMMDDYY, Time),
       Status = forcats::fct_recode(Status, Active ="A", Void="V"),
+      QualFix = forcats::fct_recode(as.character(QualFix), 
+                                    Invalid = '0', GPSFix = '1', DGPSFix = '2', PPSFix = '3',
+                                    RealTimeKine = '4', FloatRTK = '5', EstDeadReck = '6', ManInpMode = '7', SimMode ='8'
+      ) 
+    ) %>% 
+    dplyr::rowwise() %>% 
+    dplyr::mutate(
       Latitude = deg_to_dec(Latitude, LatDir),
       Longitude = deg_to_dec(Longitude, LonDir),
       LatitudeFix = deg_to_dec(LatitudeFix, LatDirFix),
       LongitudeFix = deg_to_dec(LongitudeFix, LonDirFix),
-      MagVar = deg_to_dec(MagVar, MagVarDir),
-      QualFix = forcats::fct_recode(as.character(QualFix), 
-                                    Invalid = '0', GPSFix = '1', DGPSFix = '2', PPSFix = '3',
-                                    RealTimeKine = '4', FloatRTK = '5', EstDeadReck = '6', ManInpMode = '7', SimMode ='8'
-      )
-      
-    )
+      MagVar = deg_to_dec(MagVar, MagVarDir)
+    ) %>% 
+    dplyr::ungroup()
   return(df)
 }
 
@@ -180,19 +182,19 @@ read_columbus <- function(filename){
 
 #'
 #'Helper function for cleaning Columbus P-1 datasets.
-#'Given lat/long data in degrees and a direction, convert to decimal. 
+#'Given lat/long coords in degrees and a direction, convert to decimal. 
 #'
-#'@param x vector of lat/long data in degrees
+#'@param x lat/long coords in degrees
 #'@param direction direction of lat/long
 #'@return converted x
 #'
 deg_to_dec <- function(x, direction){
-  xparts <-  strsplit(as.character(x), "\\.")[[1]]
+  xparts <- strsplit(as.character(x), "\\.")[[1]]
   deg <- as.numeric(substr(xparts[1], 1, nchar(xparts[1])-2))
   min <- as.numeric(substr(xparts[1], nchar(xparts[1])-1, nchar(xparts[1])))
   sec <- as.numeric(xparts[2])
-  
-  # TO DO: VECTORIZE THIS
+    
+    # TO DO: VECTORIZE THIS
   return(ifelse(direction %in% c("W", "S"), -1 , 1)*(deg + min/60 + sec/3600))
 }
 

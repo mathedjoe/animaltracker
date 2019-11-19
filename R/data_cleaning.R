@@ -71,7 +71,8 @@ clean_location_data <- function (df, dtype, filters = TRUE,
       dplyr::select(-c( RMCRecord, ChecksumRMC, GGARecord, AltitudeM, HeightM, DGPSUpdate, ChecksumGGA) ) %>%
       dplyr::mutate( 
         DateTime = lubridate::with_tz(as.POSIXct(DateTimeChar, format = "%d%m%y %H%M%OS", tz = tz_in), tz = tz_out),
-        Date = NA
+        Date = NA,
+        Time = strftime(DateTime, format="%H:%M:%OS", tz=tz_out)
       ) %>%
       dplyr::select(
         Date, Time, DateTime, Latitude, Longitude, Altitude, nSatellites, GroundSpeed, 
@@ -84,7 +85,8 @@ clean_location_data <- function (df, dtype, filters = TRUE,
       tibble::add_column(Rate = NA, .after="Distance") %>%
       tibble::add_column(CourseDiff = NA, .after="Course") %>%
       dplyr::mutate(
-        DateTime = lubridate::with_tz(lubridate::ymd_hms(paste(Date, Time), tz=tz_in), tz=tz_out),  # reclassify Date as a Date variable
+        DateTime = lubridate::with_tz(lubridate::ymd_hms(paste(Date, Time), tz=tz_in), tz=tz_out),
+        Time = strftime(DateTime, format="%H:%M:%S", tz=tz_out) # reclassify Date as a Date variable
       )
   }
 
@@ -95,8 +97,7 @@ clean_location_data <- function (df, dtype, filters = TRUE,
       GPS = gpsid,
       Animal = aniid,
       Animal = as.factor(Animal),
-      Date = strftime(DateTime, format="%Y-%m-%d", tz=tz_out), # reclassify Date as a Date variable
-      Time = strftime(DateTime, format="%H:%M:%S", tz=tz_out)
+      Date = strftime(DateTime, format="%Y-%m-%d", tz=tz_out)# reclassify Date as a Date variable
     )
   
   if(filters) {
@@ -147,7 +148,7 @@ clean_location_data <- function (df, dtype, filters = TRUE,
         dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistanceFlag + TimeFlag + DuplicateDateFlag)
     }
   }
-  return(df)
+  return(as.data.frame(df))
 }
 
 

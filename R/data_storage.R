@@ -177,7 +177,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
  
   num_saved_rds <- 0
 
-  #withProgress(message = "Processing data", detail = paste0("0/",length(data_info$data), " files processed"), value = 0, {
+  withProgress(message = "Processing data", detail = paste0("0/",length(data_info$data), " files processed"), value = 0, {
 
   data_sets <- list()
   
@@ -246,13 +246,13 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
       ))
     }
     if(nrow(elev_data_sets) == 0) {
-      #incProgress(0, detail = "Appending elevation at zoom = ", zoom, " for invalid bounds. Defaulting to all data.")
+      incProgress(0, detail = "Appending elevation at zoom = ", zoom, " for invalid bounds. Defaulting to all data.")
       #elev_data_sets <- lookup_elevation(elev, all_data_sets, get_slope = get_slope, get_aspect = get_aspect)
       elev_data_sets <- lookup_elevation_aws(all_data_sets, zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
     }
     else {
-      #incProgress(0, detail = paste0("Appending elevation for lat. bounds (", min_lat, ",", max_lat, 
-                                     #") and long. bounds (", min_long, ",", max_long, ") at zoom = ", zoom, "..." ))
+      incProgress(0, detail = paste0("Appending elevation for lat. bounds (", min_lat, ",", max_lat, 
+                                     ") and long. bounds (", min_long, ",", max_long, ") at zoom = ", zoom, "..." ))
       #elev_data_sets <- lookup_elevation(elev, elev_data_sets, get_slope = get_slope, get_aspect = get_aspect)
       elev_data_sets <- lookup_elevation_aws(elev_data_sets, zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
     }
@@ -281,7 +281,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
       #incProgress(1/(2*length(data_info$data)), detail = paste0(i,"/",length(data_info$data), " files completed"))
     }
     
-  #}) #progress bar
+  }) #progress bar
   #save remaining data files
   saveRDS(data_sets, data_info$rds_name)
   return(meta_df)
@@ -304,8 +304,8 @@ get_meta <- function(df, file_id, file_name, site, ani_id, storage_loc) {
             file_name = file_name, 
             site = site, 
             ani_id = ani_id, 
-            min_date = min(df$Date), 
-            max_date = max(df$Date), 
+            min_date = min(as.Date(df$Date)), 
+            max_date = max(as.Date(df$Date)), 
             min_lat = min(df$Latitude), 
             max_lat = max(df$Latitude),
             min_long = min(df$Longitude), 
