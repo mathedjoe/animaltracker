@@ -73,6 +73,7 @@ summarise_col <- function(df, col) {
   col <- enquo(col)
   summary <- df %>%
     dplyr::group_by(Animal) %>%
+    dplyr::filter(!all(is.na(!!col))) %>% 
     dplyr::summarise(
       N = n(),
       Mean = mean(!!col),

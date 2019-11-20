@@ -39,12 +39,12 @@ app_ui <- function(){
                           h4("Data Processing"),
                           shinyBS::bsCollapse(id = "uploadOptions",
                                      shinyBS::bsCollapsePanel("Cleaning Options",
-                                                     checkboxInput("autocleanBox", label = "Autoclean lat/long/altitude/distance", value = FALSE),
                                                      checkboxInput("filterBox", label = "Filter bad data points", value = TRUE)
                                      ),
                                      shinyBS::bsCollapsePanel("Elevation Options",
                                                      uiOutput("lat_bounds"),
                                                      uiOutput("long_bounds"),
+                                                     uiOutput("zoom"),
                                                      checkboxInput("slopeBox", label = "Include slope", value = TRUE),
                                                      checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
                                      )

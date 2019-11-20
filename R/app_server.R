@@ -27,7 +27,7 @@ if(getRversion() >= '2.5.1') {
 app_server <- function(input, output, session) {
   
   ## the data were aggregated from SRTM 90 m resolution data between -60 and 60 latitude.
-  elev <- read_zip_to_rasters(system.file("extdata", "elev/USA_msk_alt.zip", package="animaltracker"))
+  #elev <- read_zip_to_rasters(system.file("extdata", "elev/USA_msk_alt.zip", package="animaltracker"))
   
   raw_dat <- reactive({
     if(is.null(input$zipInput)) {
@@ -43,7 +43,7 @@ app_server <- function(input, output, session) {
       return(demo_unfiltered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), autocleans = FALSE, filters = FALSE))
+      return(clean_batch_df(raw_dat(), filters = FALSE))
     }
   })
   
@@ -52,7 +52,7 @@ app_server <- function(input, output, session) {
       return(demo_filtered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), autocleans = FALSE, filters = TRUE))
+      return(clean_batch_df(raw_dat(), filters = TRUE))
     }
   })
   
@@ -65,13 +65,13 @@ app_server <- function(input, output, session) {
     if(!identical(raw_dat(), demo_info)) {
       uploaded(TRUE)
       if(!is.null(input$selected_lat) && !is.null(input$selected_long)) {
-        meta(clean_store_batch(raw_dat(), input$autocleanBox, filters = TRUE, elev,
+        meta(clean_store_batch(raw_dat(), filters = TRUE, zoom = input$selected_zoom,
                                input$slopeBox, input$aspectBox, 
                                input$selected_lat[1], input$selected_lat[2],
                                input$selected_long[1], input$selected_long[2]))
       }
       else {
-        meta(clean_store_batch(raw_dat(), input$autocleanBox, input$filterBox, elev,
+        meta(clean_store_batch(raw_dat(), input$filterBox, zoom = input$selected_zoom,
                                input$slopeBox, input$aspectBox, 
                                raw_dat()$min_lat, raw_dat()$max_lat,
                                raw_dat()$min_long, raw_dat()$max_long))
@@ -164,6 +164,11 @@ app_server <- function(input, output, session) {
     shinyWidgets::numericRangeInput("selected_long", "Longitude Range:", value = c(raw_dat()$min_long, raw_dat()$max_long))
   })
   
+  output$zoom <- renderUI({
+    req(input$mainmap_zoom)
+    numericInput("selected_zoom", "Zoom:", value = input$mainmap_zoom, min = 1, max = 14, step = 1)
+  })
+  
   # select data sites
   output$choose_site <- renderUI({
     req(meta)
@@ -208,9 +213,9 @@ app_server <- function(input, output, session) {
     
     meta <- meta() %>%
       dplyr::filter(ani_id %in% input$selected_ani)
-    
-    max_date <- max( meta$max_date, na.rm=T)
-    min_date <- min( meta$min_date, na.rm=T)
+  
+    max_date <- max( as.Date(as.character(meta$max_date), format="%Y-%m-%d"), na.rm=T)
+    min_date <- min( as.Date(as.character(meta$min_date), format="%Y-%m-%d"), na.rm=T)
     
     sliderInput("dates", "Date Range", min = min_date,
                 max = max_date, value = c(min_date, max_date), step = 1,
@@ -379,16 +384,10 @@ app_server <- function(input, output, session) {
     proxy <- leafletProxy("mainmap", session)
     
     if (is.null(last_drawn()) || (!is.null(selected_locations()) & is.null(last_locations())) || (!is.null(selected_locations()) & !identical(last_locations(), selected_locations()) & !identical(last_drawn()$ani, current_anilist))  
-        ||(!any(current_anilist$ani %in% last_drawn()$ani)) || (identical(last_drawn()$ani, current_anilist$ani) & identical(last_locations(), selected_locations()) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2))) {
-      #flags for debugging
-      #print(paste0("1: ", is.null(last_drawn())))
-      #print(paste0("2: ", !is.null(selected_locations()) & is.null(last_locations())))
-      #print(paste0("3: ", !is.null(selected_locations()) & !identical(last_locations(), selected_locations()) & !identical(last_drawn()$ani, current_anilist)))
-      #print(paste0("4: ", !any(current_anilist$ani %in% last_drawn()$ani)))
-      #print(paste0("5: ", identical(last_drawn()$ani, current_anilist$ani) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2)))
+         || (!any(current_anilist$ani %in% last_drawn()$ani)) || (identical(last_drawn()$ani, current_anilist$ani) & identical(last_locations(), selected_locations()) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2))) {
       for(ani in last_drawn()$ani) {
           proxy %>% clearGroup(ani)
-        }
+      }
         proxy %>%
           addCircleMarkers(
             data = pts,
@@ -416,7 +415,7 @@ app_server <- function(input, output, session) {
       # is a subset selected?
       if(!is.null(selected_locations())) {
         proxy %>% fitBounds(min(dat()$Longitude), min(dat()$Latitude), max(dat()$Longitude), max(dat()$Latitude))
-        js$removePolygon()
+        shinyjs::js$removePolygon()
       }
     } # if closing bracket
     else if(!identical(last_drawn()$ani, current_anilist$ani)){
