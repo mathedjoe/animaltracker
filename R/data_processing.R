@@ -75,22 +75,10 @@ lookup_elevation_aws <- function(anidf, zoom = 12, get_slope = TRUE, get_aspect 
   
   # retrieve terrain data for the region containing the animal data
   ## DEM source = Amazon Web Services (https://aws.amazon.com/public-datasets/terrain/) terrain tiles.
-  #elev <- custom_get_aws_terrain(locations, prj = "+proj=longlat", z=zoom) %>% 
-    #raster::projectRaster(crs = sp::CRS( "+proj=longlat"))
-  
   elev <- elevatr::get_elev_raster(locations, prj = "+proj=longlat", z=zoom)
   
   # add Elevation column to the animal data
   anidf$Elevation <- raster::extract(elev, locations)
-  
-  # # convert terrain data to spatial pts
-  # elevpts <- raster::rasterToPoints(elev, spatial=TRUE) 
-  # 
-  # # determine nearest neighbors in the terrain data for the animal locations
-  # datapts_elev <- nabor::knn(data = sp::coordinates(elevpts), query = locations, k=1)
-  # 
-  # # add Elevation column to the animal data
-  # anidf$Elevation <- elevpts$layer[ datapts_elev$nn.idx]
   
   if(get_slope | get_aspect){
     elev_terr <- raster::terrain(elev, opt=c('slope', 'aspect'), unit='degrees')
