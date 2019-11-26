@@ -80,14 +80,17 @@ lookup_elevation_aws <- function(anidf, zoom = 12, get_slope = TRUE, get_aspect 
   
   elev <- elevatr::get_elev_raster(locations, prj = "+proj=longlat", z=zoom)
   
-  # convert terrain data to spatial pts
-  elevpts <- raster::rasterToPoints(elev, spatial=TRUE) 
-  
-  # determine nearest neighbors in the terrain data for the animal locations
-  datapts_elev <- nabor::knn(data = sp::coordinates(elevpts), query = locations, k=1)
-  
   # add Elevation column to the animal data
-  anidf$Elevation <- elevpts$layer[ datapts_elev$nn.idx]
+  anidf$Elevation <- raster::extract(elev, locations)
+  
+  # # convert terrain data to spatial pts
+  # elevpts <- raster::rasterToPoints(elev, spatial=TRUE) 
+  # 
+  # # determine nearest neighbors in the terrain data for the animal locations
+  # datapts_elev <- nabor::knn(data = sp::coordinates(elevpts), query = locations, k=1)
+  # 
+  # # add Elevation column to the animal data
+  # anidf$Elevation <- elevpts$layer[ datapts_elev$nn.idx]
   
   if(get_slope | get_aspect){
     elev_terr <- raster::terrain(elev, opt=c('slope', 'aspect'), unit='degrees')
@@ -95,14 +98,12 @@ lookup_elevation_aws <- function(anidf, zoom = 12, get_slope = TRUE, get_aspect 
   
   if(get_slope){
     slope <- elev_terr$slope
-    slopepts <- raster::rasterToPoints(slope, spatial=TRUE)
-    anidf$Slope <- round(slopepts$slope[ datapts_elev$nn.idx  ], 1)
+    anidf$Slope <- round(raster::extract(slope, locations), 1)
   }
   
-  if(get_aspect){
+ if(get_aspect){
     aspect <- elev_terr$aspect
-    aspectpts <- raster::rasterToPoints(aspect, spatial=TRUE)
-    anidf$Aspect <- round(aspectpts$aspect[ datapts_elev$nn.idx  ], 1)
+    anidf$Aspect <- round(raster::extract(aspect, locations), 1)
   }
   return(anidf)
 }
