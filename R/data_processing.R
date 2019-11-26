@@ -72,8 +72,12 @@ lookup_elevation_aws <- function(anidf, zoom = 12, get_slope = TRUE, get_aspect 
   
   # extract coordinates from the animal data
   locations <- anidf %>% dplyr::select(x = Longitude, y = Latitude)
+  
   # retrieve terrain data for the region containing the animal data
   ## DEM source = Amazon Web Services (https://aws.amazon.com/public-datasets/terrain/) terrain tiles.
+  #elev <- custom_get_aws_terrain(locations, prj = "+proj=longlat", z=zoom) %>% 
+    #raster::projectRaster(crs = sp::CRS( "+proj=longlat"))
+  
   elev <- elevatr::get_elev_raster(locations, prj = "+proj=longlat", z=zoom)
   
   # convert terrain data to spatial pts
@@ -102,7 +106,6 @@ lookup_elevation_aws <- function(anidf, zoom = 12, get_slope = TRUE, get_aspect 
   }
   return(anidf)
 }
-
 
 
 #'
