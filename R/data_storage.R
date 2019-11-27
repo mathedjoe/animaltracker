@@ -84,8 +84,8 @@ store_batch_list <- function(data_dir) {
 
   for(i in 1:length(file_names)) {
     site_names[i] <- ifelse( grepl("\\_", file_names[i]), tolower(sub("\\_.*","", file_names[i])), paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])))
-    ani_ids[i] <- ifelse( grepl("\\_", file_names[i]), tolower(sub("\\_.*","", file_names[i])), paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])))
-    gps_units[i] <- ifelse( grepl("\\_", file_names[i]), tolower(sub("\\_.*","", file_names[i])), paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])))
+    ani_ids[i] <- ifelse(ani_ids[i] == file_names[i], paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])), ani_ids[i])
+    gps_units[i] <-  ifelse(gps_units[i] == file_names[i], paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])), gps_units[i])
     if(i > 1 ){
       maxminsll <- update_maxminlatlong(maxminsll, data_sets[[i]]$df, data_sets[[i]]$dtype)
     }
@@ -218,10 +218,10 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
       footer = NULL
     )
     
+    showModal(status_message)
+    
     if(nrow(elev_data_sets) == 0) {
       incProgress(0, detail = "Appending elevation at zoom = ", zoom, " for invalid bounds. Defaulting to all data.")
-      #elev_data_sets <- lookup_elevation(elev, all_data_sets, get_slope = get_slope, get_aspect = get_aspect)
-      showModal(status_message)
       withCallingHandlers({
         shinyjs::html("console", "")
         elev_data_sets <- lookup_elevation_aws(all_data_sets, zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
@@ -233,8 +233,6 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
     else {
       incProgress(0, detail = paste0("Appending elevation for lat. bounds (", min_lat, ",", max_lat, 
                                      ") and long. bounds (", min_long, ",", max_long, ") at zoom = ", zoom, "..." ))
-      showModal(status_message)
-      #elev_data_sets <- lookup_elevation(elev, elev_data_sets, get_slope = get_slope, get_aspect = get_aspect)
       withCallingHandlers({
         shinyjs::html("console", "")
         elev_data_sets <- lookup_elevation_aws(elev_data_sets, zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
@@ -243,6 +241,8 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
         shinyjs::html(id = "console", html = m$message)
       })
     }
+    
+    removeModal()
     
 
     for(i in 1:length(data_info$data)) {
@@ -334,7 +334,6 @@ get_data_from_meta <- function(meta_df, min_date, max_date) {
     dplyr::filter(Animal %in% meta_df$ani_id,
                   Date <= max_date,
                   Date >= min_date)
-  # print( paste("nrows =", nrow(current_df) ) )
   
   return(current_df)
 }

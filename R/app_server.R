@@ -113,14 +113,13 @@ app_server <- function(input, output, session) {
       }
       # if user provided data, get it
       else {
-        # print(paste("Animals =", input$selected_ani) )
         # temporarily set current_df to cached df to avoid error
         current_df <- cache()[[1]]
         if(any(meta$ani_id  %in% input$selected_ani) ){
           current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
         }
       }
-      
+     
       # add LocationID column to the restricted data set
       current_df <- current_df %>% 
         dplyr::mutate(LocationID = 1:dplyr::n())
@@ -211,30 +210,21 @@ app_server <- function(input, output, session) {
     
     # Get the data set with the appropriate name
     
-    meta <- meta() %>%
-      dplyr::filter(ani_id %in% input$selected_ani)
-  
-    max_date <- max( as.Date(as.character(meta$max_date), format="%Y-%m-%d"), na.rm=T)
-    min_date <- min( as.Date(as.character(meta$min_date), format="%Y-%m-%d"), na.rm=T)
+    meta <- meta()
     
+    if(nrow(meta() %>% dplyr::filter(ani_id %in% input$selected_ani)) > 0) {
+      meta <- meta %>% dplyr::filter(ani_id %in% input$selected_ani)
+    }
+    
+    max_date <- max(as.Date(meta$max_date), na.rm=TRUE)
+    min_date <- min(as.Date(meta$min_date), na.rm=TRUE)
+        
     sliderInput("dates", "Date Range", min = min_date,
                 max = max_date, value = c(min_date, max_date), step = 1,
                 animate = animationOptions(loop = FALSE, interval = 1000))
+    
+    
   })
-  
-  # # select times
-  # output$choose_times <- renderUI({
-  #   
-  #   # If missing input, return to avoid error later in function
-  #   if( is.null(dat()) | is.null(input$dates) ) 
-  #     return()
-  #   min_times <- min(dat()$Time)
-  #   max_times <- max(dat()$Time)
-  #   sliderInput("times", "Time Range", 
-  #               min = min_times, max =max_times, value = c(min_times, max_times), 
-  #               step = 1,
-  #               animate = animationOptions(loop = FALSE, interval = 1000))
-  # })
   
   
   # select variables to compute statistics
