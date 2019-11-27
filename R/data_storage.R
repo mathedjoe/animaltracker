@@ -47,8 +47,8 @@ store_batch_list <- function(data_dir) {
   # remove "temp" from file name
   file_names <- gsub("(temp)(\\/)", "", data_files)
   
-  gps_units <- gsub("(.*)(20)([0-9]{2}\\_)(.*)(\\_{1}.*)(\\.csv)","\\4", file_names)
-  ani_ids <- gsub("(.*)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.csv)","\\5", file_names)
+  gps_units <- gsub("(.*)(20)([0-9]{2}\\_)(.*)(\\_{1}.*)(\\.(csv|txt|TXT))","\\4", file_names)
+  ani_ids <- gsub("(.*)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.(csv|txt|TXT))","\\5", file_names)
   
   site_names <- c()
   # function to compute max/min lat/long from a dirty dataset
@@ -83,7 +83,9 @@ store_batch_list <- function(data_dir) {
   maxminsll <- maxminlatlong(data_sets[[1]]$df, data_sets[[1]]$dtype)
 
   for(i in 1:length(file_names)) {
-    site_names[i] <-  ifelse( grepl("\\_", file_names[i]), tolower(sub("\\_.*","", file_names[i])), paste0("Unknown (", file_names[i], ")"))
+    site_names[i] <- ifelse( grepl("\\_", file_names[i]), tolower(sub("\\_.*","", file_names[i])), paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])))
+    ani_ids[i] <- ifelse(ani_ids[i] == file_names[i], paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])), ani_ids[i])
+    gps_units[i] <-  ifelse(gps_units[i] == file_names[i], paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])), gps_units[i])
     if(i > 1 ){
       maxminsll <- update_maxminlatlong(maxminsll, data_sets[[i]]$df, data_sets[[i]]$dtype)
     }
@@ -131,15 +133,6 @@ clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "U
     aniid <- data_info$ani[i]
     gpsid <- data_info$gps[i]
     
-    if(data_info$file[i] == aniid) {
-      aniid <- paste0("Unknown (", data_info$file[i], ")")
-      data_info$ani[i] <- aniid
-    }
-    
-    if(data_info$file[i] == gpsid) {
-      gpsid <- paste0("Unknown (", data_info$file[i], ")")
-      data_info$gps[i] <- gpsid
-    }
     # clean df
     df_out<- clean_location_data(df, dtype, filters,
                                  aniid = aniid, 
@@ -198,16 +191,6 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
     aniid <- data_info$ani[i]
     gpsid <- data_info$gps[i]
     
-    if(data_info$file[i] == aniid) {
-      aniid <- paste0("Unknown (", data_info$file[i], ")")
-      data_info$ani[i] <- aniid
-    }
-    
-    if(data_info$file[i] == gpsid) {
-      gpsid <- paste0("Unknown (", data_info$file[i], ")")
-      data_info$gps[i] <- gpsid
-    }
-    
     # clean df
     df_out<- clean_location_data(df, dtype, filters,
                              aniid = aniid, 
@@ -227,35 +210,39 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 12, get_slope, g
                                                       Latitude >= min_lat,
                                                       Longitude <= max_long,
                                                       Longitude >= min_long)
-    if(zoom >= 12) {
-      eta <- ""
-      if(zoom == 12) {
-        eta <- "30 seconds" 
-      }
-      if(zoom == 13) {
-        eta <- "2 minutes" 
-      }
-      if(zoom == 14) {
-        eta <- "6 minutes" 
-      }
-      showModal(modalDialog(
-        title = "Please Wait",
-        paste0("Zoom was set to ", zoom, ". Estimated elevation data download time is ", eta, " or longer."),
-        easyClose = TRUE,
-        footer = NULL
-      ))
-    }
+    
+    status_message <- modalDialog(
+      pre(id = "console"),
+      title = "Please Wait...",
+      easyClose = TRUE,
+      footer = NULL
+    )
+    
+    showModal(status_message)
+    
     if(nrow(elev_data_sets) == 0) {
       incProgress(0, detail = "Appending elevation at zoom = ", zoom, " for invalid bounds. Defaulting to all data.")
-      #elev_data_sets <- lookup_elevation(elev, all_data_sets, get_slope = get_slope, get_aspect = get_aspect)
-      elev_data_sets <- lookup_elevation_aws(all_data_sets, zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
+      withCallingHandlers({
+        shinyjs::html("console", "")
+        elev_data_sets <- lookup_elevation_aws(all_data_sets, zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
+      },
+      message = function(m) {
+        shinyjs::html(id = "console", html = m$message)
+      })
     }
     else {
       incProgress(0, detail = paste0("Appending elevation for lat. bounds (", min_lat, ",", max_lat, 
                                      ") and long. bounds (", min_long, ",", max_long, ") at zoom = ", zoom, "..." ))
-      #elev_data_sets <- lookup_elevation(elev, elev_data_sets, get_slope = get_slope, get_aspect = get_aspect)
-      elev_data_sets <- lookup_elevation_aws(elev_data_sets, zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
+      withCallingHandlers({
+        shinyjs::html("console", "")
+        elev_data_sets <- lookup_elevation_aws(elev_data_sets, zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
+      },
+      message = function(m) {
+        shinyjs::html(id = "console", html = m$message)
+      })
     }
+    
+    removeModal()
     
 
     for(i in 1:length(data_info$data)) {
@@ -347,7 +334,6 @@ get_data_from_meta <- function(meta_df, min_date, max_date) {
     dplyr::filter(Animal %in% meta_df$ani_id,
                   Date <= max_date,
                   Date >= min_date)
-  # print( paste("nrows =", nrow(current_df) ) )
   
   return(current_df)
 }

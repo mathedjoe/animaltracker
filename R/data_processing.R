@@ -25,19 +25,13 @@ if(getRversion() >= '2.5.1') {
 #'}
 #'}
 #'@export
-lookup_elevation <- function(elev, anidf, zoom = 11, get_slope = TRUE, get_aspect = TRUE) {
+lookup_elevation_file <- function(elev, anidf, zoom = 11, get_slope = TRUE, get_aspect = TRUE) {
   
   # extract coordinates from the animal data
   locations <- anidf %>% dplyr::select(x = Longitude, y = Latitude)
   
-  # convert terrain data to spatial pts
-  elevpts <- raster::rasterToPoints(elev, spatial=TRUE)
-  
-  # determine nearest neighbors in the terrain data for the animal locations
-  datapts_elev <- nabor::knn(data = sp::coordinates(elevpts), query = locations, k=1)
-  
-  # add Elevation and Slope columns to the animal data
-  anidf$Elevation <- round(elevpts$USA1_msk_alt[ datapts_elev$nn.idx ], 1)
+  # add Elevation column to the animal data
+  anidf$Elevation <- raster::extract(elev, locations)
   
   if(get_slope | get_aspect){
     elev_terr <- raster::terrain(elev, opt=c('slope', 'aspect'), unit='degrees')
@@ -45,14 +39,12 @@ lookup_elevation <- function(elev, anidf, zoom = 11, get_slope = TRUE, get_aspec
   
   if(get_slope){
     slope <- elev_terr$slope
-    slopepts <- raster::rasterToPoints(slope, spatial=TRUE)
-    anidf$Slope <- round(slopepts$slope[ datapts_elev$nn.idx  ], 1)
+    anidf$Slope <- round(raster::extract(slope, locations), 1)
   }
   
   if(get_aspect){
     aspect <- elev_terr$aspect
-    aspectpts <- raster::rasterToPoints(aspect, spatial=TRUE)
-    anidf$Aspect <- round(aspectpts$aspect[ datapts_elev$nn.idx  ], 1)
+    anidf$Aspect <- round(raster::extract(aspect, locations), 1)
   }
   return(anidf)
 }
@@ -72,18 +64,13 @@ lookup_elevation_aws <- function(anidf, zoom = 12, get_slope = TRUE, get_aspect 
   
   # extract coordinates from the animal data
   locations <- anidf %>% dplyr::select(x = Longitude, y = Latitude)
+  
   # retrieve terrain data for the region containing the animal data
   ## DEM source = Amazon Web Services (https://aws.amazon.com/public-datasets/terrain/) terrain tiles.
   elev <- elevatr::get_elev_raster(locations, prj = "+proj=longlat", z=zoom)
   
-  # convert terrain data to spatial pts
-  elevpts <- raster::rasterToPoints(elev, spatial=TRUE) 
-  
-  # determine nearest neighbors in the terrain data for the animal locations
-  datapts_elev <- nabor::knn(data = sp::coordinates(elevpts), query = locations, k=1)
-  
   # add Elevation column to the animal data
-  anidf$Elevation <- elevpts$layer[ datapts_elev$nn.idx]
+  anidf$Elevation <- raster::extract(elev, locations)
   
   if(get_slope | get_aspect){
     elev_terr <- raster::terrain(elev, opt=c('slope', 'aspect'), unit='degrees')
@@ -91,18 +78,15 @@ lookup_elevation_aws <- function(anidf, zoom = 12, get_slope = TRUE, get_aspect 
   
   if(get_slope){
     slope <- elev_terr$slope
-    slopepts <- raster::rasterToPoints(slope, spatial=TRUE)
-    anidf$Slope <- round(slopepts$slope[ datapts_elev$nn.idx  ], 1)
+    anidf$Slope <- round(raster::extract(slope, locations), 1)
   }
   
-  if(get_aspect){
+ if(get_aspect){
     aspect <- elev_terr$aspect
-    aspectpts <- raster::rasterToPoints(aspect, spatial=TRUE)
-    anidf$Aspect <- round(aspectpts$aspect[ datapts_elev$nn.idx  ], 1)
+    anidf$Aspect <- round(raster::extract(aspect, locations), 1)
   }
   return(anidf)
 }
-
 
 
 #'
@@ -160,11 +144,11 @@ read_columbus <- function(filename){
   df <- bind_cols(gps_rmc, gps_gga) %>% 
     dplyr::mutate(
       DateTimeChar = paste(DateMMDDYY, Time),
-      Status = forcats::fct_recode(Status, Active ="A", Void="V"),
-      QualFix = forcats::fct_recode(as.character(QualFix), 
+      Status = suppressWarnings(forcats::fct_recode(Status, Active ="A", Void="V")),
+      QualFix = suppressWarnings(forcats::fct_recode(as.character(QualFix), 
                                     Invalid = '0', GPSFix = '1', DGPSFix = '2', PPSFix = '3',
                                     RealTimeKine = '4', FloatRTK = '5', EstDeadReck = '6', ManInpMode = '7', SimMode ='8'
-      ) 
+      )) 
     ) %>% 
     dplyr::rowwise() %>% 
     dplyr::mutate(

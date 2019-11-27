@@ -18,15 +18,15 @@ if(getRversion() >= '2.5.1') {
 #'@export
 #'
 get_file_meta <- function(data_dir){
-  data_files <- list.files(data_dir, pattern="*.csv") 
+  file_names <- list.files(data_dir, pattern = "*.(csv|txt|TXT)", recursive = TRUE, full.names = TRUE)
   
-  gps_units <- gsub("(.*)(20)([0-9]{2}\\_)(.*)(\\_{1}.*)(\\.csv)","\\4",data_files)
+  gps_units <- gsub("(.*)(20)([0-9]{2}\\_)(.*)(\\_{1}.*)(\\.(csv|txt|TXT))","\\4", file_names)
   
-  ani_ids <- gsub("(.*)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.csv)","\\5",data_files)
+  ani_ids <- gsub("(.*)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.(csv|txt|TXT))","\\5", file_names)
   
   # assign random ids to missing animal ids
   ani_ids_na <- ani_ids == "anixxxx"
-  ani_ids[ani_ids_na] <- sample(1000:9999, size=sum(ani_ids_na), replace=F)
+  ani_ids[ani_ids_na] <- sample(1000:9999, size = sum(ani_ids_na), replace = FALSE)
   ani_ids[ani_ids_na] <- paste0("R", ani_ids[ani_ids_na])
   
   return(list(ani = ani_ids, gps = gps_units))
@@ -62,7 +62,7 @@ get_file_meta <- function(data_dir){
 #'gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100, timezone = "UTC")
 #'@export
 #'
-clean_location_data <- function (df, dtype, filters = TRUE, 
+clean_location_data <- function(df, dtype, filters = TRUE, 
                                 aniid = NA, gpsid = NA, 
                                 maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = "UTC", tz_out = "UTC"){
   if(dtype == "columbus") {
@@ -85,11 +85,11 @@ clean_location_data <- function (df, dtype, filters = TRUE,
       tibble::add_column(Rate = NA, .after="Distance") %>%
       tibble::add_column(CourseDiff = NA, .after="Course") %>%
       dplyr::mutate(
-        DateTime = lubridate::with_tz(lubridate::ymd_hms(paste(Date, Time), tz=tz_in), tz=tz_out),
+        DateTime = lubridate::with_tz(lubridate::ymd_hms(paste(Date, Time), tz=tz_in, quiet = TRUE), tz=tz_out),
         Time = strftime(DateTime, format="%H:%M:%S", tz=tz_out) # reclassify Date as a Date variable
       )
   }
-
+  
   df <- df %>% 
     tibble::add_column(TimeDiff = NA, .after="DateTime") %>% 
     tibble::add_column(TimeDiffMins = NA, .after="TimeDiff") %>% 
@@ -171,7 +171,7 @@ clean_location_data <- function (df, dtype, filters = TRUE,
 #'@export
 #'
 clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", cleaned_dir = "processed", tz_in = "UTC", tz_out = "UTC") {
-  data_files <- list.files(data_dir, pattern="*.csv", full.names=T)
+  data_files <- list.files(data_dir, pattern = "*.(csv|txt|TXT)", recursive = TRUE, full.names = T)
   data_info <- get_file_meta(data_dir)
   
   data_sets <- list()
@@ -186,7 +186,9 @@ clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", c
   
   for (i in 1:length(data_files) ){
     
-    df <- read.csv(data_files[i], skipNul = T, as.is=T)
+    current_file <- read_gps(data_files[i])
+    df <- current_file$df
+    dtype <- current_file$dtype
     
     ## remove any extra copies of the header row
   
@@ -197,30 +199,39 @@ clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", c
     
     aniid <- data_info$ani[i]
     gpsid <- data_info$gps[i]
+    
+    if(data_files[i] == aniid) {
+      aniid <- paste0("Unknown_", gsub(paste0(data_dir, "(.*).(csv|txt|TXT)"), "\\1", data_files[i]))
+    }
+    
+    if(data_files[i] == gpsid) {
+      gpsid <- paste0("Unknown_", gsub(paste0(data_dir, "(.*).(csv|txt|TXT)"), "\\1", data_files[i]))
+    }
+    
     nstart <- nrow(df)
     
     print(paste("processing ", nstart, "data points for animal #",aniid, "with gps unit #", gpsid, "..."))
     
     ### REMOVE BAD DATA POINTS (as described on pages 26-39 of Word Doc)
-    df<- clean_location_data(df, 
+    df<- clean_location_data(df, dtype,
                              aniid = aniid, 
                              gpsid = gpsid, 
-                             maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = tz_in, tz_out = tz_out)
+                             maxrate = 84, maxcourse = 100, maxdist = 840, maxtime = 100, tz_in = tz_in, tz_out = tz_out)
    
     print(paste("...", nstart - nrow(df), "points removed"))
     print(paste("...total distance traveled =", round(sum(df$DistGeo)/1000, 1), "km"))
     print(paste("...saving", nrow(df), "good data points"))
     
     if(!is.null(cleaned_dir)){
-      utils::write.csv(df, file.path(cleaned_dir, paste0(aniid,".csv")), row.names=F)
+      utils::write.csv(df, file.path(cleaned_dir, paste0(aniid,".csv")), row.names = FALSE)
       pts <- df[c("Longitude", "Latitude")]
       output=sp::SpatialPointsDataFrame(coords=pts,proj4string=sp::CRS("+init=epsg:4326"),
                                         
                                         data=df)
       
-      rgdal::writeOGR(obj=output,dsn=cleaned_dir,layer= paste0("layer_", i,"_", substr(aniid, 1, nchar(aniid)-4)),
+      suppressWarnings(rgdal::writeOGR(obj=output,dsn=cleaned_dir,layer= paste0("layer_", i,"_", substr(aniid, 1, nchar(aniid)-4)),
                       
-                      driver="ESRI Shapefile")
+                      driver="ESRI Shapefile"))
     }
     
     
