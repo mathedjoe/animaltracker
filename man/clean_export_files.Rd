@@ -4,8 +4,13 @@
 \alias{clean_export_files}
 \title{Cleans all animal GPS datasets (in .csv format) in a chosen directory. Optionally exports the clean data as spreadsheets, a single .rds data file, or as a list of data frames}
 \usage{
-clean_export_files(data_dir, cleaned_filename = "animal_data.rds",
-  cleaned_dir = "processed", tz_in = "UTC", tz_out = "UTC")
+clean_export_files(
+  data_dir,
+  cleaned_filename = "animal_data.rds",
+  cleaned_dir = "processed",
+  tz_in = "UTC",
+  tz_out = "UTC"
+)
 }
 \arguments{
 \item{data_dir}{directory of GPS tracking files (in csv)}

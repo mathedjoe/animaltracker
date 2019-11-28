@@ -8,4 +8,4 @@ Imports: zoo (>= 1.8.6), forcats (>= 0.4.0), lubridate (>= 1.7.0), tibble (>= 2.
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 6.1.1
+RoxygenNote: 7.0.1

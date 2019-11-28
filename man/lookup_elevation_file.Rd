@@ -4,8 +4,13 @@
 \alias{lookup_elevation_file}
 \title{Add elevation data from terrain tiles to long/lat coordinates of animal gps data}
 \usage{
-lookup_elevation_file(elev, anidf, zoom = 11, get_slope = TRUE,
-  get_aspect = TRUE)
+lookup_elevation_file(
+  elev,
+  anidf,
+  zoom = 11,
+  get_slope = TRUE,
+  get_aspect = TRUE
+)
 }
 \arguments{
 \item{elev}{elevation data as raster}

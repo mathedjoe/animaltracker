@@ -4,8 +4,7 @@
 \alias{lookup_elevation_aws}
 \title{Add elevation data from public AWS terrain tiles to long/lat coordinates of animal gps data}
 \usage{
-lookup_elevation_aws(anidf, zoom = 11, get_slope = TRUE,
-  get_aspect = TRUE)
+lookup_elevation_aws(anidf, zoom = 11, get_slope = TRUE, get_aspect = TRUE)
 }
 \arguments{
 \item{anidf}{animal tracking dataframe}

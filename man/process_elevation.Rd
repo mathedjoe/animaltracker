@@ -4,8 +4,13 @@
 \alias{process_elevation}
 \title{Export modeled elevation data from existing animal data file}
 \usage{
-process_elevation(zoom = 11, get_slope = TRUE, get_aspect = TRUE,
-  in_path, out_path)
+process_elevation(
+  zoom = 11,
+  get_slope = TRUE,
+  get_aspect = TRUE,
+  in_path,
+  out_path
+)
 }
 \arguments{
 \item{zoom}{level of zoom, defaults to 11}
