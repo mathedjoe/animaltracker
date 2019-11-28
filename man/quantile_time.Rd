@@ -20,5 +20,5 @@ roughly corresponding to quantiles with .05 intervals.
 \examples{
 # Read in .rds of demo data and calculate time difference quantiles
 
-quantile_time(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
+quantile_time(system.file("extdata", "demo_nov19.rds", package = "animaltracker"))
 }

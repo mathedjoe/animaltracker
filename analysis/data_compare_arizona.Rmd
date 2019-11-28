@@ -1,0 +1,295 @@
+---
+title: "Arizona Data Comparison"
+author: "Joe Champion, Thea Sukianto"
+date: "August 24, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+### Helper Functions/Libraries
+```{r message=FALSE}
+library(animaltracker)
+library(dplyr)
+library(ggplot2)
+```
+
+### Load Correct (manually cleaned) Arizona Data
+
+* Renames 'collar', 'date', 'distancetr', and 'RATE' columns to 'GPS', 'Date', 'Distance', and 'Rate' respectively so names match with candidate data 
+
+```{r}
+df_correct <- read.csv('correct.csv', stringsAsFactors = F) %>% 
+  dplyr::rename(GPS = collar) %>% 
+  dplyr::rename(Date = date) %>% 
+  dplyr::rename(Distance = distancetr) %>% 
+  dplyr::rename(Rate = RATE) %>% 
+  dplyr::mutate(Date = as.Date(Date))
+```
+
+### Load Candidate (cleaned by animaltracker) Arizona Data
+
+```{r}
+df_candidate <- read.csv('candidate.csv', stringsAsFactors = F) %>% 
+  dplyr::mutate(Date = as.Date(Date))
+```
+
+## Calculate Summary Statistics
+
+```{r}
+dfs <- compare_summarise_data(df_correct, 
+                       df_candidate, 
+                       'gps_arizona.csv', 
+                       'date_arizona.csv'
+                       )
+```
+
+### Summary by GPS Collar
+
+* **Close match** between latitude, longitude, course
+* Candidate has **less rows**
+* **Underestimates** distance, rate **(less variable)**
+* **Overestimates** elevation **(more variable)**
+
+```{r}
+summary(dfs$GPS)
+```
+
+#### Number of Observations
+
+* Candidate has approximately 90-170 **less rows** (out of ~6400 - 7500 per GPS collar)
+
+```{r message=FALSE}
+violin_compare(dfs$GPS, GPS, "n", "n_GPS_arizona.png")
+```
+
+#### Mean Latitude
+
+* Differences are on the order of **~1x10^-5** on average
+
+```{r message=FALSE}
+violin_compare(dfs$GPS, GPS, "meanLat", "meanLat_GPS_arizona.png")
+```
+
+#### Mean Longitude
+
+* Differences are on the order of **~1x10^-5 - 1x10^-4** on average
+
+```{r message=FALSE}
+violin_compare(dfs$GPS, GPS, "meanLong", "meanLong_GPS_arizona.png")
+```
+
+#### Mean Distance
+
+* Candidate **underestimates** distance on average by ~4.5 - 7
+
+```{r message=FALSE}
+violin_compare(dfs$GPS, GPS, "meanDist", "meanDist_GPS_arizona.png")
+```
+
+#### Mean Course
+
+* Differences are on the order of **~1x10^2 - 1x10^1** on average
+
+```{r message=FALSE}
+violin_compare(dfs$GPS, GPS, "meanCourse", "meanCourse_GPS_arizona.png")
+```
+
+#### Mean Rate
+
+* Candidate **underestimates** rate on average by ~0.20 - 0.28
+
+```{r message=FALSE}
+violin_compare(dfs$GPS, GPS, "meanRate", "meanRate_GPS_arizona.png")
+```
+
+#### Mean Elevation 
+
+* Candidate **overestimates** elevation on average by ~19 - 26
+
+```{r message=FALSE}
+violin_compare(dfs$GPS, GPS, "meanElev", "meanElev_GPS_arizona.png")
+```
+
+### Summary by Date
+
+* **Close match** between latitude, longitude, course
+* Candidate has **less dates**
+* **Underestimates** distance, rate **(less variable)**
+* **Overestimates** elevation **(more variable)**
+
+```{r}
+summary(dfs$Date)
+```
+
+#### Number of Observations
+
+* Candidate tends to have **less rows** per date (difference between correct and candidate: ~ -1 - 60)
+
+```{r message=FALSE}
+violin_compare(dfs$Date, Date, "n", "n_Date_arizona.png")
+```
+
+#### Mean Latitude
+
+* Differences are on the order of **~1x10-4** on average
+
+```{r message=FALSE}
+violin_compare(dfs$Date, Date, "meanLat", "meanLat_Date_arizona.png")
+```
+
+#### Mean Longitude
+
+* Differences are on the order of **~1x10-4** on average
+
+```{r message=FALSE}
+violin_compare(dfs$Date, Date, "meanLong", "meanLong_Date_arizona.png")
+```
+
+#### Mean Distance
+
+* Candidate **underestimates** distance on average by ~3.3 - 8.6
+
+```{r message=FALSE}
+violin_compare(dfs$Date, Date, "meanDist", "meanDist_Date_arizona.png")
+```
+
+#### Mean Course
+
+* Differences are **~ +/- 1** on average**
+
+```{r message=FALSE}
+violin_compare(dfs$Date, Date, "meanCourse", "meanCourse_Date_arizona.png")
+```
+
+#### Mean Rate
+
+* Candidate **underestimates** rate on average by ~0.07 - 0.38
+
+```{r message=FALSE}
+violin_compare(dfs$Date, Date, "meanRate", "meanRate_Date_arizona.png")
+```
+
+#### Mean Elevation
+
+* Candidate **overestimates** elevation on average by ~34 - 10
+
+```{r message=FALSE}
+violin_compare(dfs$Date, Date, "meanElev", "meanElev_Date_arizona.png")
+```
+
+### Summary by GPS and Date
+
+* **Close match** between latitude, longitude
+* **Underestimates and overestimates** number of rows and course, but difference is a **close match on average**
+* **Tends to underestimate** distance, rate **(less variable)**
+* **Overestimates** elevation (variability fluctuates)
+
+```{r message=FALSE}
+daily_summary <- compare_summarise_daily(df_correct, df_candidate, "gps_daily_arizona.csv")
+
+summary(daily_summary)
+```
+
+#### Number of Observations
+
+* Differs by **~ -5 - 8** rows (correct - candidate) per GPS-date pair
+
+```{r message=FALSE}
+  
+  correct_n <- df_correct %>% 
+    dplyr::group_by(GPS, Date) %>% 
+    dplyr::summarise(n = n()) %>% 
+    dplyr::mutate(Data = "Correct")
+  
+  candidate_n <- df_candidate %>% 
+    dplyr::group_by(GPS, Date) %>% 
+    dplyr::summarise(n = n()) %>% 
+    dplyr::mutate(Data = "Candidate")
+  
+  plot_data <- dplyr::bind_rows(correct_n, candidate_n)
+  
+  ggplot(plot_data, aes(x = Date, y = n, group = Data, color = Data)) +
+    geom_line() +
+    scale_color_discrete(guide = guide_legend(reverse = T)) +
+    facet_wrap(vars(GPS))
+  
+
+```
+
+#### Mean Latitude
+
+* Differences are on the order of **~1x10-4** on average
+
+```{r message=FALSE}
+line_compare(df_correct, df_candidate, Latitude, "meanLat_line_arizona.png")
+```
+
+#### Mean Longitude
+
+* Differences are on the order of **~1x10-4** on average
+
+```{r message=FALSE}
+line_compare(df_correct, df_candidate, Longitude, "meanLong_line_arizona.png")
+```
+
+#### Mean Distance
+
+* Differs by **~ -4 - 13.6** on average
+* Possible influential points:
+
+```{r message=FALSE}
+
+knitr::kable(daily_summary %>% 
+               dplyr::filter((meanDistDiff > quantile(meanDistDiff, 0.75) + 1.5*IQR(meanDistDiff)) |
+                             (meanDistDiff < quantile(meanDistDiff, 0.25) - 1.5*IQR(meanDistDiff))) %>%
+               dplyr::select(GPS, Date, meanDistDiff))
+
+line_compare(df_correct, df_candidate, Distance, "meanDist_line_arizona.png")
+```
+
+#### Mean Course
+
+* Differences are **~ +/- 6** on average
+* Possible influential points:
+
+```{r message=FALSE}
+knitr::kable(daily_summary %>% 
+               dplyr::filter((meanCourseDiff > quantile(meanCourseDiff, 0.75) + 1.5*IQR(meanCourseDiff)) |
+                             (meanCourseDiff < quantile(meanCourseDiff, 0.25) - 1.5*IQR(meanCourseDiff))) %>%
+               dplyr::select(GPS, Date, meanCourseDiff))
+
+line_compare(df_correct, df_candidate, Course, "meanCourse_line_arizona.png")
+```
+
+#### Mean Rate
+
+* Differs by **~ -0.16 - 0.64** on average
+* Possible influential points:
+
+```{r message=FALSE}
+knitr::kable(daily_summary %>% 
+               dplyr::filter((meanRateDiff > quantile(meanRateDiff, 0.75) + 1.5*IQR(meanRateDiff)) |
+                             (meanRateDiff < quantile(meanRateDiff, 0.25) - 1.5*IQR(meanRateDiff))) %>%
+               dplyr::select(GPS, Date, meanRateDiff))
+
+line_compare(df_correct, df_candidate, Rate, "meanRate_line_arizona.png")
+```
+
+#### Mean Elevation
+
+* Candidate **overestimates** elevation on average by ~3 - 43
+* Possible influential points:
+
+```{r message=FALSE}
+knitr::kable(daily_summary %>% 
+               dplyr::filter((meanElevDiff > quantile(meanElevDiff, 0.75) + 1.5*IQR(meanElevDiff)) |
+                             (meanElevDiff < quantile(meanElevDiff, 0.25) - 1.5*IQR(meanElevDiff))) %>%
+               dplyr::select(GPS, Date, meanElevDiff))
+
+line_compare(df_correct, df_candidate, Elevation, "meanElev_line_arizona.png")
+```

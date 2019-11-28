@@ -4,13 +4,13 @@
 \alias{lookup_elevation_aws}
 \title{Add elevation data from public AWS terrain tiles to long/lat coordinates of animal gps data}
 \usage{
-lookup_elevation_aws(anidf, zoom = 12, get_slope = TRUE,
+lookup_elevation_aws(anidf, zoom = 11, get_slope = TRUE,
   get_aspect = TRUE)
 }
 \arguments{
 \item{anidf}{animal tracking dataframe}
 
-\item{zoom}{level of zoom, defaults to 12}
+\item{zoom}{level of zoom, defaults to 11}
 
 \item{get_slope}{logical, whether to compute slope (in degrees), defaults to true}
 
@@ -21,4 +21,13 @@ original data frame, with Elevation column appended
 }
 \description{
 Add elevation data from public AWS terrain tiles to long/lat coordinates of animal gps data
+}
+\examples{
+# Add elevation data to filtered demo data frame
+\donttest{
+\dontrun{
+## Lookup with slope and aspect
+lookup_elevation_aws(demo_filtered, zoom = 11, get_slope = TRUE, get_aspect = TRUE)
+}
+}
 }

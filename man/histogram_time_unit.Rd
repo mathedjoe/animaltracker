@@ -20,5 +20,5 @@ GPS measurements by GPS unit.
 \examples{
 # Histogram of GPS measurement time differences by GPS unit for demo data .rds
 
-histogram_time_unit(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
+histogram_time_unit(system.file("extdata", "demo_nov19.rds", package = "animaltracker"))
 }

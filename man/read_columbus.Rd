@@ -15,3 +15,10 @@ NMEA records in RMC and GGA formats as a data frame
 \description{
 Read and process a Columbus P-1 data file containing NMEA records into a data frame
 }
+\examples{
+\donttest{
+\dontrun{
+read_columbus(system.file("extdata", "demo_columbus.TXT", package = "animaltracker"))
+}
+}
+}

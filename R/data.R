@@ -1,6 +1,6 @@
 #' Demo animal GPS data from cows
 #'
-#' @format A data frame with 43584 rows and 29 variables
+#' @format A data frame with 2171 rows and 29 variables
 #' 
 "demo"
 
@@ -12,30 +12,24 @@
 
 #' Raw demo animal GPS data from cows with information
 #' 
-#' @format A 9.1 MB list with 10 elements
+#' @format A list with 10 elements
 #'
 "demo_info"
 
 #' Unfiltered demo animal GPS data from cows
 #'
-#' @format A data frame with 49896 rows and 32 variables
+#' @format A data frame with 2288 rows and 32 variables
 #'
 "demo_unfiltered"
 
 #' Filtered demo animal GPS data from cows
 #' 
-#' @format A data frame with 49331 rows and 26 variables
+#' @format A data frame with 2187 rows and 26 variables
 #'
 "demo_filtered"
 
 #' Demo comparison of two animal datasets
 #'
-#' @format A data frame with 7785 rows and 33 variables
+#' @format A data frame with 2758 rows and 33 variables
 #'
 "demo_comparison"
-
-#' k-nearest neighbors classifier for data validation
-#'
-#' @format A Learner object
-#'
-"knnclassifier"

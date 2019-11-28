@@ -25,7 +25,7 @@ Cleans all animal GPS datasets (in .csv format) in a chosen directory. Optionall
 # Clean all animal GPS .csv datasets in the demo directory
 \donttest{
 \dontrun{
-clean_export_files(system.file("extdata", "demo_aug19", package = "animaltracker"), 
+clean_export_files(system.file("extdata", "demo_nov19", package = "animaltracker"), 
 cleaned_filename = "ex_animal_data.rds", cleaned_dir = "clean_export_ex", tz = "UTC")
 }
 }

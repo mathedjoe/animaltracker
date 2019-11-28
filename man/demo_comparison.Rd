@@ -4,7 +4,7 @@
 \name{demo_comparison}
 \alias{demo_comparison}
 \title{Demo comparison of two animal datasets}
-\format{A data frame with 7785 rows and 33 variables}
+\format{A data frame with 2758 rows and 33 variables}
 \usage{
 demo_comparison
 }

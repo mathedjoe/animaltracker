@@ -37,15 +37,25 @@ Cleans a raw animal GPS dataset, implementing a standardized procedure to remove
 \examples{
 # Clean a data frame from csv
 
-## Read data frame
-bannock_df <- read.csv(system.file("extdata", "demo_aug19/Bannock_2017_101_1149.csv", 
+## Read igotU data
+bannock_df <- read.csv(system.file("extdata", "demo_nov19/Bannock_2017_101_1149.csv", 
 package = "animaltracker"), skipNul=TRUE)
 
 ## Clean and filter
-clean_location_data(bannock_df, filters = TRUE, aniid = 1149, 
-gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100, timezone = "UTC")
+clean_location_data(bannock_df, dtype = "igotu", filters = TRUE, aniid = 1149, 
+gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100)
 
 ## Clean without filtering
-clean_location_data(bannock_df, filters = FALSE, aniid = 1149, 
-gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100, timezone = "UTC")
+clean_location_data(bannock_df, dtype = "igotu", filters = FALSE, aniid = 1149, 
+gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100)
+
+# Clean a data frame from txt
+
+## Read Columbus P-1 data
+columbus_df <- read_columbus(system.file("extdata", "demo_columbus.TXT", 
+package = "animaltracker"))
+
+## Clean and filter
+clean_location_data(columbus_df, dtype = "columbus", filters = TRUE, aniid = 1149, 
+gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100)
 }

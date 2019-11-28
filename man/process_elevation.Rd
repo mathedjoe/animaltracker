@@ -4,12 +4,10 @@
 \alias{process_elevation}
 \title{Export modeled elevation data from existing animal data file}
 \usage{
-process_elevation(elev, zoom = 11, get_slope = TRUE,
-  get_aspect = TRUE, in_path, out_path)
+process_elevation(zoom = 11, get_slope = TRUE, get_aspect = TRUE,
+  in_path, out_path)
 }
 \arguments{
-\item{elev}{elevation data as terrain tiles}
-
 \item{zoom}{level of zoom, defaults to 11}
 
 \item{get_slope}{logical, whether to compute slope (in degrees), defaults to true}
@@ -30,13 +28,9 @@ Export modeled elevation data from existing animal data file
 # Export elevation data from demo .rds datasets
 \donttest{
 \dontrun{
-## Get elevation
-elev <- read_zip_to_rasters(system.file("extdata", "elev/USA_msk_alt.zip", package="animaltracker"))
-
-## Process and export
-process_elevation(elev, zoom = 11, get_slope = TRUE, get_aspect = TRUE, 
-in_path = system.file("extdata", "demo_aug19.rds", 
-package = "animaltracker"), out_path = "demo_aug19_elev.rds")
+process_elevation(zoom = 11, get_slope = TRUE, get_aspect = TRUE, 
+in_path = system.file("extdata", "demo_nov19.rds", 
+package = "animaltracker"), out_path = "demo_nov19_elev.rds")
 
 }
 }

@@ -15,6 +15,6 @@ Add big files to a .gitignore file
 \examples{
 # Detect large files in the demo directory and add to the .gitignore file
 \dontrun{
-dev_add_to_gitignore(system.file("extdata", "demo_aug19", package = "animaltracker"))
+dev_add_to_gitignore(system.file("extdata", "demo_nov19", package = "animaltracker"))
 }
 }

@@ -4,7 +4,7 @@ if(getRversion() >= '2.5.1') {
   globalVariables(c('demo_info', 'demo_unfiltered', 'demo_filtered', 'demo_meta', 'demo',
                     'ani_id', 'Animal', 'Date', 'site', 'LocationID', 'tags', 'js', 'DateTime',
                     'Elevation', 'TimeDiffMins', 'Rate', 'Longitude', 'Latitude', 'LongBin',
-                    'LatBin', 'Duration', 'stopApp'))
+                    'LatBin', 'Duration', 'stopApp', 'Speed', 'Slope', 'Aspect'))
 }
 
 #'
@@ -100,16 +100,15 @@ app_server <- function(input, output, session) {
     ani_names <- paste(input$selected_ani, collapse = ", ")
     cache_name <- paste0(ani_names,", ",input$dates[1],"-",input$dates[2])
     
-    # if(is.null(input$selected_ani) | is.null(input$dates) | is.null(meta)  )
-    #   return()
-    
-    
     if(!(cache_name %in% names(cache()))) {
       # if no user provided data, use demo data
       if(is.null(input$zipInput)) {
         current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id,
                  Date <= input$dates[2],
                  Date >= input$dates[1])
+        if(nrow(current_df) == 0) {
+          current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id)
+        }
       }
       # if user provided data, get it
       else {
@@ -190,8 +189,11 @@ app_server <- function(input, output, session) {
     
     req(meta, input$selected_site)
     
-    meta <- meta() %>%
-      dplyr::filter(site %in% input$selected_site) 
+    meta <- meta()
+    
+    if(nrow(meta %>% dplyr::filter(site %in% input$selected_site)) > 0) {
+      meta <- meta %>% dplyr::filter(site %in% input$selected_site) 
+    }
     
     ani_choices <- as.list(as.character(unique(meta$ani_id)))
    
@@ -503,8 +505,8 @@ app_server <- function(input, output, session) {
             x = "Date",
             y = "Elevation (meters)") +
       ylim(1000,2000) + 
-      geom_line() + 
-      geom_point() + 
+      geom_line(na.rm = TRUE) + 
+      geom_point(na.rm = TRUE) + 
       theme_minimal()
   })
   
@@ -556,7 +558,7 @@ app_server <- function(input, output, session) {
                                  labels=round( seq(min(Latitude), max(Latitude), length.out = 100 ), 3)
              )) %>%
              group_by(LongBin, LatBin, Animal) %>%
-             summarize(Duration = sum(TimeDiffMins, na.rm=T)/60), 
+             summarize(Duration = sum(TimeDiffMins, na.rm = TRUE)/60), 
            aes (x = LongBin,  y = LatBin, fill = Duration))+
       geom_tile()+
       facet_wrap(~Animal, ncol=2)+

@@ -8,7 +8,7 @@ lookup_elevation_file(elev, anidf, zoom = 11, get_slope = TRUE,
   get_aspect = TRUE)
 }
 \arguments{
-\item{elev}{elevation data as terrain tiles}
+\item{elev}{elevation data as raster}
 
 \item{anidf}{animal tracking dataframe}
 
@@ -23,18 +23,4 @@ original data frame, with terrain column(s) appended
 }
 \description{
 Add elevation data from terrain tiles to long/lat coordinates of animal gps data
-}
-\examples{
-# Add elevation data to demo data frame
-\donttest{
-\dontrun{
-## Get elevation
-elev <- read_zip_to_rasters(system.file("extdata", "elev/USA_msk_alt.zip", package="animaltracker"))
-
-## Lookup with slope and aspect
-lookup_elevation(elev, read.csv(system.file("extdata", 
-"demo_aug19/Bannock_2017_101_1149.csv", package = "animaltracker"), skipNul = TRUE), 
-zoom = 11, get_slope = TRUE, get_aspect = TRUE)
-}
-}
 }

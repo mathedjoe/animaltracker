@@ -1,29 +1,18 @@
 if(getRversion() >= '2.5.1') {
-  globalVariables(c('ggplot2', 'Altitude', '..density..'))
+  globalVariables(c('ggplot2', 'Altitude', '..density..', 'DateMMDDYY', 'Status',
+                    'QualFix', 'LatDir', 'LonDir', 'LatitudeFix', 'LatDirFix',
+                    'LongitudeFix', 'LonDirFix', 'MagVar', 'MagVarDir'))
 }
 
 #'
 #'Add elevation data from terrain tiles to long/lat coordinates of animal gps data
 #'
-#'@param elev elevation data as terrain tiles
+#'@param elev elevation data as raster
 #'@param anidf animal tracking dataframe
 #'@param zoom level of zoom, defaults to 11
 #'@param get_slope logical, whether to compute slope (in degrees), defaults to true
 #'@param get_aspect logical, whether to compute aspect (in degrees), defaults to true
 #'@return original data frame, with terrain column(s) appended
-#'@examples
-#'# Add elevation data to demo data frame
-#'\donttest{
-#'\dontrun{
-#'## Get elevation
-#'elev <- read_zip_to_rasters(system.file("extdata", "elev/USA_msk_alt.zip", package="animaltracker"))
-#'
-#'## Lookup with slope and aspect
-#'lookup_elevation(elev, read.csv(system.file("extdata", 
-#'"demo_aug19/Bannock_2017_101_1149.csv", package = "animaltracker"), skipNul = TRUE), 
-#'zoom = 11, get_slope = TRUE, get_aspect = TRUE)
-#'}
-#'}
 #'@export
 lookup_elevation_file <- function(elev, anidf, zoom = 11, get_slope = TRUE, get_aspect = TRUE) {
   
@@ -54,12 +43,20 @@ lookup_elevation_file <- function(elev, anidf, zoom = 11, get_slope = TRUE, get_
 #'Add elevation data from public AWS terrain tiles to long/lat coordinates of animal gps data
 #'
 #'@param anidf animal tracking dataframe
-#'@param zoom level of zoom, defaults to 12
+#'@param zoom level of zoom, defaults to 11
 #'@param get_slope logical, whether to compute slope (in degrees), defaults to true
 #'@param get_aspect logical, whether to compute aspect (in degrees), defaults to true
 #'@return original data frame, with Elevation column appended
 #'@export
-lookup_elevation_aws <- function(anidf, zoom = 12, get_slope = TRUE, get_aspect = TRUE) {
+#'@examples
+#'# Add elevation data to filtered demo data frame
+#'\donttest{
+#'\dontrun{
+#'## Lookup with slope and aspect
+#'lookup_elevation_aws(demo_filtered, zoom = 11, get_slope = TRUE, get_aspect = TRUE)
+#'}
+#'}
+lookup_elevation_aws <- function(anidf, zoom = 11, get_slope = TRUE, get_aspect = TRUE) {
   
   
   # extract coordinates from the animal data
@@ -115,7 +112,12 @@ read_zip_to_rasters <- function(filename, exdir = "inst/extdata/elev"){
 #'@param filename path of Columbus P-1 data file
 #'@return NMEA records in RMC and GGA formats as a data frame
 #'@export
-#'
+#'@examples
+#'\donttest{
+#'\dontrun{
+#'read_columbus(system.file("extdata", "demo_columbus.TXT", package = "animaltracker"))
+#'}
+#'}
 read_columbus <- function(filename){
   
   gps_raw <- readLines(filename)
@@ -125,7 +127,7 @@ read_columbus <- function(filename){
   nmea_gga <- grepl("^\\$GPGGA", gps_raw)
   
   #RMC via specs https://www.gpsinformation.org/dale/nmea.htm#RMC
-  gps_rmc <- read.table(text = gps_raw[nmea_rmc], sep = ",", fill = TRUE, as.is = TRUE)
+  gps_rmc <- utils::read.table(text = gps_raw[nmea_rmc], sep = ",", fill = TRUE, as.is = TRUE)
   
   names(gps_rmc) <- c("RMCRecord", "Time", "Status", 
                       "Latitude", "LatDir","Longitude", "LonDir", 
@@ -133,7 +135,7 @@ read_columbus <- function(filename){
                       "MagVar", "MagVarDir", "ChecksumRMC")
   
   #GGA via specs at https://www.gpsinformation.org/dale/nmea.htm#GGA
-  gps_gga <- read.table(text = gps_raw[nmea_gga], sep = ",", fill = TRUE, as.is = TRUE)
+  gps_gga <- utils::read.table(text = gps_raw[nmea_gga], sep = ",", fill = TRUE, as.is = TRUE)
   
   names(gps_gga) <- c("GGARecord", "TimeFix", 
                       "LatitudeFix", "LatDirFix", "LongitudeFix", "LonDirFix",
@@ -166,9 +168,9 @@ read_columbus <- function(filename){
 
 #'
 #'Helper function for cleaning Columbus P-1 datasets.
-#'Given lat/long coords in degrees and a direction, convert to decimal. 
+#'Given lat or long coords in degrees and a direction, convert to decimal. 
 #'
-#'@param x lat/long coords in degrees
+#'@param x lat or long coords in degrees
 #'@param direction direction of lat/long
 #'@return converted x
 #'
@@ -178,8 +180,28 @@ deg_to_dec <- function(x, direction){
   min <- as.numeric(substr(xparts[1], nchar(xparts[1])-1, nchar(xparts[1])))
   sec <- as.numeric(xparts[2])
     
-    # TO DO: VECTORIZE THIS
   return(ifelse(direction %in% c("W", "S"), -1 , 1)*(deg + min/60 + sec/3600))
+}
+
+#'
+#'Helper function for cleaning Columbus P-1 datasets.
+#'Given lat and long coords in degree decimal, convert to radians and compute bearing.
+#'
+#'@param lat1 latitude of starting point
+#'@param lon1 longitude of starting point
+#'@param lat2 latitude of ending point
+#'@param lon2 longitude of ending point
+#'@return bearing computed from given coordinates
+#'
+calc_bearing <- function(lat1, lon1, lat2, lon2){
+  lat1 <- lat1*(pi/180)
+  lon1 <- lon1*(pi/180)
+  lat2 <- lat2*(pi/180)
+  lon2 <- lon2*(pi/180)
+  
+  bearing_radian <- atan2( sin(lon2-lon1)*cos(lat2) , cos(lat1)*sin(lat2) - sin(lat1)*cos(lat2)*cos(lon2-lon1) )
+  
+  return((bearing_radian * 180/pi +360 )%% 360)
 }
 
 #'
@@ -232,7 +254,6 @@ histogram_animal_elevation <- function(datapts) {
 #'
 #'Export modeled elevation data from existing animal data file
 #'
-#'@param elev elevation data as terrain tiles
 #'@param zoom level of zoom, defaults to 11
 #'@param get_slope logical, whether to compute slope (in degrees), defaults to true
 #'@param get_aspect logical, whether to compute aspect (in degrees), defaults to true
@@ -243,24 +264,21 @@ histogram_animal_elevation <- function(datapts) {
 #'# Export elevation data from demo .rds datasets
 #'\donttest{
 #'\dontrun{
-#'## Get elevation
-#'elev <- read_zip_to_rasters(system.file("extdata", "elev/USA_msk_alt.zip", package="animaltracker"))
-#'
-#'## Process and export
-#'process_elevation(elev, zoom = 11, get_slope = TRUE, get_aspect = TRUE, 
-#'in_path = system.file("extdata", "demo_aug19.rds", 
-#'package = "animaltracker"), out_path = "demo_aug19_elev.rds")
+
+#'process_elevation(zoom = 11, get_slope = TRUE, get_aspect = TRUE, 
+#'in_path = system.file("extdata", "demo_nov19.rds", 
+#'package = "animaltracker"), out_path = "demo_nov19_elev.rds")
 #'
 #'}
 #'}
 #'@export
 #'
-process_elevation <- function(elev, zoom = 11, get_slope=TRUE, get_aspect=TRUE, in_path, out_path) {
+process_elevation <- function(zoom = 11, get_slope=TRUE, get_aspect=TRUE, in_path, out_path) {
   anidata <- readRDS(in_path)
   
   for ( i in 1:length(anidata) ){
     print(noquote(paste("processing elevation data for file", i, "of", length(anidata))))
-    anidata[[i]]<- lookup_elevation(elev, anidata[[i]], get_slope, get_aspect)
+    anidata[[i]]<- lookup_elevation_aws(anidata[[i]], get_slope, get_aspect)
     
   }
   saveRDS(anidata, out_path)
