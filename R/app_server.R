@@ -20,14 +20,9 @@ if(getRversion() >= '2.5.1') {
 #'@import dplyr
 #'@import leaflet
 #'@import leaflet.extras
-#'
 #'@export
 #'
-# Define server logic for the shiny app
 app_server <- function(input, output, session) {
-  
-  ## the data were aggregated from SRTM 90 m resolution data between -60 and 60 latitude.
-  #elev <- read_zip_to_rasters(system.file("extdata", "elev/USA_msk_alt.zip", package="animaltracker"))
   
   raw_dat <- reactive({
     if(is.null(input$zipInput)) {

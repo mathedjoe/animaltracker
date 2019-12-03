@@ -204,8 +204,6 @@ run_validation_app <- function() {
             ggplot(data=current_data(), aes(x=DateTime, y=VAR, group=Source, color=Source)) +
               geom_line(aes(size = Source)) +
               geom_point(data=current_data() %>% dplyr::mutate(Signal = ifelse(is.na(Signal), 0, Signal)) %>% dplyr::filter(Signal==1), aes(x=DateTime, y=VAR), color="black") +
-              #(data=current_data() %>% dplyr::filter(Source == "Candidate"), aes(x=DateTime, y=Upper), color="black") +
-              #geom_line(data=current_data() %>% dplyr::filter(Source == "Candidate"), aes(x=DateTime, y=Lower), color="black") +
               scale_color_discrete(guide = guide_legend(reverse = T)) +
               scale_size_manual(values=c(2, 1))+
               facet_wrap(vars(GPS), ncol=3) +

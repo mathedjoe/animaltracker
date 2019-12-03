@@ -19,7 +19,6 @@ app_ui <- function(){
     !clearButton.dispatchEvent(event);
   }'
     navbarPage(theme = shinythemes::shinytheme("yeti"),
-             # shinythemes::themeSelector(),  # <--- run this to choose a style theme
              header = div(shinyjs::useShinyjs(),
                           shinyjs::extendShinyjs(text = jsCode)),
              title = "Animal Tracker",
