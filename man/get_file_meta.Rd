@@ -18,5 +18,5 @@ Generate metadata for a directory of animal data files
 \examples{
 # Get metadata for demo directory
 
-get_file_meta(system.file("extdata", "demo_aug19", package = "animaltracker"))
+get_file_meta(system.file("extdata", "demo_nov19", package = "animaltracker"))
 }

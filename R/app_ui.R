@@ -19,7 +19,6 @@ app_ui <- function(){
     !clearButton.dispatchEvent(event);
   }'
     navbarPage(theme = shinythemes::shinytheme("yeti"),
-             # shinythemes::themeSelector(),  # <--- run this to choose a style theme
              header = div(shinyjs::useShinyjs(),
                           shinyjs::extendShinyjs(text = jsCode)),
              title = "Animal Tracker",
@@ -57,7 +56,6 @@ app_ui <- function(){
                           uiOutput("choose_site") %>% shinycssloaders::withSpinner(),
                           uiOutput("choose_ani"),
                           uiOutput("choose_dates"),
-                          # uiOutput("choose_times") %>% withSpinner(),
                           
                           hr(),
                           
@@ -67,7 +65,8 @@ app_ui <- function(){
                           shinyBS::bsCollapse(id = "downloadOptionsPanel",
                                      shinyBS::bsCollapsePanel("Download Options",
                                                      radioButtons("downloadOptions", NULL,
-                                                                  c("Processed (unfiltered) data", "Processed (filtered) data", "Currently selected data")))
+                                                                  c("Processed (unfiltered) data", "Processed (filtered) data", "Currently selected data"),
+                                                                  selected = "Currently selected data"))
                                      ),
                           downloadButton("downloadData", "Download")
                           

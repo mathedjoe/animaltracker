@@ -20,5 +20,5 @@ by GPS.
 \examples{
 # Boxplot of altitude for demo data .rds
 
-boxplot_altitude(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
+boxplot_altitude(system.file("extdata", "demo_nov19.rds", package = "animaltracker"))
 }

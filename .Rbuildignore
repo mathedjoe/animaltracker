@@ -1,8 +1,8 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^README\.md$
-^resources$
 ^R/scratch$
-^manual\.pdf$
-^data_compare_arizona\.Rmd$
-^data_compare_arizona\.html$
+^animaltracker\.pdf$
+^test_data$
+^analysis$
+^desktop.ini$

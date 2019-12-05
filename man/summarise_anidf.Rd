@@ -4,8 +4,7 @@
 \alias{summarise_anidf}
 \title{Calculates summary statistics for an animal data frame}
 \usage{
-summarise_anidf(anidf, by, lat, long, dist, course, rate, elev,
-  daily = F)
+summarise_anidf(anidf, by, lat, long, dist, course, rate, elev, daily = F)
 }
 \arguments{
 \item{anidf}{the animal data frame}

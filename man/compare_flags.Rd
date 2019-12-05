@@ -17,3 +17,19 @@ joined and reformatted df
 \description{
 Joins and reformats two animal data frames for the purpose of flag comparison
 }
+\examples{
+\donttest{
+\dontrun{
+# Join and reformat unfiltered demo data and filtered demo data
+
+## Get elevation data for unfiltered demo
+unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
+get_slope=FALSE, get_aspect=FALSE)
+
+## Get elevation data for filtered demo
+filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
+
+compare_flags(unfiltered_elev, filtered_elev)
+}
+}
+}

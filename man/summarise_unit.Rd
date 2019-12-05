@@ -18,5 +18,5 @@ Summarise a number of animal datasets by GPS unit
 \examples{
 # Read in .rds of demo data and summarise by GPS unit
 
-summarise_unit(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
+summarise_unit(system.file("extdata", "demo_nov19.rds", package = "animaltracker"))
 }

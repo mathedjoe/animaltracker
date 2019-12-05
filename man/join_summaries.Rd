@@ -22,16 +22,13 @@ Joins two animal data frame summaries by a column and appends differences
 # Join date summaries of unfiltered and filtered demo data
 \donttest{
 \dontrun{
-## Get elevation 
-elevfile <- system.file("extdata/elev", "USA_msk_alt.zip", package="animaltracker")
-elev <- read_zip_to_rasters(elevfile )
 
 ## Get elevation data for unfiltered demo
-unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, 
+unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
 get_slope=FALSE, get_aspect=FALSE)
 
 ## Get elevation data for filtered demo
-filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
+filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
 
 ## Summarise unfiltered demo by date
 unfiltered_summary <- summarise_anidf(unfiltered_elev, Date, Latitude, Longitude, 

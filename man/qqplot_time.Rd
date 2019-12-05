@@ -18,5 +18,5 @@ Generates a QQ plot to show the distribution of time between GPS measurements.
 \examples{
 # QQ plot of GPS measurment time differences for demo data .rds
 
-qqplot_time(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
+qqplot_time(system.file("extdata", "demo_nov19.rds", package = "animaltracker"))
 }

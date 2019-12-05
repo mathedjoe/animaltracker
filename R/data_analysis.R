@@ -11,7 +11,10 @@ if(getRversion() >= '2.5.1') {
                     'nDiff', 'meanLatDiff', 'meanLongDiff', 'sdLongDiff', 'meanDistDiff',
                     'sdDistDiff', 'meanCourseDiff', 'sdCourseDiff', 'meanRateDiff',
                     'sdRateDiff', 'meanElevDiff', 'sdLatDiff', 'sdElevDiff',
-                    'avg', 'Data', 'obs'))
+                    'avg', 'Data', 'obs', 'Latitude.x', 'Latitude.y', 'Longitude.x',
+                    'Longitude.y', 'Distance.x', 'Distance.y', 'Rate.x', 'Rate.y', 'Course.x',
+                    'Course.y', 'Elevation.x', 'Elevation.y', 'Slope.x', 'Slope.y',
+                    'cumDist.y', 'Rate.y'))
 }
 
 #'
@@ -22,7 +25,7 @@ if(getRversion() >= '2.5.1') {
 #'@examples
 #'# Read in .rds of demo data and summarise by GPS unit
 #'
-#'summarise_unit(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
+#'summarise_unit(system.file("extdata", "demo_nov19.rds", package = "animaltracker"))
 #'@export
 #'
 summarise_unit <- function(rds_path) {
@@ -47,7 +50,7 @@ summarise_unit <- function(rds_path) {
 #'@examples
 #'# Read in .rds of demo data and calculate time difference quantiles
 #'
-#'quantile_time(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
+#'quantile_time(system.file("extdata", "demo_nov19.rds", package = "animaltracker"))
 #'@export
 #'
 quantile_time <- function(rds_path) {
@@ -101,7 +104,7 @@ summarise_col <- function(df, col) {
 #'@examples
 #'# Boxplot of altitude for demo data .rds
 #'
-#'boxplot_altitude(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
+#'boxplot_altitude(system.file("extdata", "demo_nov19.rds", package = "animaltracker"))
 #'@export
 #'
 boxplot_altitude <- function(rds_path) {
@@ -123,7 +126,7 @@ boxplot_altitude <- function(rds_path) {
 #'@examples
 #'# Histogram of GPS measurement time differences for demo data .rds
 #'
-#'histogram_time(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
+#'histogram_time(system.file("extdata", "demo_nov19.rds", package = "animaltracker"))
 #'@export
 #'
 histogram_time <- function(rds_path) {
@@ -145,7 +148,7 @@ histogram_time <- function(rds_path) {
 #'@examples
 #'# Histogram of GPS measurement time differences by GPS unit for demo data .rds
 #'
-#'histogram_time_unit(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
+#'histogram_time_unit(system.file("extdata", "demo_nov19.rds", package = "animaltracker"))
 #'@export
 #'
 histogram_time_unit <- function(rds_path) {
@@ -168,7 +171,7 @@ histogram_time_unit <- function(rds_path) {
 #'@examples
 #'# Boxplot of GPS measurement time differences for demo data .rds
 #'
-#'boxplot_time_unit(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
+#'boxplot_time_unit(system.file("extdata", "demo_nov19.rds", package = "animaltracker"))
 #'@export
 #'
 boxplot_time_unit <- function(rds_path) {
@@ -190,7 +193,7 @@ boxplot_time_unit <- function(rds_path) {
 #'@examples
 #'# QQ plot of GPS measurment time differences for demo data .rds
 #'
-#'qqplot_time(system.file("extdata", "demo_aug19.rds", package = "animaltracker"))
+#'qqplot_time(system.file("extdata", "demo_nov19.rds", package = "animaltracker"))
 #'@export
 #'
 qqplot_time <- function(rds_path) {
@@ -214,16 +217,13 @@ qqplot_time <- function(rds_path) {
 #'# Compare and summarise unfiltered demo cows to filtered 
 #'\donttest{
 #'\dontrun{
-#'## Get elevation
-#'elevfile <- system.file("extdata/elev", "USA_msk_alt.zip", package="animaltracker")
-#'elev <- read_zip_to_rasters( elevfile )
-#'
+#
 #'## Get elevation data for unfiltered demo
-#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, 
+#'unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
 #'get_slope=FALSE, get_aspect=FALSE)
 #'
 #'## Get elevation data for filtered demo
-#'filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
+#'filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
 #'
 #'## Compare and summarise
 #'compare_summarise_data(unfiltered_elev, filtered_elev, "ex_gps_compare.csv", "ex_date_compare.csv")
@@ -316,16 +316,13 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev, dail
 #'# Join date summaries of unfiltered and filtered demo data
 #'\donttest{
 #'\dontrun{
-#'## Get elevation 
-#'elevfile <- system.file("extdata/elev", "USA_msk_alt.zip", package="animaltracker")
-#'elev <- read_zip_to_rasters(elevfile )
 #'
 #'## Get elevation data for unfiltered demo
-#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, 
+#'unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
 #'get_slope=FALSE, get_aspect=FALSE)
 #'
 #'## Get elevation data for filtered demo
-#'filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
+#'filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
 #'
 #'## Summarise unfiltered demo by date
 #'unfiltered_summary <- summarise_anidf(unfiltered_elev, Date, Latitude, Longitude, 
@@ -414,16 +411,13 @@ join_summaries <- function(correct_summary, candidate_summary, by_str, daily=F) 
 #'# Violin plot comparing unfiltered and filtered demo data summaries by date for a single variable
 #'\donttest{
 #'\dontrun{
-#'## Get elevation
-#'elevfile <- system.file("extdata/elev", "USA_msk_alt.zip", package="animaltracker")
-#'elev <- read_zip_to_rasters(elevfile)
 #'
 #'## Get elevation data for unfiltered demo
-#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, 
+#'unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
 #'get_slope=FALSE, get_aspect=FALSE)
 #'
 #'## Get elevation data for filtered demo
-#'filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
+#'filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
 #'
 #'## Summarise unfiltered demo
 #'unfiltered_summary <- summarise_anidf(unfiltered_elev, Date, Latitude, Longitude, 
@@ -525,16 +519,13 @@ line_compare <- function(correct, candidate, col, out) {
 #'# Compare and summarise unfiltered demo cows to filtered, grouped by both Date and GPS
 #'\donttest{
 #'\dontrun{
-#'## Get elevation
-#'elevfile <- system.file("extdata/elev", "USA_msk_alt.zip", package="animaltracker")
-#'elev <- read_zip_to_rasters( elevfile )
 #'
 #'## Get elevation data for unfiltered demo
-#'unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, 
+#'unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
 #'get_slope=FALSE, get_aspect=FALSE)
 #'
 #'## Get elevation data for filtered demo
-#'filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
+#'filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
 #'
 #'## Compare and summarise
 #'compare_summarise_daily(unfiltered_elev, filtered_elev, "ex_compare_daily.csv")
@@ -564,12 +555,24 @@ compare_summarise_daily <- function(correct, candidate, out) {
 #'@param candidate df to be compared to the reference
 #'@return joined and reformatted df
 #'@export
+#'@examples
+#'\donttest{
+#'\dontrun{
+#'# Join and reformat unfiltered demo data and filtered demo data
 #'
+#'## Get elevation data for unfiltered demo
+#'unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
+#'get_slope=FALSE, get_aspect=FALSE)
+#'
+#'## Get elevation data for filtered demo
+#'filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
+#'
+#'compare_flags(unfiltered_elev, filtered_elev)
+#'}
+#'}
 compare_flags <- function(correct, candidate) {
     correct <- correct %>% dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S"))
-      # dplyr::mutate(Date = as.Date(DateTime, format="%Y-%m-%d"))
     candidate <- candidate %>% dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S"))  
-      # dplyr::mutate(Date = as.Date(DateTime, format="%Y-%m-%d")) 
     joined <- dplyr::full_join(correct, candidate, by=c( "DateTime", "GPS")) %>% 
       dplyr::select(DateTime, GPS,
                   Latitude.x, Latitude.y, Longitude.x, Longitude.y,
@@ -609,8 +612,25 @@ compare_flags <- function(correct, candidate) {
 #'@param max_score modified z-score cutoff to classify observations as outliers, defaults to 3.5
 #'@return df with classifications
 #'@export
+#'@examples
+#'\donttest{
+#'\dontrun{
+#'# Join and reformat unfiltered demo data and filtered demo data
 #'
-detect_peak_modz <- function(df_comparison, lag=5, max_score=3.5) {
+#'## Get elevation data for unfiltered demo
+#'unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
+#'get_slope=FALSE, get_aspect=FALSE)
+#'
+#'## Get elevation data for filtered demo
+#'filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
+#'
+#'## Get comparison df
+#'comparison <- compare_flags(unfiltered_elev, filtered_elev)
+#'
+#'detect_peak_modz(comparison, lag = 5, max_score = 3.5)
+#'}
+#'}
+detect_peak_modz <- function(df_comparison, lag = 5, max_score = 3.5) {
   peak_comparison <- df_comparison %>% 
     dplyr::group_by(GPS, Date) %>% 
     dplyr::arrange(DateTime, .by_group = TRUE) %>% 
@@ -624,103 +644,4 @@ detect_peak_modz <- function(df_comparison, lag=5, max_score=3.5) {
     ) %>% 
     dplyr::ungroup()
   return(as.data.frame(peak_comparison))
-}
-
-#'
-#'Train a k-nearest neighbors model on a comparison data frame to classify points that should be dropped
-#'
-#'@param df_comparison output of compare_flags
-#'@param normalize_type how to normalize the data, defaults to standardize
-#'@param train proportion of the data used for training
-#'@return model and test performance as a list
-#'@export
-#'
-train_peak_knn <- function(df_comparison, normalize_type = "standardize", train = 2/3) {
-  df_imp <- df_comparison %>% 
-    ffimp() %>% 
-    dplyr::select(time = TimeDiff,
-         lat = Latitude.x,
-         lon = Longitude.x,
-         dist = Distance.y,
-         rate = Rate.y,
-         course = Course.y,
-         elev = Elevation.x,
-         slope = Slope.x,
-         drop = Dropped.x) %>%
-    dplyr::mutate(drop = factor(drop))
-  
-  df_imp <- normalizeFeatures(df_imp, target = "drop", method = normalize_type)
-  
-  set.seed(0)
-  
-  train_rows <- sample(1:nrow(df_imp), floor(nrow(df_imp)*train))
-  test_rows <- setdiff(1:nrow(df_imp), train_rows)
-  
-  task_imp <- mlr::makeClassifTask(data = df_imp %>% select(dist, rate, drop), target = "drop", positive = "1")
-  
-  knn.learner <- mlr::makeLearner("classif.knn", predict.type="response")
-  
-  fmodel_knn <- mlr::train(knn.learner, task_imp, subset = train_rows)
-  
-  fpmodel_knn <- stats::predict(fmodel_knn, task_imp, subset = test_rows)
-  
-  return(list(model = fmodel_knn, performance = calculateROCMeasures(fpmodel_knn)))
-}
-
-#'
-#'Evaluate a k-nearest neighbors model on a comparison data frame to classify points that should be dropped
-#'
-#'@param df_comparison output of compare_flags
-#'@param model output of train_peak_knn
-#'@return df_comparison with predictions
-#'@export
-#'
-predict_peak_knn <- function(df_comparison, model) {
-  df_imp <- df_comparison %>% 
-    ffimp() %>% 
-    dplyr::select(time = TimeDiff,
-                  lat = Latitude.x,
-                  lon = Longitude.x,
-                  dist = Distance.y,
-                  rate = Rate.y,
-                  course = Course.y,
-                  elev = Elevation.x,
-                  slope = Slope.x,
-                  drop = Dropped.x) %>%
-    dplyr::mutate(drop = factor(drop))
-  
-  df_imp <- normalizeFeatures(df_imp, target = "drop", method = "standardize")
-  
-  task_imp <- mlr::makeClassifTask(data = df_imp %>% select(dist, rate, drop), target = "drop", positive = "1")
-  
-  fpmodel_knn <- stats::predict(model, task_imp)
-  
-  df_comparison <- df_comparison %>% 
-    dplyr::mutate(Response = as.numeric(fpmodel_knn$data$response))
-  
-  return(df_comparison)
-}
-
-
-#'
-#'Feed-forward imputation on a comparison data frame
-#'Helper function for detect_peak_knn
-#'
-#'@param df_comparison output of compare_flags 
-#'@return imputed data frame
-#'@export
-#'
-ffimp <- function(df_comparison) {
-  df_comparison <- df_comparison %>% 
-    dplyr::group_by(GPS, Date) %>%
-    dplyr::mutate(TimeDiff = ifelse(is.na(TimeDiff), dplyr::lag(TimeDiff, 1, dplyr::lead(TimeDiff, 1)), TimeDiff),
-                  Latitude.x = ifelse(is.na(Latitude.x), dplyr::lag(Latitude.x, 1, dplyr::lead(Latitude.x, 1)), Latitude.x),
-                  Longitude.x = ifelse(is.na(Longitude.x), dplyr::lag(Longitude.x, 1, dplyr::lead(Longitude.x, 1)), Longitude.x),
-                  Distance.y = ifelse(is.na(Distance.y), dplyr::lag(Distance.y, 1, dplyr::lead(Distance.y, 1)), Distance.y),
-                  Rate.y = ifelse(is.na(Rate.y), dplyr::lag(Rate.y, 1, dplyr::lead(Rate.y, 1)), Rate.y),
-                  Course.y = ifelse(is.na(Course.y), dplyr::lag(Course.y, 1, dplyr::lead(Course.y, 1)), Course.y),
-                  Elevation.x = ifelse(is.na(Elevation.x), dplyr::lag(Elevation.x, 1, dplyr::lead(Elevation.x, 1)), Elevation.x),
-                  Slope.x = ifelse(is.na(Slope.x), dplyr::lag(Slope.x, 1, dplyr::lead(Slope.x, 1)), Slope.x)) %>% 
-    dplyr::ungroup()
-  return(as.data.frame(df_comparison))
 }

@@ -25,16 +25,13 @@ GPS, date, lat, long, course, distance, rate, elevation column names should matc
 # Compare and summarise unfiltered demo cows to filtered, grouped by both Date and GPS
 \donttest{
 \dontrun{
-## Get elevation
-elevfile <- system.file("extdata/elev", "USA_msk_alt.zip", package="animaltracker")
-elev <- read_zip_to_rasters( elevfile )
 
 ## Get elevation data for unfiltered demo
-unfiltered_elev <- lookup_elevation(elev, demo_unfiltered, zoom=11, 
+unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
 get_slope=FALSE, get_aspect=FALSE)
 
 ## Get elevation data for filtered demo
-filtered_elev <- lookup_elevation(elev, demo_filtered, zoom=11, get_slope=FALSE, get_aspect=FALSE)
+filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
 
 ## Compare and summarise
 compare_summarise_daily(unfiltered_elev, filtered_elev, "ex_compare_daily.csv")

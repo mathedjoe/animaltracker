@@ -3,7 +3,11 @@ if(getRversion() >= '2.5.1') {
   globalVariables(c('dplyr', 'tibble', 'forecast',
                     'Time', 'Altitude', 'Distance', 'TimeDiff', 'Course',
                     'CourseDiff', 'DistGeo', 'RateFlag', 'CourseFlag', 'DistanceFlag',
-                    'TotalFlags', 'TimeFlag', 'DuplicateDateFlag'))
+                    'TotalFlags', 'TimeFlag', 'DuplicateDateFlag', 'RMCRecord',
+                    'ChecksumRMC', 'GGARecord', 'AltitudeM', 'HeightM', 'DGPSUpdate',
+                    'ChecksumGGA', 'DateTimeChar', 'nSatellites', 'GroundSpeed',
+                    'TrackAngle', 'hDilution', 'Height', 'Status', 'LatitudeFix',
+                    'LongitudeFix', 'MagVar'))
 }
 
 #'
@@ -14,7 +18,7 @@ if(getRversion() >= '2.5.1') {
 #'@examples
 #'# Get metadata for demo directory
 #'
-#'get_file_meta(system.file("extdata", "demo_aug19", package = "animaltracker"))
+#'get_file_meta(system.file("extdata", "demo_nov19", package = "animaltracker"))
 #'@export
 #'
 get_file_meta <- function(data_dir){
@@ -49,17 +53,27 @@ get_file_meta <- function(data_dir){
 #'@examples
 #'# Clean a data frame from csv
 #'
-#'## Read data frame
-#'bannock_df <- read.csv(system.file("extdata", "demo_aug19/Bannock_2017_101_1149.csv", 
+#'## Read igotU data
+#'bannock_df <- read.csv(system.file("extdata", "demo_nov19/Bannock_2017_101_1149.csv", 
 #'package = "animaltracker"), skipNul=TRUE)
 #'
 #'## Clean and filter
-#'clean_location_data(bannock_df, filters = TRUE, aniid = 1149, 
-#'gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100, timezone = "UTC")
+#'clean_location_data(bannock_df, dtype = "igotu", filters = TRUE, aniid = 1149, 
+#'gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100)
 #'
 #'## Clean without filtering
-#'clean_location_data(bannock_df, filters = FALSE, aniid = 1149, 
-#'gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100, timezone = "UTC")
+#'clean_location_data(bannock_df, dtype = "igotu", filters = FALSE, aniid = 1149, 
+#'gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100)
+#'
+#'# Clean a data frame from txt
+#'
+#'## Read Columbus P-1 data
+#'columbus_df <- read_columbus(system.file("extdata", "demo_columbus.TXT", 
+#'package = "animaltracker"))
+#'
+#'## Clean and filter
+#'clean_location_data(columbus_df, dtype = "columbus", filters = TRUE, aniid = 1149, 
+#'gpsid = 101, maxrate = 84, maxdist = 840, maxtime = 100)
 #'@export
 #'
 clean_location_data <- function(df, dtype, filters = TRUE, 
@@ -72,11 +86,14 @@ clean_location_data <- function(df, dtype, filters = TRUE,
       dplyr::mutate( 
         DateTime = lubridate::with_tz(as.POSIXct(DateTimeChar, format = "%d%m%y %H%M%OS", tz = tz_in), tz = tz_out),
         Date = NA,
-        Time = strftime(DateTime, format="%H:%M:%OS", tz=tz_out)
+        Time = strftime(DateTime, format="%H:%M:%OS", tz=tz_out),
+        Course = calc_bearing(dplyr::lag(Latitude, 1, default = first(Latitude)), dplyr::lag(Longitude, 1, default = first(Longitude)), Latitude, Longitude),
+        Distance = geosphere::distGeo(cbind(Longitude, Latitude), 
+                                      cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) )))
       ) %>%
       dplyr::select(
         Date, Time, DateTime, Latitude, Longitude, Altitude, nSatellites, GroundSpeed, 
-        TrackAngle, hDilution, Height, Status, LatitudeFix, LongitudeFix, MagVar
+        TrackAngle, hDilution, Height, Status, LatitudeFix, LongitudeFix, MagVar, Course, Distance
       ) 
   }
   if(dtype == "igotu") {
@@ -109,21 +126,16 @@ clean_location_data <- function(df, dtype, filters = TRUE,
   df <- df %>% 
     dplyr::mutate(
       TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), # compute sequential time differences (in seconds)
-      TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))) # compute sequential time differences (in mins)
+      TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
+      Rate = ifelse(TimeDiffMins != 0, Distance/TimeDiffMins, 0), # compute rate of travel (meters/min), default to 0 to prevent divide by 0 error
+      CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
+      DistGeo = geosphere::distGeo(cbind(Longitude, Latitude), 
+                                     cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))), #compute geodesic distance between points
+      RateFlag = 1*(Rate > maxrate), # flag any data points representing too fast travel
+      CourseFlag = 1*(CourseDiff >= maxcourse),
+      DistanceFlag = 1*(DistGeo >= maxdist)# compute sequential time differences (in mins)
     ) 
   
-  if(dtype == "igotu") {
-    df <- df %>% 
-      dplyr::mutate(
-        Rate = ifelse(TimeDiffMins != 0, Distance/TimeDiffMins, 0), # compute rate of travel (meters/min), default to 0 to prevent divide by 0 error
-        CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
-        DistGeo = geosphere::distGeo(cbind(Longitude, Latitude), 
-                                     cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))), #compute geodesic distance between points
-        RateFlag = 1*(Rate > maxrate), # flag any data points representing too fast travel
-        CourseFlag = 1*(CourseDiff >= maxcourse),
-        DistanceFlag = 1*(DistGeo >= maxdist)
-      )
-    
     if(filters) {
       df <- df %>%
         dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistanceFlag ) %>%
@@ -138,6 +150,11 @@ clean_location_data <- function(df, dtype, filters = TRUE,
                                        cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude))))
         ) %>%
         dplyr::select(-c("RateFlag", "CourseFlag", "DistanceFlag", "TotalFlags")) # remove flags after use
+      
+      if(dtype == "columbus") {
+        df <- df %>% 
+          dplyr::mutate(Distance = DistGeo)
+      }
     }
     else {
       df <- df %>% 
@@ -147,7 +164,7 @@ clean_location_data <- function(df, dtype, filters = TRUE,
         tibble::add_column(DuplicateDateFlag = 1*duplicated(df$DateTime)) %>%
         dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistanceFlag + TimeFlag + DuplicateDateFlag)
     }
-  }
+    
   return(as.data.frame(df))
 }
 
@@ -164,7 +181,7 @@ clean_location_data <- function(df, dtype, filters = TRUE,
 #'# Clean all animal GPS .csv datasets in the demo directory
 #'\donttest{
 #'\dontrun{
-#'clean_export_files(system.file("extdata", "demo_aug19", package = "animaltracker"), 
+#'clean_export_files(system.file("extdata", "demo_nov19", package = "animaltracker"), 
 #'cleaned_filename = "ex_animal_data.rds", cleaned_dir = "clean_export_ex", tz = "UTC")
 #'}
 #'}
@@ -252,7 +269,7 @@ clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", c
 #'@examples
 #'# Detect large files in the demo directory and add to the .gitignore file
 #'\dontrun{
-#'dev_add_to_gitignore(system.file("extdata", "demo_aug19", package = "animaltracker"))
+#'dev_add_to_gitignore(system.file("extdata", "demo_nov19", package = "animaltracker"))
 #'}
 #'@export
 #'
