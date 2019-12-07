@@ -574,167 +574,103 @@ app_server <- function(input, output, session) {
   # Summary Statistics
   
   # Time Difference
-  output$timediff_title <- renderUI({
-    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("TimeDiffMins" %in% input$selected_cols)) 
-      return()
-    h4("Time Difference (minutes) Between GPS Measurements")
-  })
+ 
+  timediff_title <- callModule(statsLabel, "timediff_title", 
+                               reactive(input$selected_cols), reactive(input$selected_stats), 
+                               "TimeDiffMins", "Time Difference (minutes) Between GPS Measurements")
   
-  timediff_stats <- reactive({
-    if(!("TimeDiffMins" %in% input$selected_cols) | is.null(input$selected_stats)) 
-      return()
-    
-    summary <- summarise_col(dat(), TimeDiffMins) 
-    subset(summary, select=c("Animal", input$selected_stats))
-    
-  })
   
-  output$timediff <- renderTable(timediff_stats())
+  timediff <- callModule(stats, "timediff", 
+                         reactive(input$selected_cols), reactive(input$selected_stats), 
+                         "TimeDiffMins", TimeDiffMins, dat)
   
   # Elevation
-  output$elevation_title <- renderUI({
-    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Elevation" %in% input$selected_cols)) 
-      return()
-    h4("Elevation")
-  })
   
-  elevation_stats <- reactive({
-    if(!("Elevation" %in% input$selected_cols) | is.null(input$selected_stats)) 
-      return()
-    
-    summary <- summarise_col(dat(), Elevation) 
-    subset(summary, select=c("Animal", input$selected_stats))
-    
-  })
+  elevation_title <- callModule(statsLabel, "elevation_title", 
+                               reactive(input$selected_cols), reactive(input$selected_stats), 
+                               "Elevation", "Elevation")
   
-  output$elevation <- renderTable(elevation_stats())
+  
+  elevation <- callModule(stats, "elevation", 
+                         reactive(input$selected_cols), reactive(input$selected_stats), 
+                         "Elevation", Elevation, dat)
   
   # Speed
-  output$speed_title <- renderUI({
-    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Speed" %in% input$selected_cols)) 
-      return()
-    h4("Speed")
-  })
   
-  speed_stats <- reactive({
-    if(!("Speed" %in% input$selected_cols) | is.null(input$selected_stats)) 
-      return()
-    
-    summary <- summarise_col(dat(), Speed) 
-    subset(summary, select=c("Animal", input$selected_stats))
-    
-  })
+  speed_title <- callModule(statsLabel, "speed_title", 
+                            reactive(input$selected_cols), reactive(input$selected_stats), 
+                            "Speed", "Speed")
   
-  output$speed <- renderTable(speed_stats())
+  
+  speed <- callModule(stats, "speed", 
+                      reactive(input$selected_cols), reactive(input$selected_stats), 
+                      "Speed", Speed, dat)
   
   # Course
-  output$course_title <- renderUI({
-    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Course" %in% input$selected_cols)) 
-      return()
-    h4("Course")
-  })
   
-  course_stats <- reactive({
-    if(!("Course" %in% input$selected_cols) | is.null(input$selected_stats)) 
-      return()
-    
-    summary <- summarise_col(dat(), Course) 
-    subset(summary, select=c("Animal", input$selected_stats))
-    
-  })
+  course_title <- callModule(statsLabel, "course_title", 
+                             reactive(input$selected_cols), reactive(input$selected_stats), 
+                             "Course", "Course")
   
-  output$course <- renderTable(course_stats())
+  
+  course <- callModule(stats, "course", 
+                       reactive(input$selected_cols), reactive(input$selected_stats), 
+                       "Course", Course, dat)
   
   # Course Difference
-  output$coursediff_title <- renderUI({
-    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("CourseDiff" %in% input$selected_cols)) 
-      return()
-    h4("Course Difference Between GPS Measurements")
-  })
   
-  coursediff_stats <- reactive({
-    if(!("CourseDiff" %in% input$selected_cols) | is.null(input$selected_stats)) 
-      return()
-    
-    summary <- summarise_col(dat(), CourseDiff) 
-    subset(summary, select=c("Animal", input$selected_stats))
-    
-  })
+  coursediff_title <- callModule(statsLabel, "coursediff_title", 
+                             reactive(input$selected_cols), reactive(input$selected_stats), 
+                             "Course", "Course Difference Between GPS Measurements")
   
-  output$coursediff <- renderTable(coursediff_stats())
+  
+  coursediff <- callModule(stats, "coursediff", 
+                       reactive(input$selected_cols), reactive(input$selected_stats), 
+                       "CourseDiff", CourseDiff, dat)
   
   # Distance
-  output$distance_title <- renderUI({
-    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Distance" %in% input$selected_cols)) 
-      return()
-    h4("Distance")
-  })
   
-  distance_stats <- reactive({
-    if(!("Distance" %in% input$selected_cols) | is.null(input$selected_stats)) 
-      return()
-    
-    summary <- summarise_col(dat(), Distance) 
-    subset(summary, select=c("Animal", input$selected_stats))
-    
-  })
+  distance_title <- callModule(statsLabel, "distance_title", 
+                             reactive(input$selected_cols), reactive(input$selected_stats), 
+                             "Course", "Course")
   
-  output$distance <- renderTable(distance_stats())
+  
+  distance <- callModule(stats, "distance", 
+                       reactive(input$selected_cols), reactive(input$selected_stats), 
+                       "Distance", Distance, dat)
   
   # Rate
-  output$rate_title <- renderUI({
-    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Rate" %in% input$selected_cols)) 
-      return()
-    h4("Rate")
-  })
   
-  rate_stats <- reactive({
-    if(!("Rate" %in% input$selected_cols) | is.null(input$selected_stats)) 
-      return()
-    
-    summary <- summarise_col(dat(), Rate) 
-    subset(summary, select=c("Animal", input$selected_stats))
-    
-  })
-  output$rate <- renderTable(rate_stats())
+  rate_title <- callModule(statsLabel, "rate_title", 
+                             reactive(input$selected_cols), reactive(input$selected_stats), 
+                             "Rate", "Rate")
+  
+  
+  rate <- callModule(stats, "rate", 
+                       reactive(input$selected_cols), reactive(input$selected_stats), 
+                       "Rate", Rate, dat)
   
   # Slope
   
-  output$slope_title <- renderUI({
-    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Slope" %in% input$selected_cols) | !("Slope" %in% colnames(dat()))) 
-      return()
-    h4("Slope")
-  })
+  slope_title <- callModule(statsLabel, "slope_title", 
+                             reactive(input$selected_cols), reactive(input$selected_stats), 
+                             "Slope", "Slope")
   
-  slope_stats <- reactive({
-    if(!("Slope" %in% input$selected_cols) | is.null(input$selected_stats) | !("Slope" %in% colnames(dat()))) 
-      return()
-    
-    summary <- summarise_col(dat(), Slope) 
-    subset(summary, select=c("Animal", input$selected_stats))
-    
-  })
   
-  output$slope <- renderTable(slope_stats())
+  slope <- callModule(stats, "slope", 
+                       reactive(input$selected_cols), reactive(input$selected_stats), 
+                       "Slope", Slope, dat)
   
   # Aspect
   
-  output$aspect_title <- renderUI({
-    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Aspect" %in% input$selected_cols) | !("Aspect" %in% colnames(dat()))) 
-      return()
-    h4("Aspect")
-  })
+  aspect_title <- callModule(statsLabel, "aspect_title", 
+                             reactive(input$selected_cols), reactive(input$selected_stats), 
+                             "Aspect", "Aspect")
   
-  aspect_stats <- reactive({
-    if(!("Aspect" %in% input$selected_cols) | is.null(input$selected_stats) | !("Aspect" %in% colnames(dat()))) 
-      return()
-    
-    summary <- summarise_col(dat(), Aspect) 
-    subset(summary, select=c("Animal", input$selected_stats))
-    
-  })
   
-  output$aspect <- renderTable(aspect_stats())
+  aspect <- callModule(stats, "aspect", 
+                       reactive(input$selected_cols), reactive(input$selected_stats), 
+                       "Aspect", Aspect, dat)
   
   ##############################################################
   # SUBSET DATA VIA MAP

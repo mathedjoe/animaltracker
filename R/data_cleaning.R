@@ -7,7 +7,7 @@ if(getRversion() >= '2.5.1') {
                     'ChecksumRMC', 'GGARecord', 'AltitudeM', 'HeightM', 'DGPSUpdate',
                     'ChecksumGGA', 'DateTimeChar', 'nSatellites', 'GroundSpeed',
                     'TrackAngle', 'hDilution', 'Height', 'Status', 'LatitudeFix',
-                    'LongitudeFix', 'MagVar'))
+                    'LongitudeFix', 'MagVar', 'Satelite'))
 }
 
 #'
@@ -102,6 +102,7 @@ clean_location_data <- function(df, dtype, filters = TRUE,
       tibble::add_column(Rate = NA, .after="Distance") %>%
       tibble::add_column(CourseDiff = NA, .after="Course") %>%
       dplyr::mutate(
+        nSatellites = nchar(as.character(Satelite)) - nchar(gsub("X", "", as.character(Satelite))),
         DateTime = lubridate::with_tz(lubridate::ymd_hms(paste(Date, Time), tz=tz_in, quiet = TRUE), tz=tz_out),
         Time = strftime(DateTime, format="%H:%M:%S", tz=tz_out) # reclassify Date as a Date variable
       )
