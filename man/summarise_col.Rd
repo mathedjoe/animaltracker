@@ -9,7 +9,7 @@ summarise_col(df, col)
 \arguments{
 \item{df}{animal data frame}
 
-\item{col}{column to get summary stats for, as a string}
+\item{col}{column to get summary stats for}
 }
 \value{
 data frame of summary stats for col
