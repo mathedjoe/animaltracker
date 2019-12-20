@@ -53,9 +53,9 @@ app_ui <- function(){
                           hr(),
                           
                           h4("Select Data"),
-                          uiOutput("choose_site") %>% shinycssloaders::withSpinner(),
-                          uiOutput("choose_ani"),
-                          uiOutput("choose_dates"),
+                          reactivePickerOutput("choose_site") %>% shinycssloaders::withSpinner(),
+                          reactivePickerOutput("choose_ani"),
+                          dateSliderOutput("choose_dates"),
                           
                           hr(),
                           
@@ -76,8 +76,10 @@ app_ui <- function(){
                           leafletOutput("mainmap", height = 640) %>% shinycssloaders::withSpinner(),
                           htmlOutput("mapinfo"),
                           h4("Recent Data"),
-                          uiOutput("choose_recent")
-                          
+                          reactivePickerOutput("choose_recent"),
+                          textOutput("nrow_recent"),
+                          br(),
+                          tableOutput("head_recent")
                           
                         ) #mainPanel
                       ) #sidebarLayout
@@ -98,11 +100,11 @@ app_ui <- function(){
                         
                         sidebarPanel(
                           h4("Variables"),
-                          uiOutput("choose_cols"),
+                          staticPickerOutput("choose_cols"),
                           hr(),
                           
                           h4("Summary Statistics"),
-                          uiOutput("choose_stats")
+                          staticPickerOutput("choose_stats")
                         ),
                         
                         mainPanel(

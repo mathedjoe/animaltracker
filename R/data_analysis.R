@@ -64,7 +64,7 @@ quantile_time <- function(rds_path) {
 #'Get summary statistics for a single column in an animal data frame
 #'
 #'@param df animal data frame
-#'@param col column to get summary stats for, as a string
+#'@param col column to get summary stats for
 #'@return data frame of summary stats for col
 #'@examples
 #'# Get summary statistics for Distance column of demo data
@@ -73,22 +73,21 @@ quantile_time <- function(rds_path) {
 #'
 #'@export
 summarise_col <- function(df, col) {
-  col <- enquo(col)
   summary <- df %>%
     dplyr::group_by(Animal) %>%
-    dplyr::filter(!all(is.na(!!col))) %>% 
+    dplyr::filter(!all(is.na({{col}}))) %>% 
     dplyr::summarise(
       N = n(),
-      Mean = mean(!!col),
-      Median = stats::median(!!col),
-      SD = stats::sd(!!col),
-      Variance = stats::var(!!col),
-      Q1 = stats::quantile(!!col, 0.25),
-      Q3 = stats::quantile(!!col, 0.75),
-      IQR = stats::IQR(!!col),
-      Range = (max(!!col)-min(!!col)),
-      Min = min(!!col),
-      Max = max(!!col)
+      Mean = mean({{col}}),
+      Median = stats::median({{col}}),
+      SD = stats::sd({{col}}),
+      Variance = stats::var({{col}}),
+      Q1 = stats::quantile({{col}}, 0.25),
+      Q3 = stats::quantile({{col}}, 0.75),
+      IQR = stats::IQR({{col}}),
+      Range = (max({{col}})-min({{col}})),
+      Min = min({{col}}),
+      Max = max({{col}})
     )
   return(summary)
 }
@@ -274,35 +273,28 @@ compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
 #'@export
 #'
 summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev, daily=F) {
-  by <- dplyr::enquo(by)
-  lat <- dplyr::enquo(lat)
-  long <- dplyr::enquo(long)
-  dist <- dplyr::enquo(dist)
-  course <- dplyr::enquo(course)
-  rate <- dplyr::enquo(rate)
-  elev <- dplyr::enquo(elev)
   if(daily) {
     anidf <- anidf %>% 
       dplyr::group_by(GPS, Date)
   }
   else {
     anidf <- anidf %>% 
-      dplyr::group_by(!!by) 
+      dplyr::group_by({{by}}) 
   }
   anidf %>% 
     dplyr::summarise(n = n(),
-                     meanLat = mean(!!lat),
-                     sdLat = stats::sd(!!lat),
-                     meanLong = mean(!!long),
-                     sdLong = stats::sd(!!long),
-                     meanDist = mean(!!dist),
-                     sdDist = stats::sd(!!dist),
-                     meanCourse = mean(!!course),
-                     sdCourse = stats::sd(!!course),
-                     meanRate = mean(!!rate),
-                     sdRate = stats::sd(!!rate),
-                     meanElev = mean(!!elev),
-                     sdElev = stats::sd(!!elev))
+                     meanLat = mean({{lat}}),
+                     sdLat = stats::sd({{lat}}),
+                     meanLong = mean({{long}}),
+                     sdLong = stats::sd({{long}}),
+                     meanDist = mean({{dist}}),
+                     sdDist = stats::sd({{dist}}),
+                     meanCourse = mean({{course}}),
+                     sdCourse = stats::sd({{course}}),
+                     meanRate = mean({{rate}}),
+                     sdRate = stats::sd({{rate}}),
+                     meanElev = mean({{elev}}),
+                     sdElev = stats::sd({{elev}}))
 }
 
 #'
@@ -439,11 +431,9 @@ join_summaries <- function(correct_summary, candidate_summary, by_str, daily=F) 
 #'@export
 #'
 violin_compare <- function(df_summary, by, col_name, out) {
-  by <- dplyr::enquo(by)
-  
   df_summary <- df_summary %>% 
-    dplyr::select(!!by, paste0(col_name, ".x"), paste0(col_name, ".y")) %>% 
-    tidyr::gather("source", obs, -!!by) %>% 
+    dplyr::select({{by}}, paste0(col_name, ".x"), paste0(col_name, ".y")) %>% 
+    tidyr::gather("source", obs, -{{by}}) %>% 
     dplyr::mutate(source = gsub(paste0(col_name, "\\."), "", source)) %>% 
     dplyr::mutate(source = gsub("x", "Correct", source)) %>% 
     dplyr::mutate(source = gsub("y", "Candidate", source))
@@ -482,16 +472,15 @@ violin_compare <- function(df_summary, by, col_name, out) {
 #'@export
 #'
 line_compare <- function(correct, candidate, col, out) {
-  col_name <- dplyr::enquo(col)
   
   correct <- correct %>% 
     dplyr::group_by(GPS, Date) %>% 
-    dplyr::summarise(avg = mean(!!col_name)) %>% 
+    dplyr::summarise(avg = mean({{col}})) %>% 
     dplyr::mutate(Data = "Correct")
   
   candidate <- candidate %>% 
     dplyr::group_by(GPS, Date) %>% 
-    dplyr::summarise(avg = mean(!!col_name)) %>% 
+    dplyr::summarise(avg = mean({{col}})) %>% 
     dplyr::mutate(Data = "Candidate")
   
   plot_data <- dplyr::bind_rows(correct, candidate)

@@ -54,7 +54,7 @@ stats <- function(input, output, session, selected_cols, selected_stats, col_nam
   generate_table <- reactive({
     if(!(col_name %in% selected_cols()) | is.null(selected_stats())) 
       return()
-    summary <- summarise_col(dat(), TimeDiffMins)
+    summary <- summarise_col(dat(), {{col}})
     renderTable(subset(summary, select=c("Animal", selected_stats())))
   })
   observe ({

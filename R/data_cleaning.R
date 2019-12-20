@@ -120,7 +120,7 @@ clean_location_data <- function(df, dtype, filters = TRUE,
   
   if(filters) {
     df <- df %>% 
-      dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time)) %>% # filter missing time slots before calculating differences
+      dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time), nSatellites > 0) %>% 
       dplyr::distinct(DateTime, .keep_all = TRUE) # remove duplicate timestamps
   }
   

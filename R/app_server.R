@@ -38,7 +38,8 @@ app_server <- function(input, output, session) {
       return(demo_unfiltered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), filters = FALSE))
+      return(clean_batch_df(raw_dat(), filters = FALSE, 
+                            zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox))
     }
   })
   
@@ -47,7 +48,8 @@ app_server <- function(input, output, session) {
       return(demo_filtered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), filters = TRUE))
+      return(clean_batch_df(raw_dat(), filters = TRUE,
+                            zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox))
     }
   })
   
@@ -83,24 +85,24 @@ app_server <- function(input, output, session) {
   
   # main dynamic data set
   dat_main <- reactive({
-    req(input$selected_ani, input$dates, meta)
+    req(choose_ani(), choose_dates(), meta)
     
     meta <- meta()
     
-    if(any(meta$ani_id  %in% input$selected_ani) ){
+    if(any(meta$ani_id  %in% choose_ani()) ){
       meta <- meta %>%
-        dplyr::filter(ani_id %in% input$selected_ani)
+        dplyr::filter(ani_id %in% choose_ani())
     }
     
-    ani_names <- paste(input$selected_ani, collapse = ", ")
-    cache_name <- paste0(ani_names,", ",input$dates[1],"-",input$dates[2])
+    ani_names <- paste(choose_ani(), collapse = ", ")
+    cache_name <- paste0(ani_names,", ",choose_dates()[1],"-",choose_dates()[2])
     
     if(!(cache_name %in% names(cache()))) {
       # if no user provided data, use demo data
       if(is.null(input$zipInput)) {
         current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id,
-                 Date <= input$dates[2],
-                 Date >= input$dates[1])
+                 Date <= choose_dates()[2],
+                 Date >= choose_dates()[1])
         if(nrow(current_df) == 0) {
           current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id)
         }
@@ -109,8 +111,8 @@ app_server <- function(input, output, session) {
       else {
         # temporarily set current_df to cached df to avoid error
         current_df <- cache()[[1]]
-        if(any(meta$ani_id  %in% input$selected_ani) ){
-          current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
+        if(any(meta$ani_id  %in% choose_ani()) ){
+          current_df <- get_data_from_meta(meta, choose_dates()[1], choose_dates()[2])
         }
       }
      
@@ -120,7 +122,7 @@ app_server <- function(input, output, session) {
               
       # enqueue to cache
       updated_cache <- cache()
-      updated_cache[[cache_name]] <- list(df = current_df, ani = input$selected_ani, date1 = input$dates[1], date2 = input$dates[2])
+      updated_cache[[cache_name]] <- list(df = current_df, ani = choose_ani(), date1 = choose_dates()[1], date2 = choose_dates()[2])
       
       # dequeue if there are more than 5 dfs 
       if(length(updated_cache) > 5) {
@@ -128,15 +130,16 @@ app_server <- function(input, output, session) {
       }
       cache(updated_cache)
     }
-    if(is.null(input$selected_recent)) {
+    if(is.null(choose_recent())) {
       return(cache()[[1]]$df)
     }
     else {
-      return(cache()[[input$selected_recent]]$df)
+      return(cache()[[choose_recent()]]$df)
     }
   })
   
-  
+  output$nrow_recent <- renderText(paste0(nrow(dat_main()), " rows selected"))
+  output$head_recent <- renderTable(head(dat_main() %>% dplyr::select(Date, Time, Animal, GPS, Latitude, Longitude, Distance, Rate, Course, Elevation)))
   
   ######################################
   ## DYNAMIC USER INTERFACE
@@ -163,107 +166,40 @@ app_server <- function(input, output, session) {
   })
   
   # select data sites
-  output$choose_site <- renderUI({
-    req(meta)
-    
-    meta <- meta()
-    
-    site_choices <- as.list(as.character(unique(meta$site)))
-    
-    shinyWidgets::pickerInput("selected_site", "Select Site(s)",
-                choices = site_choices,
-                selected = site_choices[c(1,2)],
-                multiple = TRUE,
-                inline = FALSE, options = list(`actions-box` = TRUE)
-    ) 
-  }) 
+  choose_site <- callModule(reactivePicker, "choose_site",
+                            type = "site", req_list = list(meta = meta), 
+                            text = "Select Site(s)", min_selected = 1, max_selected = 2, 
+                            multiple = TRUE, options = list(`actions-box` = TRUE))
   
   
   # select animals
-  output$choose_ani <- renderUI({
-    
-    req(meta, input$selected_site)
-    
-    meta <- meta()
-    
-    if(nrow(meta %>% dplyr::filter(site %in% input$selected_site)) > 0) {
-      meta <- meta %>% dplyr::filter(site %in% input$selected_site) 
-    }
-    
-    ani_choices <- as.list(as.character(unique(meta$ani_id)))
-   
-    shinyWidgets::pickerInput("selected_ani", "Select Animal(s)",
-                choices = ani_choices,
-                selected = ani_choices[1:4],
-                multiple = TRUE, 
-                inline = FALSE, options = list(`actions-box` = TRUE)
-    )
-  })
+  choose_ani <- callModule(reactivePicker, "choose_ani",
+                           type = "ani", req_list = list(meta = meta, selected_site = choose_site),
+                           text = "Select Animal(s)", min_selected = 1, max_selected = 4,
+                           multiple = TRUE, options = list(`actions-box` = TRUE))
   
   # select dates
-  output$choose_dates <- renderUI({
-    
-    req(meta, input$selected_ani)
-    
-    # Get the data set with the appropriate name
-    
-    meta <- meta()
-    
-    if(nrow(meta() %>% dplyr::filter(ani_id %in% input$selected_ani)) > 0) {
-      meta <- meta %>% dplyr::filter(ani_id %in% input$selected_ani)
-    }
-    
-    max_date <- max(as.Date(meta$max_date), na.rm=TRUE)
-    min_date <- min(as.Date(meta$min_date), na.rm=TRUE)
-        
-    sliderInput("dates", "Date Range", min = min_date,
-                max = max_date, value = c(min_date, max_date), step = 1,
-                animate = animationOptions(loop = FALSE, interval = 1000))
-    
-    
-  })
+  choose_dates <- callModule(dateSlider, "choose_dates",
+                             req_list = list(meta = meta, selected_ani = choose_ani), text = "Date Range")
   
   
   # select variables to compute statistics
-  output$choose_cols <- renderUI({
-    req(input$selected_ani) 
-    
-    var_choices <- c( "Elevation", "TimeDiffMins", "Course", "CourseDiff", "Distance", "Rate", "Slope", "Aspect")
-    shinyWidgets::pickerInput("selected_cols", "Choose Variables for Statistics",
-                choices = var_choices,
-                selected = var_choices[c(1,2,3,4)],
-                multiple = TRUE,
-                inline = FALSE, options = list(`actions-box` = TRUE)
-    )
-  })
+  choose_cols <- callModule(staticPicker, "choose_cols",
+                            selected_ani = choose_ani, text = "Choose Variables for Statistics",
+                            choices = c("Elevation", "TimeDiffMins", "Course", "CourseDiff", "Distance", "Rate", "Slope", "Aspect"),
+                            min_selected = 1, max_selected = 4)
   
   # select summary statistics
-  output$choose_stats <- renderUI({
-    req(input$selected_ani)
-    
-    stats_choices <- c("N", "Mean", "SD", "Variance", "Min", "Max", "Range", "IQR",  "Q1", "Median", "Q3" )
-    shinyWidgets::pickerInput("selected_stats", "Choose Summary Statistics",
-                choices = stats_choices,
-                selected = stats_choices[1:6],
-                multiple = TRUE,
-                inline = FALSE, options = list(`actions-box` = TRUE)
-    )
-  })
+  choose_stats <- callModule(staticPicker, "choose_stats",
+                             selected_ani = choose_ani, text = "Choose Summary Statistics",
+                             choices = c("N", "Mean", "SD", "Variance", "Min", "Max", "Range", "IQR",  "Q1", "Median", "Q3"),
+                             min_selected = 1, max_selected = 6)
   
   # select recent data
-  
-  output$choose_recent <- renderUI({
-    req(dat_main)
-    ani_names <- paste(input$selected_ani, collapse = ", ")
-    cache_name <- paste0(ani_names,", ",input$dates[1],"-",input$dates[2])
-    recent_choices <- names(cache())
-    shinyWidgets::pickerInput("selected_recent", "Select Data",
-                choices = recent_choices,
-                selected = cache_name,
-                multiple = FALSE,
-                inline = FALSE
-    )
-  })
+  choose_recent <- callModule(reactivePicker, "choose_recent",
+                              type = "recent", 
+                              req_list = list(dat_main = dat_main, selected_ani = choose_ani, dates = reactive({choose_dates()}), cache = cache),
+                              text = "Select Data", multiple = FALSE)
   
   # spatial points for maps
   points_main <- reactive({
@@ -354,16 +290,16 @@ app_server <- function(input, output, session) {
   last_locations <- reactiveVal(NULL)
   
   observe({
-    req(points, input$selected_ani)
+    req(points, choose_ani())
     
     pts <- points()
     
-    if (is.null(input$selected_recent)) {
+    if (is.null(choose_recent())) {
       return(leaflet() %>%  # Add tiles
                addTiles(group = "street map"))
     }
     
-    current_anilist <- cache()[[input$selected_recent]]
+    current_anilist <- cache()[[choose_recent()]]
     
     factpal <-
       colorFactor(scales::hue_pal()(length(current_anilist$ani)), current_anilist$ani)
@@ -576,100 +512,100 @@ app_server <- function(input, output, session) {
   # Time Difference
  
   timediff_title <- callModule(statsLabel, "timediff_title", 
-                               reactive(input$selected_cols), reactive(input$selected_stats), 
+                               choose_cols, choose_stats, 
                                "TimeDiffMins", "Time Difference (minutes) Between GPS Measurements")
   
   
   timediff <- callModule(stats, "timediff", 
-                         reactive(input$selected_cols), reactive(input$selected_stats), 
+                         choose_cols, choose_stats, 
                          "TimeDiffMins", TimeDiffMins, dat)
   
   # Elevation
   
   elevation_title <- callModule(statsLabel, "elevation_title", 
-                               reactive(input$selected_cols), reactive(input$selected_stats), 
+                               choose_cols, choose_stats, 
                                "Elevation", "Elevation")
   
   
   elevation <- callModule(stats, "elevation", 
-                         reactive(input$selected_cols), reactive(input$selected_stats), 
+                         choose_cols, choose_stats, 
                          "Elevation", Elevation, dat)
   
   # Speed
   
   speed_title <- callModule(statsLabel, "speed_title", 
-                            reactive(input$selected_cols), reactive(input$selected_stats), 
+                            choose_cols, choose_stats, 
                             "Speed", "Speed")
   
   
   speed <- callModule(stats, "speed", 
-                      reactive(input$selected_cols), reactive(input$selected_stats), 
+                      choose_cols, choose_stats, 
                       "Speed", Speed, dat)
   
   # Course
   
   course_title <- callModule(statsLabel, "course_title", 
-                             reactive(input$selected_cols), reactive(input$selected_stats), 
+                             choose_cols, choose_stats, 
                              "Course", "Course")
   
   
   course <- callModule(stats, "course", 
-                       reactive(input$selected_cols), reactive(input$selected_stats), 
+                       choose_cols, choose_stats, 
                        "Course", Course, dat)
   
   # Course Difference
   
   coursediff_title <- callModule(statsLabel, "coursediff_title", 
-                             reactive(input$selected_cols), reactive(input$selected_stats), 
-                             "Course", "Course Difference Between GPS Measurements")
+                             choose_cols, choose_stats, 
+                             "CourseDiff", "Course Difference Between GPS Measurements")
   
   
   coursediff <- callModule(stats, "coursediff", 
-                       reactive(input$selected_cols), reactive(input$selected_stats), 
+                       choose_cols, choose_stats, 
                        "CourseDiff", CourseDiff, dat)
   
   # Distance
   
   distance_title <- callModule(statsLabel, "distance_title", 
-                             reactive(input$selected_cols), reactive(input$selected_stats), 
-                             "Course", "Course")
+                             choose_cols, choose_stats, 
+                             "Distance", "Distance")
   
   
   distance <- callModule(stats, "distance", 
-                       reactive(input$selected_cols), reactive(input$selected_stats), 
+                       choose_cols, choose_stats, 
                        "Distance", Distance, dat)
   
   # Rate
   
   rate_title <- callModule(statsLabel, "rate_title", 
-                             reactive(input$selected_cols), reactive(input$selected_stats), 
+                             choose_cols, choose_stats, 
                              "Rate", "Rate")
   
   
   rate <- callModule(stats, "rate", 
-                       reactive(input$selected_cols), reactive(input$selected_stats), 
+                       choose_cols, choose_stats, 
                        "Rate", Rate, dat)
   
   # Slope
   
   slope_title <- callModule(statsLabel, "slope_title", 
-                             reactive(input$selected_cols), reactive(input$selected_stats), 
+                             choose_cols, choose_stats, 
                              "Slope", "Slope")
   
   
   slope <- callModule(stats, "slope", 
-                       reactive(input$selected_cols), reactive(input$selected_stats), 
+                       choose_cols, choose_stats, 
                        "Slope", Slope, dat)
   
   # Aspect
   
   aspect_title <- callModule(statsLabel, "aspect_title", 
-                             reactive(input$selected_cols), reactive(input$selected_stats), 
+                             choose_cols, choose_stats, 
                              "Aspect", "Aspect")
   
   
   aspect <- callModule(stats, "aspect", 
-                       reactive(input$selected_cols), reactive(input$selected_stats), 
+                       choose_cols, choose_stats, 
                        "Aspect", Aspect, dat)
   
   ##############################################################
