@@ -76,8 +76,10 @@ app_ui <- function(){
                           leafletOutput("mainmap", height = 640) %>% shinycssloaders::withSpinner(),
                           htmlOutput("mapinfo"),
                           h4("Recent Data"),
-                          reactivePickerOutput("choose_recent")
-                          
+                          reactivePickerOutput("choose_recent"),
+                          textOutput("nrow_recent"),
+                          br(),
+                          tableOutput("head_recent")
                           
                         ) #mainPanel
                       ) #sidebarLayout

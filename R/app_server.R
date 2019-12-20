@@ -38,7 +38,8 @@ app_server <- function(input, output, session) {
       return(demo_unfiltered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), filters = FALSE))
+      return(clean_batch_df(raw_dat(), filters = FALSE, 
+                            zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox))
     }
   })
   
@@ -47,7 +48,8 @@ app_server <- function(input, output, session) {
       return(demo_filtered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), filters = TRUE))
+      return(clean_batch_df(raw_dat(), filters = TRUE,
+                            zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox))
     }
   })
   
@@ -136,7 +138,8 @@ app_server <- function(input, output, session) {
     }
   })
   
-  
+  output$nrow_recent <- renderText(paste0(nrow(dat_main()), " rows selected"))
+  output$head_recent <- renderTable(head(dat_main() %>% dplyr::select(Date, Time, Animal, GPS, Latitude, Longitude, Distance, Rate, Course, Elevation)))
   
   ######################################
   ## DYNAMIC USER INTERFACE
