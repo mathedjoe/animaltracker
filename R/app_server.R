@@ -23,12 +23,18 @@ if(getRversion() >= '2.5.1') {
 #'@export
 #'
 app_server <- function(input, output, session) {
+  # initialize list of datasets
+  meta <- reactiveVal(demo_meta)
+  uploaded <- reactiveVal(FALSE)
   
   raw_dat <- reactive({
     if(is.null(input$zipInput)) {
       return(demo_info)
     }
-    return(store_batch_list(input$zipInput))
+    uploaded(TRUE)
+    dat_info <- store_batch_list(input$zipInput)
+    meta(dat_info$meta)
+    return(dat_info)
   })
   
   output$numUploaded <- renderText(paste0(ifelse(is.null(input$zipInput), 0, length(raw_dat()$data)), " files uploaded"))
@@ -52,10 +58,6 @@ app_server <- function(input, output, session) {
                             zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox))
     }
   })
-  
-  # initialize list of datasets
-  meta <- reactiveVal(demo_meta)
-  uploaded <- reactiveVal(FALSE)
   
   
   observeEvent(input$processButton, {
@@ -139,7 +141,7 @@ app_server <- function(input, output, session) {
   })
   
   output$nrow_recent <- renderText(paste0(nrow(dat_main()), " rows selected"))
-  output$head_recent <- renderTable(head(dat_main() %>% dplyr::select(Date, Time, Animal, GPS, Latitude, Longitude, Distance, Rate, Course, Elevation)))
+  output$head_recent <- renderTable(head(dat_main() %>% dplyr::select(Date, Time, Animal, GPS, Latitude, Longitude, Distance, Rate, Course)))
   
   ######################################
   ## DYNAMIC USER INTERFACE
