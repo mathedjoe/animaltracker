@@ -8,6 +8,7 @@ if(getRversion() >= '2.5.1') {
 #'Run the Shiny validation app
 #'
 #'@export
+#'@return None
 run_validation_app <- function() {
   options(shiny.maxRequestSize=100*1024^2)
   

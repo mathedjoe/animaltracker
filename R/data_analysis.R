@@ -64,7 +64,7 @@ quantile_time <- function(rds_path) {
 #'Get summary statistics for a single column in an animal data frame
 #'
 #'@param df animal data frame
-#'@param col column to get summary stats for
+#'@param col column to get summary stats for, as a string
 #'@return data frame of summary stats for col
 #'@examples
 #'# Get summary statistics for Distance column of demo data
@@ -247,8 +247,8 @@ compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
   gps_summary <- join_summaries(correct_gps_summary, candidate_gps_summary, by_str="GPS")
   date_summary <- join_summaries(correct_date_summary, candidate_date_summary, by_str="Date")
   
-  utils::write.csv(gps_summary, gps_out, row.names = F)
-  utils::write.csv(date_summary, date_out, row.names = F)
+  utils::write.csv(gps_summary, gps_out, row.names = FALSE)
+  utils::write.csv(date_summary, date_out, row.names = FALSE)
   
   return(list(GPS = gps_summary, Date = date_summary))
 }
@@ -257,7 +257,7 @@ compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
 #'Calculates summary statistics for an animal data frame
 #'
 #'@param anidf the animal data frame
-#'@param by column to group by, null if daily=T
+#'@param by column to group by, null if daily=TRUE
 #'@param lat latitude column
 #'@param long longitude column
 #'@param dist distance column
@@ -265,6 +265,7 @@ compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
 #'@param rate rate column
 #'@param elev elevation column
 #'@param daily whether to group by both GPS and Date for daily summary, defaults to False
+#'@return df of summary statistics for the animal data frame
 #'@examples
 #'# Summary of demo data by date
 #'
@@ -272,7 +273,7 @@ compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
 #'
 #'@export
 #'
-summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev, daily=F) {
+summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev, daily=FALSE) {
   if(daily) {
     anidf <- anidf %>% 
       dplyr::group_by(GPS, Date)
@@ -302,8 +303,9 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev, dail
 #'
 #'@param correct_summary summary df of reference dataset, returned by summarise_anidf
 #'@param candidate_summary summary df of dataset to be compared to reference, returned by summarise_anidf
-#'@param by_str column to join by as a string, null if daily=T
+#'@param by_str column to join by as a string, null if daily=TRUE
 #'@param daily whether to group by both GPS and Date for daily summary, defaults to False
+#'@return df of joined summaries with differences
 #'@examples
 #'# Join date summaries of unfiltered and filtered demo data
 #'\donttest{
@@ -325,14 +327,14 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev, dail
 #'Distance, Course, Rate, Elevation, daily=FALSE)
 #'
 #'## Join
-#'join_summaries(unfiltered_summary, filtered_summary, "Date", daily=F)
+#'join_summaries(unfiltered_summary, filtered_summary, "Date", daily=FALSE)
 #'
 #'}
 #'}
 #'@export
 #'
 #'
-join_summaries <- function(correct_summary, candidate_summary, by_str, daily=F) {
+join_summaries <- function(correct_summary, candidate_summary, by_str, daily=FALSE) {
   if(daily) {
     summary_all <- dplyr::full_join(correct_summary, candidate_summary, by=c("GPS", "Date"))
   }
@@ -488,7 +490,7 @@ line_compare <- function(correct, candidate, col, out) {
   line <- ggplot(plot_data, aes(x=Date, y=avg, group=Data, color=Data)) +
     geom_line() +
     ylab(paste0("Mean ", deparse(substitute(col)))) +
-    scale_color_discrete(guide = guide_legend(reverse = T)) +
+    scale_color_discrete(guide = guide_legend(reverse = TRUE)) +
     facet_wrap(vars(GPS))
   
   ggsave(out, line)
@@ -524,14 +526,14 @@ line_compare <- function(correct, candidate, col, out) {
 #'
 compare_summarise_daily <- function(correct, candidate, out) {
   correct_summary <- correct %>% 
-    summarise_anidf(NULL, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=T)
+    summarise_anidf(NULL, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=TRUE)
   
   candidate_summary <- candidate %>% 
-    summarise_anidf(NULL, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=T)
+    summarise_anidf(NULL, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=TRUE)
   
-  summary_all <- join_summaries(correct_summary, candidate_summary, daily=T)
+  summary_all <- join_summaries(correct_summary, candidate_summary, daily=TRUE)
   
-  utils::write.csv(summary_all, out, row.names = F)
+  utils::write.csv(summary_all, out, row.names = FALSE)
   
   return(summary_all)
 }

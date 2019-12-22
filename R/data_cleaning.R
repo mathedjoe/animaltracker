@@ -50,6 +50,7 @@ get_file_meta <- function(data_dir){
 #'@param maxtime maximum time (minutes) between consecutive points 
 #'@param tz_in input time zone, defaults to UTC
 #'@param tz_out output time zone, defaults to UTC
+#'@return df of clean animal GPS data
 #'@examples
 #'# Clean a data frame from csv
 #'
@@ -178,6 +179,7 @@ clean_location_data <- function(df, dtype, filters = TRUE,
 #'@param cleaned_dir directory to save the processed GPS datasets as spreadsheets (.csv), defaults to data/processed
 #'@param tz_in input time zone, defaults to UTC
 #'@param tz_out output time zone, defaults to UTC
+#'@return list of cleaned animal GPS datasets
 #'@examples
 #'# Clean all animal GPS .csv datasets in the demo directory
 #'\donttest{
@@ -267,6 +269,7 @@ clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", c
 #'Add big files to a .gitignore file
 #'
 #'@param data_dir directory of animal data files
+#'@return None
 #'@examples
 #'# Detect large files in the demo directory and add to the .gitignore file
 #'\dontrun{

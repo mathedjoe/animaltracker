@@ -6,6 +6,9 @@
 \usage{
 run_validation_app()
 }
+\value{
+None
+}
 \description{
 Run the Shiny validation app
 }
