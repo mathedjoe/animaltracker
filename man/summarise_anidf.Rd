@@ -4,12 +4,12 @@
 \alias{summarise_anidf}
 \title{Calculates summary statistics for an animal data frame}
 \usage{
-summarise_anidf(anidf, by, lat, long, dist, course, rate, elev, daily = F)
+summarise_anidf(anidf, by, lat, long, dist, course, rate, elev, daily = FALSE)
 }
 \arguments{
 \item{anidf}{the animal data frame}
 
-\item{by}{column to group by, null if daily=T}
+\item{by}{column to group by, null if daily=TRUE}
 
 \item{lat}{latitude column}
 
@@ -24,6 +24,9 @@ summarise_anidf(anidf, by, lat, long, dist, course, rate, elev, daily = F)
 \item{elev}{elevation column}
 
 \item{daily}{whether to group by both GPS and Date for daily summary, defaults to False}
+}
+\value{
+df of summary statistics for the animal data frame
 }
 \description{
 Calculates summary statistics for an animal data frame

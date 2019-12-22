@@ -23,6 +23,9 @@ clean_export_files(
 
 \item{tz_out}{output time zone, defaults to UTC}
 }
+\value{
+list of cleaned animal GPS datasets
+}
 \description{
 Cleans all animal GPS datasets (in .csv format) in a chosen directory. Optionally exports the clean data as spreadsheets, a single .rds data file, or as a list of data frames
 }

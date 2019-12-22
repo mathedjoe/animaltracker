@@ -11,6 +11,9 @@ run_shiny_animaltracker(browser = TRUE, showcase = FALSE)
 
 \item{showcase}{logical, whether to launch the app in 'showcase' mode (defaults to FALSE)}
 }
+\value{
+None
+}
 \description{
 You can run the animaltracker Shiny app by calling this function.
 }

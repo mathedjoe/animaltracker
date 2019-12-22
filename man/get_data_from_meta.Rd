@@ -14,6 +14,9 @@ get_data_from_meta(meta_df, min_date, max_date)
 
 \item{max_date}{maximum date specified by user}
 }
+\value{
+df of animal data from specified meta
+}
 \description{
 Get animal data set from specified meta. 
 If date range is invalid, automatically returns all animal data specified by meta_df.

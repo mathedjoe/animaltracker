@@ -2,6 +2,7 @@
 #'You can run the animaltracker Shiny app by calling this function.
 #'@param browser logical, whether to launch the app in your default browser (defaults to TRUE)
 #'@param showcase logical, whether to launch the app in 'showcase' mode (defaults to FALSE)
+#'@return None
 #'@examples
 #'\donttest{
 #'\dontrun{

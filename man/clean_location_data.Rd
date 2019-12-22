@@ -41,6 +41,9 @@ clean_location_data(
 
 \item{tz_out}{output time zone, defaults to UTC}
 }
+\value{
+df of clean animal GPS data
+}
 \description{
 Cleans a raw animal GPS dataset, implementing a standardized procedure to remove impossible values
 }
