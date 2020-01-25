@@ -209,28 +209,17 @@ qqplot_time <- function(rds_path) {
 #'
 #'@param correct reference df
 #'@param candidate df to be compared to the reference
-#'@param gps_out desired file name of .csv output summary by GPS collar
-#'@param date_out desired file name of .csv output summary by date
+#'@param gps_out desired file name of .csv output summary by GPS collar when export is True, defaults to gps_out.csv
+#'@param date_out desired file name of .csv output summary by date when export is True, defaults to date_out.csv
+#'@param export logical, whether to export summaries to .csv, defaults to True
 #'@return list containing gps_out and date_out as dfs
 #'@examples
 #'# Compare and summarise unfiltered demo cows to filtered 
-#'\donttest{
-#'\dontrun{
 #
-#'## Get elevation data for unfiltered demo
-#'unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
-#'get_slope=FALSE, get_aspect=FALSE)
-#'
-#'## Get elevation data for filtered demo
-#'filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
-#'
-#'## Compare and summarise
-#'compare_summarise_data(unfiltered_elev, filtered_elev, "ex_gps_compare.csv", "ex_date_compare.csv")
-#'}
-#'}
+#'compare_summarise_data(demo_unfiltered_elev, demo_filtered_elev, export = FALSE)
 #'@export
 #'
-compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
+compare_summarise_data <- function(correct, candidate, gps_out = "gps_out.csv", date_out = "date_out.csv", export = TRUE) {
   
   correct_gps_summary <- correct %>% 
     summarise_anidf(GPS, Latitude, Longitude, Distance, Course, Rate, Elevation)
@@ -247,8 +236,10 @@ compare_summarise_data <- function(correct, candidate, gps_out, date_out) {
   gps_summary <- join_summaries(correct_gps_summary, candidate_gps_summary, by_str="GPS")
   date_summary <- join_summaries(correct_date_summary, candidate_date_summary, by_str="Date")
   
-  utils::write.csv(gps_summary, gps_out, row.names = FALSE)
-  utils::write.csv(date_summary, date_out, row.names = FALSE)
+  if(export) {
+    utils::write.csv(gps_summary, gps_out, row.names = FALSE)
+    utils::write.csv(date_summary, date_out, row.names = FALSE)
+  }
   
   return(list(GPS = gps_summary, Date = date_summary))
 }
@@ -308,33 +299,21 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev, dail
 #'@return df of joined summaries with differences
 #'@examples
 #'# Join date summaries of unfiltered and filtered demo data
-#'\donttest{
-#'\dontrun{
-#'
-#'## Get elevation data for unfiltered demo
-#'unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
-#'get_slope=FALSE, get_aspect=FALSE)
-#'
-#'## Get elevation data for filtered demo
-#'filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
-#'
+
 #'## Summarise unfiltered demo by date
-#'unfiltered_summary <- summarise_anidf(unfiltered_elev, Date, Latitude, Longitude, 
+#'unfiltered_summary <- summarise_anidf(demo_unfiltered_elev, Date, Latitude, Longitude, 
 #'Distance, Course, Rate, Elevation, daily=FALSE)
 #'
 #'## Summarise filtered demo by date
-#'filtered_summary <- summarise_anidf(filtered_elev, Date, Latitude, Longitude, 
+#'filtered_summary <- summarise_anidf(demo_filtered_elev, Date, Latitude, Longitude, 
 #'Distance, Course, Rate, Elevation, daily=FALSE)
 #'
 #'## Join
 #'join_summaries(unfiltered_summary, filtered_summary, "Date", daily=FALSE)
-#'
-#'}
-#'}
 #'@export
 #'
 #'
-join_summaries <- function(correct_summary, candidate_summary, by_str, daily=FALSE) {
+join_summaries <- function(correct_summary, candidate_summary, by_str, daily = FALSE) {
   if(daily) {
     summary_all <- dplyr::full_join(correct_summary, candidate_summary, by=c("GPS", "Date"))
   }
@@ -399,26 +378,18 @@ join_summaries <- function(correct_summary, candidate_summary, by_str, daily=FAL
 #'@param df_summary data frame of summary statistics from both datasets to be compared
 #'@param by GPS or Date
 #'@param col_name variable in df_summary to be used for the y-axis, as a string
-#'@param out file name to save plot
+#'@param out file name to save plot when export is True, defaults to violin.png
+#'@param export logical, whether to export plot, defaults to True
 #'@return side-by-side violin plots
 #'@examples
 #'# Violin plot comparing unfiltered and filtered demo data summaries by date for a single variable
-#'\donttest{
-#'\dontrun{
-#'
-#'## Get elevation data for unfiltered demo
-#'unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
-#'get_slope=FALSE, get_aspect=FALSE)
-#'
-#'## Get elevation data for filtered demo
-#'filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
-#'
+
 #'## Summarise unfiltered demo
-#'unfiltered_summary <- summarise_anidf(unfiltered_elev, Date, Latitude, Longitude, 
+#'unfiltered_summary <- summarise_anidf(demo_unfiltered_elev, Date, Latitude, Longitude, 
 #'Distance, Course, Rate, Elevation, daily=FALSE)
 #'
 #'## Summarise filtered demo
-#'filtered_summary <- summarise_anidf(filtered_elev, Date, Latitude, Longitude, 
+#'filtered_summary <- summarise_anidf(demo_filtered_elev, Date, Latitude, Longitude, 
 #'Distance, Course, Rate, Elevation, daily=FALSE)
 #'
 #'## Join
@@ -426,13 +397,11 @@ join_summaries <- function(correct_summary, candidate_summary, by_str, daily=FAL
 #'
 #'## Violin plot
 #'
-#'violin_compare(summary, Date, "meanElev", "ex_elev_violin.png")
+#'violin_compare(summary, Date, "meanElev", export = FALSE)
 #'
-#'}
-#'}
 #'@export
 #'
-violin_compare <- function(df_summary, by, col_name, out) {
+violin_compare <- function(df_summary, by, col_name, out = "violin.png", export = TRUE) {
   df_summary <- df_summary %>% 
     dplyr::select({{by}}, paste0(col_name, ".x"), paste0(col_name, ".y")) %>% 
     tidyr::gather("source", obs, -{{by}}) %>% 
@@ -448,7 +417,9 @@ violin_compare <- function(df_summary, by, col_name, out) {
     theme_minimal() +
     theme(legend.position = "none") 
   
-  ggsave(out, violin)
+  if(export) {
+    ggsave(out, violin)
+  }
   
   return(violin)
 }
@@ -460,20 +431,17 @@ violin_compare <- function(df_summary, by, col_name, out) {
 #'@param correct reference df
 #'@param candidate df to be compared to the reference
 #'@param col variable to plot the moving average for
-#'@param out file name to save plot
+#'@param out file name to save plot when export is True, defaults to line.png
+#'@param export logical, whether to export plot, defaults to True
 #'@return faceted line plot of moving averages over time grouped by GPS
 #'@examples
 #'# Faceted line plot comparing moving averages over time 
 #'# grouped by GPS for unfiltered and filtered demo data
-#'\donttest{
-#'\dontrun{
 #'## Set distance as the y axis
-#'line_compare(demo_unfiltered, demo_filtered, Distance, "ex_line_dist.png")
-#'}
-#'}
+#'line_compare(demo_unfiltered, demo_filtered, Distance, export = FALSE)
 #'@export
 #'
-line_compare <- function(correct, candidate, col, out) {
+line_compare <- function(correct, candidate, col, out = "line.png", export = TRUE) {
   
   correct <- correct %>% 
     dplyr::group_by(GPS, Date) %>% 
@@ -493,7 +461,9 @@ line_compare <- function(correct, candidate, col, out) {
     scale_color_discrete(guide = guide_legend(reverse = TRUE)) +
     facet_wrap(vars(GPS))
   
-  ggsave(out, line)
+  if(export) {
+    ggsave(out, line)
+  }
   
   return(line)
 }
@@ -504,27 +474,16 @@ line_compare <- function(correct, candidate, col, out) {
 #'
 #'@param correct reference df
 #'@param candidate df to be compared to the reference
-#'@param out desired file name of .csv output summary 
+#'@param out desired file name of .csv output summary when export is True, defaults to summary_daily.csv
+#'@param export logical, whether to export summary to .csv, defaults to True
 #'@return summary df
 #'@examples
 #'# Compare and summarise unfiltered demo cows to filtered, grouped by both Date and GPS
-#'\donttest{
-#'\dontrun{
 #'
-#'## Get elevation data for unfiltered demo
-#'unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
-#'get_slope=FALSE, get_aspect=FALSE)
-#'
-#'## Get elevation data for filtered demo
-#'filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
-#'
-#'## Compare and summarise
-#'compare_summarise_daily(unfiltered_elev, filtered_elev, "ex_compare_daily.csv")
-#'}
-#'}
+#'compare_summarise_daily(demo_unfiltered_elev, demo_filtered_elev, export = FALSE)
 #'@export
 #'
-compare_summarise_daily <- function(correct, candidate, out) {
+compare_summarise_daily <- function(correct, candidate, out = "summary_daily.csv", export = TRUE) {
   correct_summary <- correct %>% 
     summarise_anidf(NULL, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=TRUE)
   
@@ -533,7 +492,9 @@ compare_summarise_daily <- function(correct, candidate, out) {
   
   summary_all <- join_summaries(correct_summary, candidate_summary, daily=TRUE)
   
-  utils::write.csv(summary_all, out, row.names = FALSE)
+  if(export) {
+    utils::write.csv(summary_all, out, row.names = FALSE)
+  }
   
   return(summary_all)
 }
@@ -545,22 +506,11 @@ compare_summarise_daily <- function(correct, candidate, out) {
 #'@param correct reference df
 #'@param candidate df to be compared to the reference
 #'@return joined and reformatted df
-#'@export
 #'@examples
-#'\donttest{
-#'\dontrun{
 #'# Join and reformat unfiltered demo data and filtered demo data
 #'
-#'## Get elevation data for unfiltered demo
-#'unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
-#'get_slope=FALSE, get_aspect=FALSE)
-#'
-#'## Get elevation data for filtered demo
-#'filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
-#'
-#'compare_flags(unfiltered_elev, filtered_elev)
-#'}
-#'}
+#'compare_flags(demo_unfiltered_elev, demo_filtered_elev)
+#'@export
 compare_flags <- function(correct, candidate) {
     correct <- correct %>% dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S"))
     candidate <- candidate %>% dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S"))  
@@ -604,23 +554,10 @@ compare_flags <- function(correct, candidate) {
 #'@return df with classifications
 #'@export
 #'@examples
-#'\donttest{
-#'\dontrun{
 #'# Join and reformat unfiltered demo data and filtered demo data
 #'
-#'## Get elevation data for unfiltered demo
-#'unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
-#'get_slope=FALSE, get_aspect=FALSE)
+#'detect_peak_modz(demo_comparison, lag = 5, max_score = 3.5)
 #'
-#'## Get elevation data for filtered demo
-#'filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
-#'
-#'## Get comparison df
-#'comparison <- compare_flags(unfiltered_elev, filtered_elev)
-#'
-#'detect_peak_modz(comparison, lag = 5, max_score = 3.5)
-#'}
-#'}
 detect_peak_modz <- function(df_comparison, lag = 5, max_score = 3.5) {
   peak_comparison <- df_comparison %>% 
     dplyr::group_by(GPS, Date) %>% 
