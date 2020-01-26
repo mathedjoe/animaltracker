@@ -2,3 +2,5 @@
 *.tar
 *.tar.gz
 .Rproj.user
+.Rhistory
+.RData

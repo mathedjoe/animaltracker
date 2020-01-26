@@ -38,7 +38,7 @@ store_batch_list <- function(data_dir) {
   unlink(file.path("temp"), recursive=TRUE)
   
   data_files <- utils::unzip(data_dir$datapath, exdir="temp")
-  data_files <- list.files("temp", pattern = "*.(csv|txt|TXT)", recursive = TRUE, full.names = T)
+  data_files <- list.files("temp", pattern = "*.(csv|txt|TXT)", recursive = TRUE, full.names = TRUE)
 
   rds_name <- paste0(dir_name, ".rds")
   
@@ -81,26 +81,36 @@ store_batch_list <- function(data_dir) {
     
   }
   maxminsll <- maxminlatlong(data_sets[[1]]$df, data_sets[[1]]$dtype)
+  
+  meta_df <- data.frame()
 
   for(i in 1:length(file_names)) {
     site_names[i] <- ifelse( grepl("\\_", file_names[i]), tolower(sub("\\_.*","", file_names[i])), paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])))
     ani_ids[i] <- ifelse(ani_ids[i] == file_names[i], paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])), ani_ids[i])
     gps_units[i] <-  ifelse(gps_units[i] == file_names[i], paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])), gps_units[i])
+    df <- data_sets[[i]]$df
+    dtype <- data_sets[[i]]$dtype
     if(i > 1 ){
-      maxminsll <- update_maxminlatlong(maxminsll, data_sets[[i]]$df, data_sets[[i]]$dtype)
+      maxminsll <- update_maxminlatlong(maxminsll, df, dtype)
     }
-      
+    df <- clean_location_data(df, dtype, filters = FALSE, ani_ids[i], gps_units[i])
+    current_meta <- get_meta(df, i, file_names[i], site_names[i], ani_ids[i], "temp.rds")
+    meta_df <- save_meta(meta_df, current_meta) 
+    data_sets[[i]] <- df
   }
   
   ani_ids <- make.unique(ani_ids, sep="_")
   
-  unlink("temp", recursive = T)
+  unlink("temp", recursive = TRUE)
+  
+  saveRDS(data_sets, "temp.rds")
   
   return(list(data = data_sets, file = file_names, 
               ani = ani_ids, gps = gps_units, 
               site = site_names, rds_name = rds_name,
               min_lat = maxminsll[2], max_lat = maxminsll[1],
-              min_long = maxminsll[4], max_long = maxminsll[3]))
+              min_long = maxminsll[4], max_long = maxminsll[3],
+              meta = meta_df))
 }
 
 #'
@@ -351,7 +361,7 @@ get_data_from_meta <- function(meta_df, min_date, max_date) {
   for(file_name in rds_files) {
     current_rds <- readRDS(file_name)
     for(df in current_rds) {
-      current_df <- rbind(current_df, df)
+      current_df <- dplyr::bind_rows(current_df, df)
     }
   }
   
