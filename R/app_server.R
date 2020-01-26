@@ -141,7 +141,7 @@ app_server <- function(input, output, session) {
   })
   
   output$nrow_recent <- renderText(paste0(nrow(dat_main()), " rows selected"))
-  output$head_recent <- renderTable(head(dat_main() %>% dplyr::select(Date, Time, Animal, GPS, Latitude, Longitude, Distance, Rate, Course)))
+  output$head_recent <- renderTable(utils::head(dat_main() %>% dplyr::select(Date, Time, Animal, GPS, Latitude, Longitude, Distance, Rate, Course, Elevation)))
   
   ######################################
   ## DYNAMIC USER INTERFACE
