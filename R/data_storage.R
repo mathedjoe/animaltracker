@@ -94,7 +94,7 @@ store_batch_list <- function(data_dir) {
       maxminsll <- update_maxminlatlong(maxminsll, df, dtype)
     }
     df <- clean_location_data(df, dtype, filters = FALSE, ani_ids[i], gps_units[i])
-    current_meta <- get_meta(df, i, file_names[i], site_names[i], ani_ids[i], "temp.rds")
+    current_meta <- get_meta(df, i, dtype, file_names[i], site_names[i], ani_ids[i], "temp.rds")
     meta_df <- save_meta(meta_df, current_meta) 
     data_sets[[i]] <- df
   }
@@ -131,9 +131,8 @@ clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "U
   withProgress(message = paste0("Preparing raw data", ifelse(filters, " (filtered)", " (unfiltered)")), detail = paste0("0/",length(data_info$data), " files prepped"), value = 0, {
     
   for(i in 1:length(data_info$data)) {
-    
-    df <- data_info$data[[i]]$df 
-    dtype <- data_info$data[[i]]$dtype
+    df <- data_info$data[[i]]
+    dtype <- data_info$meta$dtype[i]
     
     if(dtype == "igotu") {
       df <- df[!duplicated(as.list(df))] # discard any columns that are duplicates of index
@@ -211,9 +210,8 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
   
   for(i in 1:length(data_info$data)) {
    
-    df <- data_info$data[[i]]$df 
-    dtype <- data_info$data[[i]]$dtype
-    
+    df <- data_info$data[[i]]
+    dtype <- data_info$meta$dtype[i]
     
     if(dtype == "igotu") {
       df <- df[!duplicated(as.list(df))] # discard any columns that are duplicates of index
@@ -294,7 +292,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
       df_out <- elev_data_sets %>% dplyr::filter(Animal == aniid)
 
       # get meta from df
-      file_meta <- get_meta(df_out, i, data_info$file[i], data_info$site[i], aniid, data_info$rds_name)
+      file_meta <- get_meta(df_out, i, data_info$meta$dtype[i], data_info$file[i], data_info$site[i], aniid, data_info$rds_name)
       # save meta to the designated meta df
       meta_df <- save_meta(meta_df, file_meta)
       # replace df with elevation df
@@ -313,14 +311,16 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
 #'filename, site, date min/max, animals, min/max lat/longitude, storage location 
 #'
 #'@param df clean animal data frame 
-#'@param file_id ID number of .csv source of animal data frame
+#'@param file_id ID number of source of animal data frame
+#'@param dtype igotu or columbus
 #'@param file_name .csv source of animal data frame
 #'@param site physical source of animal data
 #'@param ani_id ID of animal found in data frame
 #'@param storage_loc .rds storage location of animal data frame
 #'@return df of metadata for animal data frame 
-get_meta <- function(df, file_id, file_name, site, ani_id, storage_loc) {
-   return(data.frame(file_id = file_id, 
+get_meta <- function(df, file_id, dtype, file_name, site, ani_id, storage_loc) {
+   return(data.frame(file_id = file_id,
+            dtype = dtype,
             file_name = file_name, 
             site = site, 
             ani_id = ani_id, 
