@@ -98,10 +98,17 @@ clean_location_data <- function(df, dtype, filters = TRUE,
       ) 
   }
   if(dtype == "igotu") {
-    df <- df %>% 
-      tibble::add_column(Order = df$Index, .before="Index")%>%  # add Order column
-      tibble::add_column(Rate = NA, .after="Distance") %>%
-      tibble::add_column(CourseDiff = NA, .after="Course") %>%
+    # avoid re-creating columns if a dataset is cleaned multiple times
+    if(!("Order" %in% colnames(df))) {
+      df <- df %>% tibble::add_column(Order = df$Index, .before = "Index")
+    }
+    if(!("Rate" %in% colnames(df))) {
+      df <- df %>% tibble::add_column(Rate = NA, .after = "Distance")
+    }
+    if(!("CourseDiff" %in% colnames(df))) {
+      df <- df %>% tibble::add_column(CourseDiff = NA, .after = "Course")
+    }
+    df <- df %>%
       dplyr::mutate(
         nSatellites = nchar(as.character(Satelite)) - nchar(gsub("X", "", as.character(Satelite))),
         DateTime = lubridate::with_tz(lubridate::ymd_hms(paste(Date, Time), tz=tz_in, quiet = TRUE), tz=tz_out),
@@ -109,9 +116,14 @@ clean_location_data <- function(df, dtype, filters = TRUE,
       )
   }
   
+  if(!("TimeDiff" %in% colnames(df))) {
+    df <- df %>% tibble::add_column(TimeDiff = NA, .after = "DateTime")
+  }
+  if(!("TimeDiffMins" %in% colnames(df))) {
+    df <- df %>% tibble::add_column(TimeDiffMins = NA, .after = "TimeDiff")
+  }
+  
   df <- df %>% 
-    tibble::add_column(TimeDiff = NA, .after="DateTime") %>% 
-    tibble::add_column(TimeDiffMins = NA, .after="TimeDiff") %>% 
     dplyr::mutate(
       GPS = gpsid,
       Animal = aniid,
@@ -151,7 +163,7 @@ clean_location_data <- function(df, dtype, filters = TRUE,
           DistGeo = geosphere::distGeo(cbind(Longitude, Latitude),
                                        cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude))))
         ) %>%
-        dplyr::select(-c("RateFlag", "CourseFlag", "DistanceFlag", "TotalFlags")) # remove flags after use
+        dplyr::select(-contains("Flag")) # remove flags after use
       
       if(dtype == "columbus") {
         df <- df %>% 
@@ -169,6 +181,7 @@ clean_location_data <- function(df, dtype, filters = TRUE,
     
   return(as.data.frame(df))
 }
+
 
 
 #'

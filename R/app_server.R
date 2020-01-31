@@ -31,7 +31,6 @@ app_server <- function(input, output, session) {
     if(is.null(input$zipInput)) {
       return(demo_info)
     }
-    uploaded(TRUE)
     dat_info <- store_batch_list(input$zipInput)
     meta(dat_info$meta)
     return(dat_info)
@@ -98,8 +97,7 @@ app_server <- function(input, output, session) {
     
     ani_names <- paste(choose_ani(), collapse = ", ")
     cache_name <- paste0(ani_names,", ",choose_dates()[1],"-",choose_dates()[2])
-    
-    if(!(cache_name %in% names(cache()))) {
+    if(uploaded() || !(cache_name %in% names(cache()))) {
       # if no user provided data, use demo data
       if(is.null(input$zipInput)) {
         current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id,
@@ -141,7 +139,7 @@ app_server <- function(input, output, session) {
   })
   
   output$nrow_recent <- renderText(paste0(nrow(dat_main()), " rows selected"))
-  output$head_recent <- renderTable(utils::head(dat_main() %>% dplyr::select(Date, Time, Animal, GPS, Latitude, Longitude, Distance, Rate, Course, Elevation)))
+  output$head_recent <- renderTable(utils::head(dat_main() %>% dplyr::select(Date, Time, Animal, GPS, Latitude, Longitude, Distance, Rate, Course)))
   
   ######################################
   ## DYNAMIC USER INTERFACE
@@ -343,7 +341,7 @@ app_server <- function(input, output, session) {
         shinyjs::js$removePolygon()
       }
     } # if closing bracket
-    else if(!identical(last_drawn()$ani, current_anilist$ani)){
+    else if(uploaded() || !identical(last_drawn()$ani, current_anilist$ani)){
       # remove old points
       for(ani in setdiff(last_drawn()$ani, current_anilist$ani)) {
         proxy %>% clearGroup(ani)
@@ -376,7 +374,7 @@ app_server <- function(input, output, session) {
             ) 
       } # if new points
       else if(uploaded()) {
-        uploaded(FALSE)
+        uploaded = FALSE
         proxy %>%
           addCircleMarkers(
             data = pts,
