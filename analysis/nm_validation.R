@@ -10,15 +10,18 @@ correct <- correct %>%
                 DistanceFlag = DistFlag,
                 GPS = Cow) %>% 
   dplyr::mutate(DateTime = lubridate::with_tz(as.POSIXct(paste(Date, Time), format="%m/%d/%Y %H:%M:%S", tz="MST"), tz="UTC"),
-                Time = format(strptime(Time, "%I:%M:%S %p"), "%H:%M:%S"),
+                Time = strftime(DateTime, format="%H:%M:%S", tz="UTC"),
                 Date = as.Date(DateTime))
+
 
 # as.POSIXct(paste(Date, Time), format="%m/%d/%Y %H:%M:%S")
 
 # reformat candidate
 
 candidate <- candidate %>% 
-  dplyr::mutate(GPS = as.numeric(gsub("(.*)(\\d{3})(.*)", "\\2", GPS)))
+  dplyr::mutate(GPS = as.integer(gsub("(.*)(\\d{3})(.*)", "\\2", GPS)),
+                DateTime = as.POSIXct(DateTime, tz="UTC"))
+
 
 comparison <- compare_flags(correct, candidate, use_elev = FALSE, use_slope = FALSE, has_flags = TRUE, Keep)
 

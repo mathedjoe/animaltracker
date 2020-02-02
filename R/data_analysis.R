@@ -546,8 +546,16 @@ compare_summarise_daily <- function(correct, candidate, out = "summary_daily.csv
 #'compare_flags(demo_unfiltered_elev, demo_filtered_elev)
 #'@export
 compare_flags <- function(correct, candidate, use_elev = TRUE, use_slope = TRUE, has_flags = FALSE, dropped_flag = NULL) {
-    correct <- correct %>% dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S"))
-    candidate <- candidate %>% dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S"))  
+    correct <- correct %>% 
+      dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S")) %>% 
+      dplyr::group_by(GPS) %>% 
+      dplyr::distinct(DateTime, .keep_all = TRUE) %>% 
+      dplyr::ungroup()
+    candidate <- candidate %>% 
+      dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S")) %>% 
+      dplyr::group_by(GPS) %>% 
+      dplyr::distinct(DateTime, .keep_all = TRUE) %>% 
+      dplyr::ungroup()
     join <- dplyr::full_join(correct, candidate, by=c("DateTime", "GPS"))
     join_select <- join %>% 
       dplyr::select(DateTime, GPS,
