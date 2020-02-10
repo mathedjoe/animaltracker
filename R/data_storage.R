@@ -324,8 +324,8 @@ get_meta <- function(df, file_id, dtype, file_name, site, ani_id, storage_loc) {
             file_name = file_name, 
             site = site, 
             ani_id = ani_id, 
-            min_date = min(as.Date(df$Date)), 
-            max_date = max(as.Date(df$Date)), 
+            min_date = min(DateTime), 
+            max_date = max(DateTime), 
             min_lat = min(df$Latitude), 
             max_lat = max(df$Latitude),
             min_long = min(df$Longitude), 
@@ -367,8 +367,8 @@ get_data_from_meta <- function(meta_df, min_date, max_date) {
   
   current_df <- current_df %>%
     dplyr::filter(Animal %in% meta_df$ani_id,
-                  Date <= max_date,
-                  Date >= min_date)
+                  DateTime <= max_date,
+                  DateTime >= min_date)
   
   # check if current_df is empty
   

@@ -86,7 +86,7 @@ app_server <- function(input, output, session) {
   
   # main dynamic data set
   dat_main <- reactive({
-    req(choose_ani(), choose_dates(), meta)
+    req(choose_ani(), choose_dates(), meta, input$selected_min_time, input$selected_max_time)
     
     meta <- meta()
     
@@ -96,13 +96,18 @@ app_server <- function(input, output, session) {
     }
     
     ani_names <- paste(choose_ani(), collapse = ", ")
-    cache_name <- paste0(ani_names,", ",choose_dates()[1],"-",choose_dates()[2])
+    
+    min_datetime <- lubridate::with_tz(lubridate::ymd_hms(paste(choose_dates()[1], input$selected_min_time), tz="UTC", quiet = TRUE), tz="UTC")
+    max_datetime <- lubridate::with_tz(lubridate::ymd_hms(paste(choose_dates()[2], input$selected_max_time), tz="UTC", quiet = TRUE), tz="UTC")
+    
+    cache_name <- paste0(ani_names,", ",min_datetime,"-",max_datetime)
+    
     if(uploaded() || !(cache_name %in% names(cache()))) {
       # if no user provided data, use demo data
       if(is.null(input$zipInput)) {
         current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id,
-                 Date <= choose_dates()[2],
-                 Date >= choose_dates()[1])
+                 DateTime <= max_datetime,
+                 DateTime >= min_datetime)
         if(nrow(current_df) == 0) {
           current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id)
         }
@@ -112,7 +117,7 @@ app_server <- function(input, output, session) {
         # temporarily set current_df to cached df to avoid error
         current_df <- cache()[[1]]
         if(any(meta$ani_id  %in% choose_ani()) ){
-          current_df <- get_data_from_meta(meta, choose_dates()[1], choose_dates()[2])
+          current_df <- get_data_from_meta(meta, min_datetime, max_datetime)
         }
       }
      
@@ -122,7 +127,7 @@ app_server <- function(input, output, session) {
               
       # enqueue to cache
       updated_cache <- cache()
-      updated_cache[[cache_name]] <- list(df = current_df, ani = choose_ani(), date1 = choose_dates()[1], date2 = choose_dates()[2])
+      updated_cache[[cache_name]] <- list(df = current_df, ani = choose_ani(), date1 = min_datetime, date2 = max_datetime)
       
       # dequeue if there are more than 5 dfs 
       if(length(updated_cache) > 5) {
@@ -179,9 +184,22 @@ app_server <- function(input, output, session) {
                            multiple = TRUE, options = list(`actions-box` = TRUE))
   
   # select dates
-  choose_dates <- callModule(dateSlider, "choose_dates",
+  choose_dates <- callModule(datePicker, "choose_dates",
                              req_list = list(meta = meta, selected_ani = choose_ani), text = "Date Range")
   
+  # select time range
+  output$min_time <- renderUI({
+    req(meta, choose_ani())
+    
+    textInput("selected_min_time", "Min Time", value = strftime(min(meta()$min_date), format="%H:%M:%S", tz="UTC"), placeholder = "HH:MM:SS")
+  })
+  
+  # select time range
+  output$max_time <- renderUI({
+    req(meta, choose_ani())
+    
+    textInput("selected_max_time", "Max Time", value = strftime(max(meta()$max_date), format="%H:%M:%S", tz="UTC"), placeholder = "HH:MM:SS")
+  })
   
   # select variables to compute statistics
   choose_cols <- callModule(staticPicker, "choose_cols",
