@@ -55,7 +55,9 @@ app_ui <- function(){
                           h4("Select Data"),
                           reactivePickerOutput("choose_site") %>% shinycssloaders::withSpinner(),
                           reactivePickerOutput("choose_ani"),
-                          dateSliderOutput("choose_dates"),
+                          datePickerOutput("choose_dates"),
+                          uiOutput("min_time"),
+                          uiOutput("max_time"),
                           
                           hr(),
                           

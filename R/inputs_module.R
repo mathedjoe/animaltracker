@@ -80,7 +80,7 @@ reactivePicker <- function(input, output, session, type, req_list, text, min_sel
     }
     else if(type == "recent") {
       ani_names <- paste(req_list$selected_ani(), collapse = ", ")
-      selected <- paste0(ani_names, ", ", req_list$dates()[1], "-", req_list$dates()[2])
+      selected <- paste0(ani_names, ", ", req_list$dates()[1], " ", req_list$min_time(), "-", req_list$dates()[2], " ", req_list$max_time())
       choices <- names(req_list$cache())
     }
     shinyWidgets::pickerInput(ns("reactive_picker"), text,
@@ -93,17 +93,17 @@ reactivePicker <- function(input, output, session, type, req_list, text, min_sel
 }
 
 #'
-#'Shiny Module UI output for the animaltracker app's date slider.
+#'Shiny Module UI output for the animaltracker app's date picker.
 #'
 #'@param id chosen ID of UI output
 #'
-dateSliderOutput <- function(id) {
+datePickerOutput <- function(id) {
   ns <- NS(id)
   uiOutput(ns("date_out"))
 }
 
 #'
-#'Shiny Module server-side UI generator for the animaltracker app's date slider.
+#'Shiny Module server-side UI generator for the animaltracker app's date picker.
 #'
 #'@param input Shiny server input, automatically populated
 #'@param output Shiny server output, automatically populated
@@ -111,7 +111,7 @@ dateSliderOutput <- function(id) {
 #'@param req_list list of reactive statements required to display slider
 #'@param text title for slider
 #'
-dateSlider <- function(input, output, session, req_list, text) {
+datePicker <- function(input, output, session, req_list, text) {
   ns <- session$ns
   output$date_out <- renderUI({
     lapply(req_list, req)
@@ -127,9 +127,8 @@ dateSlider <- function(input, output, session, req_list, text) {
     max_date <- max(as.Date(meta$max_date), na.rm=TRUE)
     min_date <- min(as.Date(meta$min_date), na.rm=TRUE)
     
-    sliderInput(ns("dates"), "Date Range", min = min_date,
-                max = max_date, value = c(min_date, max_date), step = 1,
-                animate = animationOptions(loop = FALSE, interval = 1000))
+    dateRangeInput(ns("dates"), "Date Range", start = min_date, end = max_date, min = min_date,
+                max = max_date)
   })
   
   return(reactive({input$dates}))
