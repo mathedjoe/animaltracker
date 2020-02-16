@@ -80,7 +80,7 @@ reactivePicker <- function(input, output, session, type, req_list, text, min_sel
     }
     else if(type == "recent") {
       ani_names <- paste(req_list$selected_ani(), collapse = ", ")
-      selected <- paste0(ani_names, ", ", req_list$dates()[1], "-", req_list$dates()[2])
+      selected <- paste0(ani_names, ", ", req_list$dates()[1], " ", req_list$min_time(), "-", req_list$dates()[2], " ", req_list$max_time())
       choices <- names(req_list$cache())
     }
     shinyWidgets::pickerInput(ns("reactive_picker"), text,

@@ -102,7 +102,7 @@ app_server <- function(input, output, session) {
     
     cache_name <- paste0(ani_names,", ",min_datetime,"-",max_datetime)
     
-    if(uploaded() || !(cache_name %in% names(cache()))) {
+    if( (uploaded() || !(cache_name %in% names(cache()))) & (!is.na(min_datetime) & !is.na(max_datetime)) ) {
       # if no user provided data, use demo data
       if(is.null(input$zipInput)) {
         current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id,
@@ -216,7 +216,8 @@ app_server <- function(input, output, session) {
   # select recent data
   choose_recent <- callModule(reactivePicker, "choose_recent",
                               type = "recent", 
-                              req_list = list(dat_main = dat_main, selected_ani = choose_ani, dates = reactive({choose_dates()}), cache = cache),
+                              req_list = list(dat_main = dat_main, selected_ani = choose_ani, dates = reactive({choose_dates()}), 
+                                              min_time = reactive({input$selected_min_time}), max_time = reactive({input$selected_max_time}), cache = cache),
                               text = "Select Data", multiple = FALSE)
   
   # spatial points for maps
