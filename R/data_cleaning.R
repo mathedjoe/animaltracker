@@ -80,6 +80,10 @@ get_file_meta <- function(data_dir){
 clean_location_data <- function(df, dtype, filters = TRUE, 
                                 aniid = NA, gpsid = NA, 
                                 maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = "UTC", tz_out = "UTC"){
+  # make sure quantitative columns are read in properly
+  df <- df %>% 
+    dplyr::mutate(Latitude = as.numeric(Latitude),
+                  Longitude = as.numeric(Longitude))
   if(dtype == "columbus") {
     df <- df %>%
       # exclude unneeded information
@@ -112,7 +116,9 @@ clean_location_data <- function(df, dtype, filters = TRUE,
       dplyr::mutate(
         nSatellites = nchar(as.character(Satelite)) - nchar(gsub("X", "", as.character(Satelite))),
         DateTime = lubridate::with_tz(lubridate::ymd_hms(paste(Date, Time), tz=tz_in, quiet = TRUE), tz=tz_out),
-        Time = strftime(DateTime, format="%H:%M:%S", tz=tz_out) # reclassify Date as a Date variable
+        Time = strftime(DateTime, format="%H:%M:%S", tz=tz_out), # reclassify Date as a Date variable
+        Distance = as.numeric(Distance),
+        Course = as.numeric(Course)
       )
   }
   
@@ -136,7 +142,7 @@ clean_location_data <- function(df, dtype, filters = TRUE,
       dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time), nSatellites > 0) %>% 
       dplyr::distinct(DateTime, .keep_all = TRUE) # remove duplicate timestamps
   }
-  
+
   df <- df %>% 
     dplyr::mutate(
       TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), # compute sequential time differences (in seconds)

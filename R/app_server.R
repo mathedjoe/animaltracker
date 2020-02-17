@@ -115,7 +115,7 @@ app_server <- function(input, output, session) {
       # if user provided data, get it
       else {
         # temporarily set current_df to cached df to avoid error
-        current_df <- cache()[[1]]
+        current_df <- cache()[[1]]$df
         if(any(meta$ani_id  %in% choose_ani()) ){
           current_df <- get_data_from_meta(meta, min_datetime, max_datetime)
         }
