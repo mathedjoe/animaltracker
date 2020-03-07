@@ -89,3 +89,89 @@ join %>%
   geom_bar(stat = "identity", position = "dodge") +
   ggtitle("Observations Kept by Candidate")
 ```
+### Cumulative Distance by Cow
+```{r}
+cumdist <- join %>% 
+  dplyr::group_by(Cow) %>% 
+  dplyr::arrange(Index, .by_group=TRUE) %>% 
+  dplyr::mutate(Distance.y = dplyr::lag(Distance.y,1), 
+                Distance.x = ifelse(is.na(Distance.x), 0, Distance.x),
+                Distance.y = ifelse(is.na(Distance.y), 0, Distance.y),
+                  
+                cumDist.x = cumsum(Distance.x),
+                cumDist.y = cumsum(Distance.y)) %>%
+  dplyr::ungroup()
+
+cumdist_candidate <- cumdist %>% 
+  dplyr::select(Index, Cow, cumDist.x, DistFlag.x) %>% 
+  dplyr::rename(Flag = DistFlag.x,
+                cumDist = cumDist.x) %>% 
+  dplyr::mutate(Source = "Candidate")
+
+cumdist_correct <- cumdist %>% 
+  dplyr::select(Index, Cow, cumDist.y, DistFlag.y) %>% 
+  dplyr::rename(Flag = DistFlag.y,
+                cumDist = cumDist.y) %>% 
+  dplyr::mutate(Source = "Correct")
+
+plot_data <- dplyr::bind_rows(cumdist_candidate, cumdist_correct)
+
+ggplot(plot_data, aes(x=Index, y=cumDist, group=Source, color=Source)) +
+  geom_line(aes(size = Source)) +
+  #geom_point(data=plot_data %>% dplyr::mutate(Flag = ifelse(is.na(Flag), 0, Flag)) %>% dplyr::filter(Flag==1), aes(x=Index, y=cumDist), color="black") +
+  ylab("Cumulative Distance") +
+  scale_color_discrete(guide = guide_legend(reverse = TRUE)) +
+  scale_size_manual(values=c(2, 1)) +
+  facet_wrap(vars(Cow)) +
+  theme(axis.text.x = element_text(angle = -45))
+```
+### Rate by Cow
+```{r}
+rate_candidate <- join %>% 
+  dplyr::select(Index, Cow, Rate.x, RateFlag.x) %>% 
+  dplyr::rename(Flag = RateFlag.x,
+                Rate = Rate.x) %>% 
+  dplyr::mutate(Source = "Candidate")
+
+rate_correct <- join %>% 
+  dplyr::select(Index, Cow, Rate.y, RateFlag.y) %>% 
+  dplyr::mutate(Flag = RateFlag.y,
+                Rate = as.numeric(Rate.y)) %>% 
+  dplyr::mutate(Source = "Correct")
+
+plot_data <- dplyr::bind_rows(rate_candidate, rate_correct)
+
+ggplot(plot_data, aes(x=Index, y=Rate, group=Source, color=Source)) +
+  geom_line(aes(size = Source)) +
+  #geom_point(data=plot_data %>% dplyr::mutate(Flag = ifelse(is.na(Flag), 0, Flag)) %>% dplyr::filter(Flag==1), aes(x=Index, y=Rate), color="black") +
+  ylab("Rate") +
+  scale_color_discrete(guide = guide_legend(reverse = TRUE)) +
+  scale_size_manual(values=c(2, 1)) +
+  facet_wrap(vars(Cow)) +
+  theme(axis.text.x = element_text(angle = -45))
+```
+### Course by Cow
+```{r}
+course_candidate <- join %>% 
+  dplyr::select(Index, Cow, Course.x, CourseFlag.x) %>% 
+  dplyr::rename(Flag = CourseFlag.x,
+                Course = Course.x) %>% 
+  dplyr::mutate(Source = "Candidate")
+
+course_correct <- join %>% 
+  dplyr::select(Index, Cow, Course.y, CourseFlag.y) %>% 
+  dplyr::rename(Flag = CourseFlag.y,
+                Course = Course.y) %>% 
+  dplyr::mutate(Source = "Correct")
+
+plot_data <- dplyr::bind_rows(course_candidate, course_correct)
+
+ggplot(plot_data, aes(x=Index, y=Course, group=Source, color=Source)) +
+  geom_line(aes(size = Source)) +
+  #geom_point(data=plot_data %>% dplyr::mutate(Flag = ifelse(is.na(Flag), 0, Flag)) %>% dplyr::filter(Flag==1), aes(x=Index, y=Course), color="black") +
+  ylab("Cumulative Distance") +
+  scale_color_discrete(guide = guide_legend(reverse = TRUE)) +
+  scale_size_manual(values=c(2, 1)) +
+  facet_wrap(vars(Cow)) +
+  theme(axis.text.x = element_text(angle = -45))
+```
