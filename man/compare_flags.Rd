@@ -4,12 +4,16 @@
 \alias{compare_flags}
 \title{Joins and reformats two animal data frames for the purpose of flag comparison}
 \usage{
-compare_flags(correct, candidate)
+compare_flags(correct, candidate, elev = TRUE, slope = TRUE)
 }
 \arguments{
 \item{correct}{reference df}
 
 \item{candidate}{df to be compared to the reference}
+
+\item{elev}{logical, whether to include elevation, defaults to true}
+
+\item{slope}{logical, whether to include slope, defaults to true}
 }
 \value{
 joined and reformatted df
@@ -18,18 +22,7 @@ joined and reformatted df
 Joins and reformats two animal data frames for the purpose of flag comparison
 }
 \examples{
-\donttest{
-\dontrun{
 # Join and reformat unfiltered demo data and filtered demo data
 
-## Get elevation data for unfiltered demo
-unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
-get_slope=FALSE, get_aspect=FALSE)
-
-## Get elevation data for filtered demo
-filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
-
-compare_flags(unfiltered_elev, filtered_elev)
-}
-}
+compare_flags(demo_unfiltered_elev, demo_filtered_elev)
 }

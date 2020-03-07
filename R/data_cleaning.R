@@ -80,10 +80,6 @@ get_file_meta <- function(data_dir){
 clean_location_data <- function(df, dtype, filters = TRUE, 
                                 aniid = NA, gpsid = NA, 
                                 maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = "UTC", tz_out = "UTC"){
-  # make sure quantitative columns are read in properly
-  df <- df %>% 
-    dplyr::mutate(Latitude = as.numeric(Latitude),
-                  Longitude = as.numeric(Longitude))
   if(dtype == "columbus") {
     df <- df %>%
       # exclude unneeded information
@@ -102,34 +98,20 @@ clean_location_data <- function(df, dtype, filters = TRUE,
       ) 
   }
   if(dtype == "igotu") {
-    # avoid re-creating columns if a dataset is cleaned multiple times
-    if(!("Order" %in% colnames(df))) {
-      df <- df %>% tibble::add_column(Order = df$Index, .before = "Index")
-    }
-    if(!("Rate" %in% colnames(df))) {
-      df <- df %>% tibble::add_column(Rate = NA, .after = "Distance")
-    }
-    if(!("CourseDiff" %in% colnames(df))) {
-      df <- df %>% tibble::add_column(CourseDiff = NA, .after = "Course")
-    }
-    df <- df %>%
+    df <- df %>% 
+      tibble::add_column(Order = df$Index, .before="Index")%>%  # add Order column
+      tibble::add_column(Rate = NA, .after="Distance") %>%
+      tibble::add_column(CourseDiff = NA, .after="Course") %>%
       dplyr::mutate(
         nSatellites = nchar(as.character(Satelite)) - nchar(gsub("X", "", as.character(Satelite))),
         DateTime = lubridate::with_tz(lubridate::ymd_hms(paste(Date, Time), tz=tz_in, quiet = TRUE), tz=tz_out),
-        Time = strftime(DateTime, format="%H:%M:%S", tz=tz_out), # reclassify Date as a Date variable
-        Distance = as.numeric(Distance),
-        Course = as.numeric(Course)
+        Time = strftime(DateTime, format="%H:%M:%S", tz=tz_out) # reclassify Date as a Date variable
       )
   }
   
-  if(!("TimeDiff" %in% colnames(df))) {
-    df <- df %>% tibble::add_column(TimeDiff = NA, .after = "DateTime")
-  }
-  if(!("TimeDiffMins" %in% colnames(df))) {
-    df <- df %>% tibble::add_column(TimeDiffMins = NA, .after = "TimeDiff")
-  }
-  
   df <- df %>% 
+    tibble::add_column(TimeDiff = NA, .after="DateTime") %>% 
+    tibble::add_column(TimeDiffMins = NA, .after="TimeDiff") %>% 
     dplyr::mutate(
       GPS = gpsid,
       Animal = aniid,
@@ -142,7 +124,7 @@ clean_location_data <- function(df, dtype, filters = TRUE,
       dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time), nSatellites > 0) %>% 
       dplyr::distinct(DateTime, .keep_all = TRUE) # remove duplicate timestamps
   }
-
+  
   df <- df %>% 
     dplyr::mutate(
       TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), # compute sequential time differences (in seconds)
@@ -169,7 +151,7 @@ clean_location_data <- function(df, dtype, filters = TRUE,
           DistGeo = geosphere::distGeo(cbind(Longitude, Latitude),
                                        cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude))))
         ) %>%
-        dplyr::select(-contains("Flag")) # remove flags after use
+        dplyr::select(-c("RateFlag", "CourseFlag", "DistanceFlag", "TotalFlags")) # remove flags after use
       
       if(dtype == "columbus") {
         df <- df %>% 
@@ -189,38 +171,37 @@ clean_location_data <- function(df, dtype, filters = TRUE,
 }
 
 
-
 #'
 #'Cleans all animal GPS datasets (in .csv format) in a chosen directory. Optionally exports the clean data as spreadsheets, a single .rds data file, or as a list of data frames
 #'
 #'@param data_dir directory of GPS tracking files (in csv)
-#'@param cleaned_filename full name of output file (ending in .rds), defaults to data/animal_data.rds
-#'@param cleaned_dir directory to save the processed GPS datasets as spreadsheets (.csv), defaults to data/processed
+#'@param cleaned_filename full name of output file (ending in .rds) when export is True, defaults to data/animal_data.rds
+#'@param cleaned_dir directory to save the processed GPS datasets as spreadsheets (.csv) when export is True, defaults to data/processed
 #'@param tz_in input time zone, defaults to UTC
 #'@param tz_out output time zone, defaults to UTC
+#'@param export logical, whether to export the clean data, defaults to True
 #'@return list of cleaned animal GPS datasets
 #'@examples
 #'# Clean all animal GPS .csv datasets in the demo directory
-#'\donttest{
-#'\dontrun{
-#'clean_export_files(system.file("extdata", "demo_nov19", package = "animaltracker"), 
-#'cleaned_filename = "ex_animal_data.rds", cleaned_dir = "clean_export_ex", tz = "UTC")
-#'}
-#'}
+#'
+#'clean_export_files(system.file("extdata", "demo_nov19", package = "animaltracker"), export = FALSE)
+#
 #'@export
 #'
-clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", cleaned_dir = "processed", tz_in = "UTC", tz_out = "UTC") {
+clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", cleaned_dir = "processed", tz_in = "UTC", tz_out = "UTC", export = TRUE) {
   data_files <- list.files(data_dir, pattern = "*.(csv|txt|TXT)", recursive = TRUE, full.names = T)
   data_info <- get_file_meta(data_dir)
   
   data_sets <- list()
   
   # create empty folder to save processed data
-  if(!dir.exists(cleaned_dir)){
-    dir.create(cleaned_dir, recursive = TRUE)
-  }
-  else{
-    unlink(file.path(cleaned_dir, "*"))
+  if(export) {
+    if(!dir.exists(cleaned_dir)){
+      dir.create(cleaned_dir, recursive = TRUE)
+    }
+    else{
+      unlink(file.path(cleaned_dir, "*"))
+    }
   }
   
   for (i in 1:length(data_files) ){
@@ -261,7 +242,7 @@ clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", c
     print(paste("...total distance traveled =", round(sum(df$DistGeo)/1000, 1), "km"))
     print(paste("...saving", nrow(df), "good data points"))
     
-    if(!is.null(cleaned_dir)){
+    if(export & !is.null(cleaned_dir)){
       utils::write.csv(df, file.path(cleaned_dir, paste0(aniid,".csv")), row.names = FALSE)
       pts <- df[c("Longitude", "Latitude")]
       output=sp::SpatialPointsDataFrame(coords=pts,proj4string=sp::CRS("+init=epsg:4326"),
@@ -277,11 +258,12 @@ clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", c
     # add df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df
   }
-  if(grepl("\\.rds", cleaned_filename)){
-    
-    saveRDS(data_sets, cleaned_filename )
+  if(export) {
+    if(grepl("\\.rds", cleaned_filename)){
+      saveRDS(data_sets, cleaned_filename )
+    }
   }
-  data_sets
+  return(data_sets)
 }
 
 #'
@@ -289,11 +271,6 @@ clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", c
 #'
 #'@param data_dir directory of animal data files
 #'@return None
-#'@examples
-#'# Detect large files in the demo directory and add to the .gitignore file
-#'\dontrun{
-#'dev_add_to_gitignore(system.file("extdata", "demo_nov19", package = "animaltracker"))
-#'}
 #'@export
 #'
 dev_add_to_gitignore <- function(data_dir) {

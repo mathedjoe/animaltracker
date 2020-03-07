@@ -53,11 +53,9 @@ app_ui <- function(){
                           hr(),
                           
                           h4("Select Data"),
-                          reactivePickerOutput("choose_site") %>% shinycssloaders::withSpinner(),
-                          reactivePickerOutput("choose_ani"),
-                          datePickerOutput("choose_dates"),
-                          uiOutput("min_time"),
-                          uiOutput("max_time"),
+                          uiOutput("choose_site") %>% shinycssloaders::withSpinner(),
+                          uiOutput("choose_ani"),
+                          uiOutput("choose_dates"),
                           
                           hr(),
                           
@@ -78,10 +76,8 @@ app_ui <- function(){
                           leafletOutput("mainmap", height = 640) %>% shinycssloaders::withSpinner(),
                           htmlOutput("mapinfo"),
                           h4("Recent Data"),
-                          reactivePickerOutput("choose_recent"),
-                          textOutput("nrow_recent"),
-                          br(),
-                          tableOutput("head_recent")
+                          uiOutput("choose_recent")
+                          
                           
                         ) #mainPanel
                       ) #sidebarLayout
@@ -102,35 +98,35 @@ app_ui <- function(){
                         
                         sidebarPanel(
                           h4("Variables"),
-                          staticPickerOutput("choose_cols"),
+                          uiOutput("choose_cols"),
                           hr(),
                           
                           h4("Summary Statistics"),
-                          staticPickerOutput("choose_stats")
+                          uiOutput("choose_stats")
                         ),
                         
                         mainPanel(
                           h2("Statistical Summary of Selected Data"),
                           helpText("To change the sample, switch to the Data panel."),
                          
-                          statsLabelOutput("elevation_title"),
-                          statsOutput("elevation"),
-                          statsLabelOutput("speed_title"),
-                          statsOutput("speed"),
-                          statsLabelOutput("timediff_title"),
-                          statsOutput("timediff"),
-                          statsLabelOutput("course_title"),
-                          statsOutput("course"),
-                          statsLabelOutput("coursediff_title"),
-                          statsOutput("coursediff"),
-                          statsLabelOutput("distance_title"),
-                          statsOutput("distance"),
-                          statsLabelOutput("rate_title"),
-                          statsOutput("rate"),
-                          statsLabelOutput("slope_title"),
-                          statsOutput("slope"),
-                          statsLabelOutput("aspect_title"),
-                          statsOutput("aspect")
+                          uiOutput("elevation_title"),
+                          uiOutput("elevation"),
+                          uiOutput("speed_title"),
+                          uiOutput("speed"),
+                          uiOutput("timediff_title"),
+                          uiOutput("timediff"),
+                          uiOutput("course_title"),
+                          uiOutput("course"),
+                          uiOutput("coursediff_title"),
+                          uiOutput("coursediff"),
+                          uiOutput("distance_title"),
+                          uiOutput("distance"),
+                          uiOutput("rate_title"),
+                          uiOutput("rate"),
+                          uiOutput("slope_title"),
+                          uiOutput("slope"),
+                          uiOutput("aspect_title"),
+                          uiOutput("aspect")
                         )
                       )
                       

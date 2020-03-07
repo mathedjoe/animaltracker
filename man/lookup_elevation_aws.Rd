@@ -21,12 +21,3 @@ original data frame, with Elevation column appended
 \description{
 Add elevation data from public AWS terrain tiles to long/lat coordinates of animal gps data
 }
-\examples{
-# Add elevation data to filtered demo data frame
-\donttest{
-\dontrun{
-## Lookup with slope and aspect
-lookup_elevation_aws(demo_filtered, zoom = 11, get_slope = TRUE, get_aspect = TRUE)
-}
-}
-}

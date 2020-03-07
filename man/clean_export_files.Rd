@@ -9,19 +9,22 @@ clean_export_files(
   cleaned_filename = "animal_data.rds",
   cleaned_dir = "processed",
   tz_in = "UTC",
-  tz_out = "UTC"
+  tz_out = "UTC",
+  export = TRUE
 )
 }
 \arguments{
 \item{data_dir}{directory of GPS tracking files (in csv)}
 
-\item{cleaned_filename}{full name of output file (ending in .rds), defaults to data/animal_data.rds}
+\item{cleaned_filename}{full name of output file (ending in .rds) when export is True, defaults to data/animal_data.rds}
 
-\item{cleaned_dir}{directory to save the processed GPS datasets as spreadsheets (.csv), defaults to data/processed}
+\item{cleaned_dir}{directory to save the processed GPS datasets as spreadsheets (.csv) when export is True, defaults to data/processed}
 
 \item{tz_in}{input time zone, defaults to UTC}
 
 \item{tz_out}{output time zone, defaults to UTC}
+
+\item{export}{logical, whether to export the clean data, defaults to True}
 }
 \value{
 list of cleaned animal GPS datasets
@@ -31,10 +34,6 @@ Cleans all animal GPS datasets (in .csv format) in a chosen directory. Optionall
 }
 \examples{
 # Clean all animal GPS .csv datasets in the demo directory
-\donttest{
-\dontrun{
-clean_export_files(system.file("extdata", "demo_nov19", package = "animaltracker"), 
-cleaned_filename = "ex_animal_data.rds", cleaned_dir = "clean_export_ex", tz = "UTC")
-}
-}
+
+clean_export_files(system.file("extdata", "demo_nov19", package = "animaltracker"), export = FALSE)
 }

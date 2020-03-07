@@ -212,7 +212,6 @@ qqplot_time <- function(rds_path) {
 #'@param gps_out desired file name of .csv output summary by GPS collar when export is True, defaults to gps_out.csv
 #'@param date_out desired file name of .csv output summary by date when export is True, defaults to date_out.csv
 #'@param export logical, whether to export summaries to .csv, defaults to True
-#'@param use_elev logical, whether to include elevation in summary, defaults to True
 #'@return list containing gps_out and date_out as dfs
 #'@examples
 #'# Compare and summarise unfiltered demo cows to filtered 
@@ -220,34 +219,19 @@ qqplot_time <- function(rds_path) {
 #'compare_summarise_data(demo_unfiltered_elev, demo_filtered_elev, export = FALSE)
 #'@export
 #'
-compare_summarise_data <- function(correct, candidate, gps_out = "gps_out.csv", date_out = "date_out.csv", export = TRUE, use_elev = TRUE) {
-  if(use_elev) {
-    correct_gps_summary <- correct %>% 
-      summarise_anidf(GPS, Latitude, Longitude, Distance, Course, Rate, Elevation)
-    
-    correct_date_summary <- correct %>% 
-      summarise_anidf(Date, Latitude, Longitude, Distance, Course, Rate, Elevation)
-    
-    candidate_gps_summary <- candidate %>% 
-      summarise_anidf(GPS, Latitude, Longitude, Distance, Course, Rate, Elevation)
-    
-    candidate_date_summary <- candidate %>% 
-      summarise_anidf(Date, Latitude, Longitude, Distance, Course, Rate, Elevation)
-  }
-  else {
-    correct_gps_summary <- correct %>% 
-      summarise_anidf(GPS, Latitude, Longitude, Distance, Course, Rate, use_elev = FALSE)
-    
-    correct_date_summary <- correct %>% 
-      summarise_anidf(Date, Latitude, Longitude, Distance, Course, Rate, use_elev = FALSE)
-    
-    candidate_gps_summary <- candidate %>% 
-      summarise_anidf(GPS, Latitude, Longitude, Distance, Course, Rate, use_elev = FALSE)
-    
-    candidate_date_summary <- candidate %>% 
-      summarise_anidf(Date, Latitude, Longitude, Distance, Course, Rate, use_elev = FALSE)
-  }
+compare_summarise_data <- function(correct, candidate, gps_out = "gps_out.csv", date_out = "date_out.csv", export = TRUE) {
+  
+  correct_gps_summary <- correct %>% 
+    summarise_anidf(GPS, Latitude, Longitude, Distance, Course, Rate, Elevation)
  
+  correct_date_summary <- correct %>% 
+    summarise_anidf(Date, Latitude, Longitude, Distance, Course, Rate, Elevation)
+  
+  candidate_gps_summary <- candidate %>% 
+    summarise_anidf(GPS, Latitude, Longitude, Distance, Course, Rate, Elevation)
+  
+  candidate_date_summary <- candidate %>% 
+    summarise_anidf(Date, Latitude, Longitude, Distance, Course, Rate, Elevation)
   
   gps_summary <- join_summaries(correct_gps_summary, candidate_gps_summary, by_str="GPS")
   date_summary <- join_summaries(correct_date_summary, candidate_date_summary, by_str="Date")
@@ -270,9 +254,8 @@ compare_summarise_data <- function(correct, candidate, gps_out = "gps_out.csv", 
 #'@param dist distance column
 #'@param course course column
 #'@param rate rate column
-#'@param elev elevation column, must be defined when use_elev is true, otherwise NULL
-#'@param use_elev logical, whether to include elevation in summary, defaults to true
-#'@param daily whether to group by both GPS and Date for daily summary, defaults to false
+#'@param elev elevation column
+#'@param daily whether to group by both GPS and Date for daily summary, defaults to False
 #'@return df of summary statistics for the animal data frame
 #'@examples
 #'# Summary of demo data by date
@@ -281,7 +264,7 @@ compare_summarise_data <- function(correct, candidate, gps_out = "gps_out.csv", 
 #'
 #'@export
 #'
-summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev = NULL, use_elev = TRUE, daily = FALSE) {
+summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev, daily=FALSE) {
   if(daily) {
     anidf <- anidf %>% 
       dplyr::group_by(GPS, Date)
@@ -290,25 +273,20 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev = NUL
     anidf <- anidf %>% 
       dplyr::group_by({{by}}) 
   }
-  if(!use_elev) {
-    summary <- anidf %>% 
-      dplyr::summarise(n = n(),
-                       meanLat = mean({{lat}}),
-                       sdLat = stats::sd({{lat}}),
-                       meanLong = mean({{long}}),
-                       sdLong = stats::sd({{long}}),
-                       meanDist = mean({{dist}}),
-                       sdDist = stats::sd({{dist}}),
-                       meanCourse = mean({{course}}),
-                       sdCourse = stats::sd({{course}}),
-                       meanRate = mean({{rate}}),
-                       sdRate = stats::sd({{rate}}))
-   
-  }
-  else {
-    summary <- dplyr::bind_cols(summary, summary %>% dplyr::summarise(meanElev = mean({{elev}}), sdElev = stats::sd({{elev}})))
-  }
-  return(summary)
+  anidf %>% 
+    dplyr::summarise(n = n(),
+                     meanLat = mean({{lat}}),
+                     sdLat = stats::sd({{lat}}),
+                     meanLong = mean({{long}}),
+                     sdLong = stats::sd({{long}}),
+                     meanDist = mean({{dist}}),
+                     sdDist = stats::sd({{dist}}),
+                     meanCourse = mean({{course}}),
+                     sdCourse = stats::sd({{course}}),
+                     meanRate = mean({{rate}}),
+                     sdRate = stats::sd({{rate}}),
+                     meanElev = mean({{elev}}),
+                     sdElev = stats::sd({{elev}}))
 }
 
 #'
@@ -335,19 +313,14 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev = NUL
 #'@export
 #'
 #'
-join_summaries <- function(correct_summary, candidate_summary, by_str, daily = FALSE, use_elev = TRUE) {
+join_summaries <- function(correct_summary, candidate_summary, by_str, daily = FALSE) {
   if(daily) {
     summary_all <- dplyr::full_join(correct_summary, candidate_summary, by=c("GPS", "Date"))
   }
   else {
     summary_all <- dplyr::full_join(correct_summary, candidate_summary, by=by_str)
   }
-  if(use_elev) {
-    elev <- summary_all %>% 
-      dplyr::mutate(meanElevDiff = meanElev.x - meanElev.y) %>% 
-      dplyr::mutate(sdElevDiff = sqrt((sdElev.x)^2 + (sdElev.y)^2)) 
-  }
-  summary_all <- summary_all %>% 
+   summary_all <- summary_all %>% 
     # create difference columns
     dplyr::mutate(nDiff = n.x - n.y) %>% 
     dplyr::mutate(meanLatDiff = meanLat.x - meanLat.y) %>% 
@@ -359,39 +332,44 @@ join_summaries <- function(correct_summary, candidate_summary, by_str, daily = F
     dplyr::mutate(meanCourseDiff = meanCourse.x - meanCourse.y) %>% 
     dplyr::mutate(sdCourseDiff = sqrt((sdCourse.x)^2 + (sdCourse.y)^2)) %>% 
     dplyr::mutate(meanRateDiff = meanRate.x - meanRate.y) %>% 
-    dplyr::mutate(sdRateDiff = sqrt((sdRate.x)^2 + (sdRate.y)^2))
-  
-  
+    dplyr::mutate(sdRateDiff = sqrt((sdRate.x)^2 + (sdRate.y)^2)) %>% 
+    dplyr::mutate(meanElevDiff = meanElev.x - meanElev.y) %>% 
+    dplyr::mutate(sdElevDiff = sqrt((sdElev.x)^2 + (sdElev.y)^2)) 
     # reorder summary columns
    if(daily) {
-     summary_select <- summary_all %>% 
-       dplyr::select(GPS, Date)
+     summary_all %>% 
+       dplyr::select(GPS, Date,
+                     n.x, n.y, nDiff,
+                     meanLat.x, meanLat.y, meanLatDiff,
+                     sdLat.x, sdLat.y, sdLatDiff,
+                     meanLong.x, meanLong.y, meanLongDiff,
+                     sdLong.x, sdLong.y, sdLongDiff,
+                     meanDist.x, meanDist.y, meanDistDiff,
+                     sdDist.x, sdDist.y, sdDistDiff,
+                     meanCourse.x, meanCourse.y, meanCourseDiff,
+                     sdCourse.x, sdCourse.y, sdCourseDiff,
+                     meanRate.x, meanRate.y, meanRateDiff,
+                     sdRate.x, sdRate.y, sdRateDiff,
+                     meanElev.x, meanElev.y, meanElevDiff,
+                     sdElev.x, sdElev.y, sdElevDiff)
    }
    else {
-     summary_select <- summary_all %>% 
-       dplyr::select(1)
+     summary_all %>% 
+     dplyr::select(1,
+                   n.x, n.y, nDiff,
+                   meanLat.x, meanLat.y, meanLatDiff,
+                   sdLat.x, sdLat.y, sdLatDiff,
+                   meanLong.x, meanLong.y, meanLongDiff,
+                   sdLong.x, sdLong.y, sdLongDiff,
+                   meanDist.x, meanDist.y, meanDistDiff,
+                   sdDist.x, sdDist.y, sdDistDiff,
+                   meanCourse.x, meanCourse.y, meanCourseDiff,
+                   sdCourse.x, sdCourse.y, sdCourseDiff,
+                   meanRate.x, meanRate.y, meanRateDiff,
+                   sdRate.x, sdRate.y, sdRateDiff,
+                   meanElev.x, meanElev.y, meanElevDiff,
+                   sdElev.x, sdElev.y, sdElevDiff)
    }
-  
-   summary_all <- summary_select %>% 
-     dplyr::bind_cols(summary_all %>% 
-                        dplyr::select(n.x, n.y, nDiff,
-                                      meanLat.x, meanLat.y, meanLatDiff,
-                                      sdLat.x, sdLat.y, sdLatDiff,
-                                      meanLong.x, meanLong.y, meanLongDiff,
-                                      sdLong.x, sdLong.y, sdLongDiff,
-                                      meanDist.x, meanDist.y, meanDistDiff,
-                                      sdDist.x, sdDist.y, sdDistDiff,
-                                      meanCourse.x, meanCourse.y, meanCourseDiff,
-                                      sdCourse.x, sdCourse.y, sdCourseDiff,
-                                      meanRate.x, meanRate.y, meanRateDiff,
-                                      sdRate.x, sdRate.y, sdRateDiff))
-   
-   if(use_elev) {
-     summary_all <- summary_all %>% 
-       dplyr::bind_cols(elev)
-   }
-   
-   return(summary_all)
 }
 
 #'
@@ -498,7 +476,6 @@ line_compare <- function(correct, candidate, col, out = "line.png", export = TRU
 #'@param candidate df to be compared to the reference
 #'@param out desired file name of .csv output summary when export is True, defaults to summary_daily.csv
 #'@param export logical, whether to export summary to .csv, defaults to True
-#'@param use_elev logical, whether to include elevation in summary, defaults to true
 #'@return summary df
 #'@examples
 #'# Compare and summarise unfiltered demo cows to filtered, grouped by both Date and GPS
@@ -506,19 +483,12 @@ line_compare <- function(correct, candidate, col, out = "line.png", export = TRU
 #'compare_summarise_daily(demo_unfiltered_elev, demo_filtered_elev, export = FALSE)
 #'@export
 #'
-compare_summarise_daily <- function(correct, candidate, out = "summary_daily.csv", export = TRUE, elev = TRUE) {
-  if(use_elev) {
-    correct_summary <- correct %>% 
-      summarise_anidf(NULL, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=TRUE)
-    candidate_summary <- candidate %>% 
-      summarise_anidf(NULL, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=TRUE)
-  }
-  else {
-    correct_summary <- correct %>% 
-      summarise_anidf(NULL, Latitude, Longitude, Distance, Course, Rate, use_elev=FALSE, daily=TRUE)
-    candidate_summary <- candidate %>% 
-      summarise_anidf(NULL, Latitude, Longitude, Distance, Course, Rate, use_elev=FALSE, daily=TRUE)
-  }
+compare_summarise_daily <- function(correct, candidate, out = "summary_daily.csv", export = TRUE) {
+  correct_summary <- correct %>% 
+    summarise_anidf(NULL, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=TRUE)
+  
+  candidate_summary <- candidate %>% 
+    summarise_anidf(NULL, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=TRUE)
   
   summary_all <- join_summaries(correct_summary, candidate_summary, daily=TRUE)
   
@@ -535,58 +505,35 @@ compare_summarise_daily <- function(correct, candidate, out = "summary_daily.csv
 #'
 #'@param correct reference df
 #'@param candidate df to be compared to the reference
-#'@param use_elev logical, whether to include elevation in comparison, defaults to true
-#'@param use_slope logical, whether to include slope in comparison, defaults to true
-#'@param has_flags logical, whether correct df has predefined flags, defaults to false
-#'@param dropped_flag dropped flag column, must be defined when has_flags is true, otherwise null
+#'@param elev logical, whether to include elevation, defaults to true
+#'@param slope logical, whether to include slope, defaults to true
 #'@return joined and reformatted df
 #'@examples
 #'# Join and reformat unfiltered demo data and filtered demo data
 #'
 #'compare_flags(demo_unfiltered_elev, demo_filtered_elev)
 #'@export
-compare_flags <- function(correct, candidate, use_elev = TRUE, use_slope = TRUE, has_flags = FALSE, dropped_flag = NULL) {
-    correct <- correct %>% 
-      dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S")) %>% 
-      dplyr::group_by(GPS) %>% 
-      dplyr::distinct(DateTime, .keep_all = TRUE) %>% 
-      dplyr::ungroup()
-    candidate <- candidate %>% 
-      dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S")) %>% 
-      dplyr::group_by(GPS) %>% 
-      dplyr::distinct(DateTime, .keep_all = TRUE) %>% 
-      dplyr::ungroup()
-    join <- dplyr::full_join(correct, candidate, by=c("DateTime", "GPS"))
-    join_select <- join %>% 
+compare_flags <- function(correct, candidate, elev = TRUE, slope = TRUE) {
+    correct <- correct %>% dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S"))
+    candidate <- candidate %>% dplyr::mutate(DateTime = as.POSIXct(DateTime, format="%Y-%m-%d %H:%M:%S"))  
+    joined <- dplyr::full_join(correct, candidate, by=c( "DateTime", "GPS")) %>%
       dplyr::select(DateTime, GPS,
                     Latitude.x, Latitude.y, Longitude.x, Longitude.y,
                     Distance.x, Distance.y, Rate.x, Rate.y,
-                    Course.x, Course.y)
-    if(use_elev) {
-      join_select <- join_select %>% 
-        dplyr::bind_cols(join %>% dplyr::select(Elevation.x, Elevation.y))
+                    Course.x, Course.y, Elevation.x, Elevation.y, Slope.x, Slope.y,
+                    RateFlag, CourseFlag, DistanceFlag, TotalFlags)
+    if(elev) {
+      joined <- dplyr::bind_cols(joined, joined %>% dplyr::select(Elevation.x, Elevation.y))
     }
-    if(use_slope) {
-      join_select <- join_select %>% 
-        dplyr::bind_cols(join %>% dplyr::select(Slope.x, Slope.y))
+    if(slope) {
+      joined <- dplyr::bind_cols(joined, joined %>% dplyr::select(Slope.x, Slope.y))
     }
-    if(has_flags) {
-      join_select <- join_select %>%
-        dplyr::bind_cols(join %>% dplyr::select(RateFlag.x, RateFlag.y, 
-                                                CourseFlag.x, CourseFlag.y,
-                                                DistanceFlag.x, DistanceFlag.y,
-                                                TotalFlags.x, TotalFlags.y, {{dropped_flag}}))
-    }
-    else {
-      join_select <- join_select %>%
-        dplyr::bind_cols(join %>% dplyr::select(RateFlag, CourseFlag, DistanceFlag, TotalFlags))
-    }
-   
-    join_select <- join_select %>% dplyr::mutate( Date = as.Date(DateTime, format="%Y-%m-%d"),
-                   TimeDiff = NA,
-                   TimeDiffMins = NA,
-                   cumDist.x = NA,
-                   cumDist.y = NA
+    joined <- joined %>% 
+      dplyr::mutate( Date = as.Date(DateTime, format="%Y-%m-%d"),
+                     TimeDiff = NA,
+                     TimeDiffMins = NA,
+                     cumDist.x = NA,
+                     cumDist.y = NA
                    ) %>%
     dplyr::group_by(GPS, Date) %>% 
     dplyr::arrange(DateTime, .by_group = TRUE) %>% 
@@ -598,19 +545,11 @@ compare_flags <- function(correct, candidate, use_elev = TRUE, use_slope = TRUE,
                   cumDist.y = cumsum(Distance.y),
                   
                   TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")) > 100), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), 
-                  TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins")))
-                  )
-    if(has_flags) {
-      join_select <- join_select %>%
-        dplyr::mutate(Dropped.y = ifelse((TotalFlags.x < 2 & !DistanceFlag.y), 0, 1))
-    }
-    else {
-      join_select <- join_select %>% 
-        dplyr::mutate(Dropped.x = ifelse(!is.na(Latitude.x), 0, 1),
-                      Dropped.y = ifelse((TotalFlags < 2 & !DistanceFlag), 0, 1)) 
-    }
-      
-    return(as.data.frame(join_select %>% dplyr::ungroup()))
+                  TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
+                  Dropped.x = ifelse(!is.na(Latitude.x), 0, 1),
+                  Dropped.y = ifelse((TotalFlags < 2 & !DistanceFlag), 0, 1)) %>% 
+    dplyr::ungroup()
+    return(as.data.frame(joined))
 }
 
 

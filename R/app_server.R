@@ -23,17 +23,12 @@ if(getRversion() >= '2.5.1') {
 #'@export
 #'
 app_server <- function(input, output, session) {
-  # initialize list of datasets
-  meta <- reactiveVal(demo_meta)
-  uploaded <- reactiveVal(FALSE)
   
   raw_dat <- reactive({
     if(is.null(input$zipInput)) {
       return(demo_info)
     }
-    dat_info <- store_batch_list(input$zipInput)
-    meta(dat_info$meta)
-    return(dat_info)
+    return(store_batch_list(input$zipInput))
   })
   
   output$numUploaded <- renderText(paste0(ifelse(is.null(input$zipInput), 0, length(raw_dat()$data)), " files uploaded"))
@@ -43,8 +38,7 @@ app_server <- function(input, output, session) {
       return(demo_unfiltered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), filters = FALSE, 
-                            zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox))
+      return(clean_batch_df(raw_dat(), filters = FALSE))
     }
   })
   
@@ -53,10 +47,13 @@ app_server <- function(input, output, session) {
       return(demo_filtered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), filters = TRUE,
-                            zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox))
+      return(clean_batch_df(raw_dat(), filters = TRUE))
     }
   })
+  
+  # initialize list of datasets
+  meta <- reactiveVal(demo_meta)
+  uploaded <- reactiveVal(FALSE)
   
   
   observeEvent(input$processButton, {
@@ -86,28 +83,24 @@ app_server <- function(input, output, session) {
   
   # main dynamic data set
   dat_main <- reactive({
-    req(choose_ani(), choose_dates(), meta, input$selected_min_time, input$selected_max_time)
+    req(input$selected_ani, input$dates, meta)
     
     meta <- meta()
     
-    if(any(meta$ani_id  %in% choose_ani()) ){
+    if(any(meta$ani_id  %in% input$selected_ani) ){
       meta <- meta %>%
-        dplyr::filter(ani_id %in% choose_ani())
+        dplyr::filter(ani_id %in% input$selected_ani)
     }
     
-    ani_names <- paste(choose_ani(), collapse = ", ")
+    ani_names <- paste(input$selected_ani, collapse = ", ")
+    cache_name <- paste0(ani_names,", ",input$dates[1],"-",input$dates[2])
     
-    min_datetime <- lubridate::with_tz(lubridate::ymd_hms(paste(choose_dates()[1], input$selected_min_time), tz="UTC", quiet = TRUE), tz="UTC")
-    max_datetime <- lubridate::with_tz(lubridate::ymd_hms(paste(choose_dates()[2], input$selected_max_time), tz="UTC", quiet = TRUE), tz="UTC")
-    
-    cache_name <- paste0(ani_names,", ",min_datetime,"-",max_datetime)
-    
-    if( (uploaded() || !(cache_name %in% names(cache()))) & (!is.na(min_datetime) & !is.na(max_datetime)) ) {
+    if(!(cache_name %in% names(cache()))) {
       # if no user provided data, use demo data
       if(is.null(input$zipInput)) {
         current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id,
-                 DateTime <= max_datetime,
-                 DateTime >= min_datetime)
+                 Date <= input$dates[2],
+                 Date >= input$dates[1])
         if(nrow(current_df) == 0) {
           current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id)
         }
@@ -115,9 +108,9 @@ app_server <- function(input, output, session) {
       # if user provided data, get it
       else {
         # temporarily set current_df to cached df to avoid error
-        current_df <- cache()[[1]]$df
-        if(any(meta$ani_id  %in% choose_ani()) ){
-          current_df <- get_data_from_meta(meta, min_datetime, max_datetime)
+        current_df <- cache()[[1]]
+        if(any(meta$ani_id  %in% input$selected_ani) ){
+          current_df <- get_data_from_meta(meta, input$dates[1], input$dates[2])
         }
       }
      
@@ -127,7 +120,7 @@ app_server <- function(input, output, session) {
               
       # enqueue to cache
       updated_cache <- cache()
-      updated_cache[[cache_name]] <- list(df = current_df, ani = choose_ani(), date1 = min_datetime, date2 = max_datetime)
+      updated_cache[[cache_name]] <- list(df = current_df, ani = input$selected_ani, date1 = input$dates[1], date2 = input$dates[2])
       
       # dequeue if there are more than 5 dfs 
       if(length(updated_cache) > 5) {
@@ -135,16 +128,15 @@ app_server <- function(input, output, session) {
       }
       cache(updated_cache)
     }
-    if(is.null(choose_recent())) {
+    if(is.null(input$selected_recent)) {
       return(cache()[[1]]$df)
     }
     else {
-      return(cache()[[choose_recent()]]$df)
+      return(cache()[[input$selected_recent]]$df)
     }
   })
   
-  output$nrow_recent <- renderText(paste0(nrow(dat_main()), " rows selected"))
-  output$head_recent <- renderTable(utils::head(dat_main() %>% dplyr::select(Date, Time, Animal, GPS, Latitude, Longitude, Distance, Rate, Course)))
+  
   
   ######################################
   ## DYNAMIC USER INTERFACE
@@ -171,54 +163,107 @@ app_server <- function(input, output, session) {
   })
   
   # select data sites
-  choose_site <- callModule(reactivePicker, "choose_site",
-                            type = "site", req_list = list(meta = meta), 
-                            text = "Select Site(s)", min_selected = 1, max_selected = 2, 
-                            multiple = TRUE, options = list(`actions-box` = TRUE))
+  output$choose_site <- renderUI({
+    req(meta)
+    
+    meta <- meta()
+    
+    site_choices <- as.list(as.character(unique(meta$site)))
+    
+    shinyWidgets::pickerInput("selected_site", "Select Site(s)",
+                choices = site_choices,
+                selected = site_choices[c(1,2)],
+                multiple = TRUE,
+                inline = FALSE, options = list(`actions-box` = TRUE)
+    ) 
+  }) 
   
   
   # select animals
-  choose_ani <- callModule(reactivePicker, "choose_ani",
-                           type = "ani", req_list = list(meta = meta, selected_site = choose_site),
-                           text = "Select Animal(s)", min_selected = 1, max_selected = 4,
-                           multiple = TRUE, options = list(`actions-box` = TRUE))
+  output$choose_ani <- renderUI({
+    
+    req(meta, input$selected_site)
+    
+    meta <- meta()
+    
+    if(nrow(meta %>% dplyr::filter(site %in% input$selected_site)) > 0) {
+      meta <- meta %>% dplyr::filter(site %in% input$selected_site) 
+    }
+    
+    ani_choices <- as.list(as.character(unique(meta$ani_id)))
+   
+    shinyWidgets::pickerInput("selected_ani", "Select Animal(s)",
+                choices = ani_choices,
+                selected = ani_choices[1:4],
+                multiple = TRUE, 
+                inline = FALSE, options = list(`actions-box` = TRUE)
+    )
+  })
   
   # select dates
-  choose_dates <- callModule(datePicker, "choose_dates",
-                             req_list = list(meta = meta, selected_ani = choose_ani), text = "Date Range")
-  
-  # select time range
-  output$min_time <- renderUI({
-    req(meta, choose_ani())
+  output$choose_dates <- renderUI({
     
-    textInput("selected_min_time", "Min Time", value = strftime(min(meta()$min_date), format="%H:%M:%S", tz="UTC"), placeholder = "HH:MM:SS")
+    req(meta, input$selected_ani)
+    
+    # Get the data set with the appropriate name
+    
+    meta <- meta()
+    
+    if(nrow(meta() %>% dplyr::filter(ani_id %in% input$selected_ani)) > 0) {
+      meta <- meta %>% dplyr::filter(ani_id %in% input$selected_ani)
+    }
+    
+    max_date <- max(as.Date(meta$max_date), na.rm=TRUE)
+    min_date <- min(as.Date(meta$min_date), na.rm=TRUE)
+        
+    sliderInput("dates", "Date Range", min = min_date,
+                max = max_date, value = c(min_date, max_date), step = 1,
+                animate = animationOptions(loop = FALSE, interval = 1000))
+    
+    
   })
   
-  # select time range
-  output$max_time <- renderUI({
-    req(meta, choose_ani())
-    
-    textInput("selected_max_time", "Max Time", value = strftime(max(meta()$max_date), format="%H:%M:%S", tz="UTC"), placeholder = "HH:MM:SS")
-  })
   
   # select variables to compute statistics
-  choose_cols <- callModule(staticPicker, "choose_cols",
-                            selected_ani = choose_ani, text = "Choose Variables for Statistics",
-                            choices = c("Elevation", "TimeDiffMins", "Course", "CourseDiff", "Distance", "Rate", "Slope", "Aspect"),
-                            min_selected = 1, max_selected = 4)
+  output$choose_cols <- renderUI({
+    req(input$selected_ani) 
+    
+    var_choices <- c( "Elevation", "TimeDiffMins", "Course", "CourseDiff", "Distance", "Rate", "Slope", "Aspect")
+    shinyWidgets::pickerInput("selected_cols", "Choose Variables for Statistics",
+                choices = var_choices,
+                selected = var_choices[c(1,2,3,4)],
+                multiple = TRUE,
+                inline = FALSE, options = list(`actions-box` = TRUE)
+    )
+  })
   
   # select summary statistics
-  choose_stats <- callModule(staticPicker, "choose_stats",
-                             selected_ani = choose_ani, text = "Choose Summary Statistics",
-                             choices = c("N", "Mean", "SD", "Variance", "Min", "Max", "Range", "IQR",  "Q1", "Median", "Q3"),
-                             min_selected = 1, max_selected = 6)
+  output$choose_stats <- renderUI({
+    req(input$selected_ani)
+    
+    stats_choices <- c("N", "Mean", "SD", "Variance", "Min", "Max", "Range", "IQR",  "Q1", "Median", "Q3" )
+    shinyWidgets::pickerInput("selected_stats", "Choose Summary Statistics",
+                choices = stats_choices,
+                selected = stats_choices[1:6],
+                multiple = TRUE,
+                inline = FALSE, options = list(`actions-box` = TRUE)
+    )
+  })
   
   # select recent data
-  choose_recent <- callModule(reactivePicker, "choose_recent",
-                              type = "recent", 
-                              req_list = list(dat_main = dat_main, selected_ani = choose_ani, dates = reactive({choose_dates()}), 
-                                              min_time = reactive({input$selected_min_time}), max_time = reactive({input$selected_max_time}), cache = cache),
-                              text = "Select Data", multiple = FALSE)
+  
+  output$choose_recent <- renderUI({
+    req(dat_main)
+    ani_names <- paste(input$selected_ani, collapse = ", ")
+    cache_name <- paste0(ani_names,", ",input$dates[1],"-",input$dates[2])
+    recent_choices <- names(cache())
+    shinyWidgets::pickerInput("selected_recent", "Select Data",
+                choices = recent_choices,
+                selected = cache_name,
+                multiple = FALSE,
+                inline = FALSE
+    )
+  })
   
   # spatial points for maps
   points_main <- reactive({
@@ -309,16 +354,16 @@ app_server <- function(input, output, session) {
   last_locations <- reactiveVal(NULL)
   
   observe({
-    req(points, choose_ani())
+    req(points, input$selected_ani)
     
     pts <- points()
     
-    if (is.null(choose_recent())) {
+    if (is.null(input$selected_recent)) {
       return(leaflet() %>%  # Add tiles
                addTiles(group = "street map"))
     }
     
-    current_anilist <- cache()[[choose_recent()]]
+    current_anilist <- cache()[[input$selected_recent]]
     
     factpal <-
       colorFactor(scales::hue_pal()(length(current_anilist$ani)), current_anilist$ani)
@@ -360,7 +405,7 @@ app_server <- function(input, output, session) {
         shinyjs::js$removePolygon()
       }
     } # if closing bracket
-    else if(uploaded() || !identical(last_drawn()$ani, current_anilist$ani)){
+    else if(!identical(last_drawn()$ani, current_anilist$ani)){
       # remove old points
       for(ani in setdiff(last_drawn()$ani, current_anilist$ani)) {
         proxy %>% clearGroup(ani)
@@ -393,7 +438,7 @@ app_server <- function(input, output, session) {
             ) 
       } # if new points
       else if(uploaded()) {
-        uploaded = FALSE
+        uploaded(FALSE)
         proxy %>%
           addCircleMarkers(
             data = pts,
@@ -529,103 +574,167 @@ app_server <- function(input, output, session) {
   # Summary Statistics
   
   # Time Difference
- 
-  timediff_title <- callModule(statsLabel, "timediff_title", 
-                               choose_cols, choose_stats, 
-                               "TimeDiffMins", "Time Difference (minutes) Between GPS Measurements")
+  output$timediff_title <- renderUI({
+    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("TimeDiffMins" %in% input$selected_cols)) 
+      return()
+    h4("Time Difference (minutes) Between GPS Measurements")
+  })
   
+  timediff_stats <- reactive({
+    if(!("TimeDiffMins" %in% input$selected_cols) | is.null(input$selected_stats)) 
+      return()
+    
+    summary <- summarise_col(dat(), TimeDiffMins) 
+    subset(summary, select=c("Animal", input$selected_stats))
+    
+  })
   
-  timediff <- callModule(stats, "timediff", 
-                         choose_cols, choose_stats, 
-                         "TimeDiffMins", TimeDiffMins, dat)
+  output$timediff <- renderTable(timediff_stats())
   
   # Elevation
+  output$elevation_title <- renderUI({
+    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Elevation" %in% input$selected_cols)) 
+      return()
+    h4("Elevation")
+  })
   
-  elevation_title <- callModule(statsLabel, "elevation_title", 
-                               choose_cols, choose_stats, 
-                               "Elevation", "Elevation")
+  elevation_stats <- reactive({
+    if(!("Elevation" %in% input$selected_cols) | is.null(input$selected_stats)) 
+      return()
+    
+    summary <- summarise_col(dat(), Elevation) 
+    subset(summary, select=c("Animal", input$selected_stats))
+    
+  })
   
-  
-  elevation <- callModule(stats, "elevation", 
-                         choose_cols, choose_stats, 
-                         "Elevation", Elevation, dat)
+  output$elevation <- renderTable(elevation_stats())
   
   # Speed
+  output$speed_title <- renderUI({
+    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Speed" %in% input$selected_cols)) 
+      return()
+    h4("Speed")
+  })
   
-  speed_title <- callModule(statsLabel, "speed_title", 
-                            choose_cols, choose_stats, 
-                            "Speed", "Speed")
+  speed_stats <- reactive({
+    if(!("Speed" %in% input$selected_cols) | is.null(input$selected_stats)) 
+      return()
+    
+    summary <- summarise_col(dat(), Speed) 
+    subset(summary, select=c("Animal", input$selected_stats))
+    
+  })
   
-  
-  speed <- callModule(stats, "speed", 
-                      choose_cols, choose_stats, 
-                      "Speed", Speed, dat)
+  output$speed <- renderTable(speed_stats())
   
   # Course
+  output$course_title <- renderUI({
+    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Course" %in% input$selected_cols)) 
+      return()
+    h4("Course")
+  })
   
-  course_title <- callModule(statsLabel, "course_title", 
-                             choose_cols, choose_stats, 
-                             "Course", "Course")
+  course_stats <- reactive({
+    if(!("Course" %in% input$selected_cols) | is.null(input$selected_stats)) 
+      return()
+    
+    summary <- summarise_col(dat(), Course) 
+    subset(summary, select=c("Animal", input$selected_stats))
+    
+  })
   
-  
-  course <- callModule(stats, "course", 
-                       choose_cols, choose_stats, 
-                       "Course", Course, dat)
+  output$course <- renderTable(course_stats())
   
   # Course Difference
+  output$coursediff_title <- renderUI({
+    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("CourseDiff" %in% input$selected_cols)) 
+      return()
+    h4("Course Difference Between GPS Measurements")
+  })
   
-  coursediff_title <- callModule(statsLabel, "coursediff_title", 
-                             choose_cols, choose_stats, 
-                             "CourseDiff", "Course Difference Between GPS Measurements")
+  coursediff_stats <- reactive({
+    if(!("CourseDiff" %in% input$selected_cols) | is.null(input$selected_stats)) 
+      return()
+    
+    summary <- summarise_col(dat(), CourseDiff) 
+    subset(summary, select=c("Animal", input$selected_stats))
+    
+  })
   
-  
-  coursediff <- callModule(stats, "coursediff", 
-                       choose_cols, choose_stats, 
-                       "CourseDiff", CourseDiff, dat)
+  output$coursediff <- renderTable(coursediff_stats())
   
   # Distance
+  output$distance_title <- renderUI({
+    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Distance" %in% input$selected_cols)) 
+      return()
+    h4("Distance")
+  })
   
-  distance_title <- callModule(statsLabel, "distance_title", 
-                             choose_cols, choose_stats, 
-                             "Distance", "Distance")
+  distance_stats <- reactive({
+    if(!("Distance" %in% input$selected_cols) | is.null(input$selected_stats)) 
+      return()
+    
+    summary <- summarise_col(dat(), Distance) 
+    subset(summary, select=c("Animal", input$selected_stats))
+    
+  })
   
-  
-  distance <- callModule(stats, "distance", 
-                       choose_cols, choose_stats, 
-                       "Distance", Distance, dat)
+  output$distance <- renderTable(distance_stats())
   
   # Rate
+  output$rate_title <- renderUI({
+    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Rate" %in% input$selected_cols)) 
+      return()
+    h4("Rate")
+  })
   
-  rate_title <- callModule(statsLabel, "rate_title", 
-                             choose_cols, choose_stats, 
-                             "Rate", "Rate")
-  
-  
-  rate <- callModule(stats, "rate", 
-                       choose_cols, choose_stats, 
-                       "Rate", Rate, dat)
+  rate_stats <- reactive({
+    if(!("Rate" %in% input$selected_cols) | is.null(input$selected_stats)) 
+      return()
+    
+    summary <- summarise_col(dat(), Rate) 
+    subset(summary, select=c("Animal", input$selected_stats))
+    
+  })
+  output$rate <- renderTable(rate_stats())
   
   # Slope
   
-  slope_title <- callModule(statsLabel, "slope_title", 
-                             choose_cols, choose_stats, 
-                             "Slope", "Slope")
+  output$slope_title <- renderUI({
+    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Slope" %in% input$selected_cols) | !("Slope" %in% colnames(dat()))) 
+      return()
+    h4("Slope")
+  })
   
+  slope_stats <- reactive({
+    if(!("Slope" %in% input$selected_cols) | is.null(input$selected_stats) | !("Slope" %in% colnames(dat()))) 
+      return()
+    
+    summary <- summarise_col(dat(), Slope) 
+    subset(summary, select=c("Animal", input$selected_stats))
+    
+  })
   
-  slope <- callModule(stats, "slope", 
-                       choose_cols, choose_stats, 
-                       "Slope", Slope, dat)
+  output$slope <- renderTable(slope_stats())
   
   # Aspect
   
-  aspect_title <- callModule(statsLabel, "aspect_title", 
-                             choose_cols, choose_stats, 
-                             "Aspect", "Aspect")
+  output$aspect_title <- renderUI({
+    if(is.null(input$selected_stats) | is.null(input$selected_cols) | !("Aspect" %in% input$selected_cols) | !("Aspect" %in% colnames(dat()))) 
+      return()
+    h4("Aspect")
+  })
   
+  aspect_stats <- reactive({
+    if(!("Aspect" %in% input$selected_cols) | is.null(input$selected_stats) | !("Aspect" %in% colnames(dat()))) 
+      return()
+    
+    summary <- summarise_col(dat(), Aspect) 
+    subset(summary, select=c("Animal", input$selected_stats))
+    
+  })
   
-  aspect <- callModule(stats, "aspect", 
-                       choose_cols, choose_stats, 
-                       "Aspect", Aspect, dat)
+  output$aspect <- renderTable(aspect_stats())
   
   ##############################################################
   # SUBSET DATA VIA MAP

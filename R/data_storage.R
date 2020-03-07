@@ -81,36 +81,27 @@ store_batch_list <- function(data_dir) {
     
   }
   maxminsll <- maxminlatlong(data_sets[[1]]$df, data_sets[[1]]$dtype)
-  
-  meta_df <- data.frame()
 
   for(i in 1:length(file_names)) {
     site_names[i] <- ifelse( grepl("\\_", file_names[i]), tolower(sub("\\_.*","", file_names[i])), paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])))
     ani_ids[i] <- ifelse(ani_ids[i] == file_names[i], paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])), ani_ids[i])
     gps_units[i] <-  ifelse(gps_units[i] == file_names[i], paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])), gps_units[i])
-    df <- data_sets[[i]]$df
-    dtype <- data_sets[[i]]$dtype
     if(i > 1 ){
-      maxminsll <- update_maxminlatlong(maxminsll, df, dtype)
+      maxminsll <- update_maxminlatlong(maxminsll, data_sets[[i]]$df, data_sets[[i]]$dtype)
     }
-    df <- clean_location_data(df, dtype, filters = FALSE, ani_ids[i], gps_units[i])
-    current_meta <- get_meta(df, i, dtype, file_names[i], site_names[i], ani_ids[i], "temp.rds")
-    meta_df <- save_meta(meta_df, current_meta) 
-    data_sets[[i]] <- df
+      
   }
   
   ani_ids <- make.unique(ani_ids, sep="_")
   
   unlink("temp", recursive = TRUE)
-  
-  saveRDS(data_sets, "temp.rds")
+  # print(paste("The max/min Lat/Lon values are", paste(maxminsll, collapse=", ")) )
   
   return(list(data = data_sets, file = file_names, 
               ani = ani_ids, gps = gps_units, 
               site = site_names, rds_name = rds_name,
               min_lat = maxminsll[2], max_lat = maxminsll[1],
-              min_long = maxminsll[4], max_long = maxminsll[3],
-              meta = meta_df))
+              min_long = maxminsll[4], max_long = maxminsll[3]))
 }
 
 #'
@@ -120,19 +111,16 @@ store_batch_list <- function(data_dir) {
 #'@param filters filter bad data points, defaults to true
 #'@param tz_in input time zone, defaults to UTC
 #'@param tz_out output time zone, defaults to UTC
-#'@param get_slope logical, whether to look up elevation, defaults to false
-#'@param zoom level of zoom, defaults to 11
-#'@param get_slope logical, whether to compute slope (in degrees), defaults to true
-#'@param get_aspect logical, whether to compute aspect (in degrees), defaults to true
 #'@return clean df with all animal data files from the directory
 #'
-clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "UTC", lookup_elev = FALSE, zoom = 11, get_slope = TRUE, get_aspect = TRUE) {
+clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "UTC") {
   data_sets <- list()
   withProgress(message = paste0("Preparing raw data", ifelse(filters, " (filtered)", " (unfiltered)")), detail = paste0("0/",length(data_info$data), " files prepped"), value = 0, {
     
   for(i in 1:length(data_info$data)) {
-    df <- data_info$data[[i]]
-    dtype <- data_info$meta$dtype[i]
+    
+    df <- data_info$data[[i]]$df 
+    dtype <- data_info$data[[i]]$dtype
     
     if(dtype == "igotu") {
       df <- df[!duplicated(as.list(df))] # discard any columns that are duplicates of index
@@ -155,27 +143,7 @@ clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "U
     incProgress(1/(2*length(data_info$data)), detail = paste0(i,"/",length(data_info$data), " files prepped"))
   } #cleaning for loop
   }) #progress bar
-  
-  status_message <- modalDialog(
-    pre(id = "console"),
-    title = "Please Wait...",
-    easyClose = TRUE,
-    footer = NULL
-  )
-  
-  showModal(status_message)
-  
-  withCallingHandlers({
-      shinyjs::html("console", "")
-      elev_data_sets <- data_sets %>% dplyr::bind_rows() %>% lookup_elevation_aws(zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
-  },
-  message = function(m) {
-      shinyjs::html(id = "console", html = m$message)
-  })
-  
-  removeModal()
-  
-  return(elev_data_sets)
+  return(suppressWarnings(dplyr::bind_rows(data_sets)))
 }
 
 #'
@@ -210,8 +178,9 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
   
   for(i in 1:length(data_info$data)) {
    
-    df <- data_info$data[[i]]
-    dtype <- data_info$meta$dtype[i]
+    df <- data_info$data[[i]]$df 
+    dtype <- data_info$data[[i]]$dtype
+    
     
     if(dtype == "igotu") {
       df <- df[!duplicated(as.list(df))] # discard any columns that are duplicates of index
@@ -292,7 +261,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
       df_out <- elev_data_sets %>% dplyr::filter(Animal == aniid)
 
       # get meta from df
-      file_meta <- get_meta(df_out, i, data_info$meta$dtype[i], data_info$file[i], data_info$site[i], aniid, data_info$rds_name)
+      file_meta <- get_meta(df_out, i, data_info$file[i], data_info$site[i], aniid, data_info$rds_name)
       # save meta to the designated meta df
       meta_df <- save_meta(meta_df, file_meta)
       # replace df with elevation df
@@ -311,21 +280,19 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
 #'filename, site, date min/max, animals, min/max lat/longitude, storage location 
 #'
 #'@param df clean animal data frame 
-#'@param file_id ID number of source of animal data frame
-#'@param dtype igotu or columbus
+#'@param file_id ID number of .csv source of animal data frame
 #'@param file_name .csv source of animal data frame
 #'@param site physical source of animal data
 #'@param ani_id ID of animal found in data frame
 #'@param storage_loc .rds storage location of animal data frame
 #'@return df of metadata for animal data frame 
-get_meta <- function(df, file_id, dtype, file_name, site, ani_id, storage_loc) {
-   return(data.frame(file_id = file_id,
-            dtype = dtype,
+get_meta <- function(df, file_id, file_name, site, ani_id, storage_loc) {
+   return(data.frame(file_id = file_id, 
             file_name = file_name, 
             site = site, 
             ani_id = ani_id, 
-            min_date = min(df$DateTime, na.rm = TRUE), 
-            max_date = max(df$DateTime, na.rm = TRUE), 
+            min_date = min(as.Date(df$Date)), 
+            max_date = max(as.Date(df$Date)), 
             min_lat = min(df$Latitude), 
             max_lat = max(df$Latitude),
             min_long = min(df$Longitude), 
@@ -339,6 +306,7 @@ get_meta <- function(df, file_id, dtype, file_name, site, ani_id, storage_loc) {
 #'@param meta_df the data frame to store metadata in
 #'@param file_meta meta for a .csv file generated by get_meta
 #'@return df of metadata
+#'
 save_meta <- function(meta_df, file_meta) {
   meta_df <- rbind(meta_df, file_meta)
   return(meta_df)
@@ -361,14 +329,14 @@ get_data_from_meta <- function(meta_df, min_date, max_date) {
   for(file_name in rds_files) {
     current_rds <- readRDS(file_name)
     for(df in current_rds) {
-      current_df <- dplyr::bind_rows(current_df, df)
+      current_df <- rbind(current_df, df)
     }
   }
   
   current_df <- current_df %>%
     dplyr::filter(Animal %in% meta_df$ani_id,
-                  DateTime <= max_date,
-                  DateTime >= min_date)
+                  Date <= max_date,
+                  Date >= min_date)
   
   # check if current_df is empty
   

@@ -17,11 +17,3 @@ None
 \description{
 You can run the animaltracker Shiny app by calling this function.
 }
-\examples{
-\donttest{
-\dontrun{
-# Run the animaltracker app
-run_shiny_animaltracker()
-}
-}
-}
