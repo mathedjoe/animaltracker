@@ -5,14 +5,12 @@ if(getRversion() >= '2.5.1') {
                     'cumDistUpper', 'RateLower', 'RateUpper'))
 }
 #'
-#'Run the Shiny validation app
+#'Run the 'shiny' validation app.
+#'Depending on the size of input files, it may be advisable to increase the maximum request size.
 #'
 #'@export
 #'@return None
 run_validation_app <- function() {
-  options(shiny.maxRequestSize=100*1024^2)
-  
-  
   ui <- fluidPage(theme = shinythemes::shinytheme("yeti"),
     titlePanel("Animal Data Validation"),
     sidebarLayout(

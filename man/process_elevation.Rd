@@ -9,22 +9,22 @@ process_elevation(
   get_slope = TRUE,
   get_aspect = TRUE,
   in_path,
-  out_path = "elev.rds",
-  export = TRUE
+  export = FALSE,
+  out_path = NULL
 )
 }
 \arguments{
 \item{zoom}{level of zoom, defaults to 11}
 
-\item{get_slope}{logical, whether to compute slope (in degrees), defaults to true}
+\item{get_slope}{logical, whether to compute slope (in degrees), defaults to True}
 
-\item{get_aspect}{logical, whether to compute aspect (in degrees), defaults to true}
+\item{get_aspect}{logical, whether to compute aspect (in degrees), defaults to True}
 
 \item{in_path}{animal tracking data file to model elevation from}
 
-\item{out_path}{.rds file path for processed data when export is true, defaults to elev.rds}
+\item{export}{logical, whether to export data with elevation, defaults to False}
 
-\item{export}{logical, whether to export data with elevation, defaults to true}
+\item{out_path}{.rds file path for processed data when export is True}
 }
 \value{
 list of data frames with gps data augmented by elevation

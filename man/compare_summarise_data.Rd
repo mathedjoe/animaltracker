@@ -8,9 +8,9 @@ GPS, date, lat, long, course, distance, rate, elevation column names should matc
 compare_summarise_data(
   correct,
   candidate,
-  gps_out = "gps_out.csv",
-  date_out = "date_out.csv",
-  export = TRUE
+  export = FALSE,
+  gps_out = NULL,
+  date_out = NULL
 )
 }
 \arguments{
@@ -18,11 +18,11 @@ compare_summarise_data(
 
 \item{candidate}{df to be compared to the reference}
 
-\item{gps_out}{desired file name of .csv output summary by GPS collar when export is True, defaults to gps_out.csv}
+\item{export}{logical, whether to export summaries to .csv, defaults to False}
 
-\item{date_out}{desired file name of .csv output summary by date when export is True, defaults to date_out.csv}
+\item{gps_out}{desired file name of .csv output summary by GPS collar when export is True}
 
-\item{export}{logical, whether to export summaries to .csv, defaults to True}
+\item{date_out}{desired file name of .csv output summary by date when export is True}
 }
 \value{
 list containing gps_out and date_out as dfs
@@ -33,5 +33,5 @@ GPS, date, lat, long, course, distance, rate, elevation column names should matc
 }
 \examples{
 # Compare and summarise unfiltered demo cows to filtered 
-compare_summarise_data(demo_unfiltered_elev, demo_filtered_elev, export = FALSE)
+compare_summarise_data(demo_unfiltered_elev, demo_filtered_elev)
 }

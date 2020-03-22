@@ -1,10 +1,8 @@
-### UI the Shiny App
-
 #'
-#'Defines a user interface for the shiny app
+#'Defines a user interface for the 'shiny' app
 #'
 #'
-#'@return ui function for use in a shiny app
+#'@return ui function for use in a 'shiny' app
 #'@export
 #'
 

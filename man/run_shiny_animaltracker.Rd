@@ -2,7 +2,8 @@
 % Please edit documentation in R/app.R
 \name{run_shiny_animaltracker}
 \alias{run_shiny_animaltracker}
-\title{You can run the animaltracker Shiny app by calling this function.}
+\title{Run the animaltracker 'shiny' app by calling this function.
+Depending on the size of input files, it may be advisable to increase the maximum request size.}
 \usage{
 run_shiny_animaltracker(browser = TRUE, showcase = FALSE)
 }
@@ -15,5 +16,6 @@ run_shiny_animaltracker(browser = TRUE, showcase = FALSE)
 None
 }
 \description{
-You can run the animaltracker Shiny app by calling this function.
+Run the animaltracker 'shiny' app by calling this function.
+Depending on the size of input files, it may be advisable to increase the maximum request size.
 }

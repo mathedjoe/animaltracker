@@ -175,20 +175,20 @@ clean_location_data <- function(df, dtype, filters = TRUE,
 #'Cleans all animal GPS datasets (in .csv format) in a chosen directory. Optionally exports the clean data as spreadsheets, a single .rds data file, or as a list of data frames
 #'
 #'@param data_dir directory of GPS tracking files (in csv)
-#'@param cleaned_filename full name of output file (ending in .rds) when export is True, defaults to data/animal_data.rds
-#'@param cleaned_dir directory to save the processed GPS datasets as spreadsheets (.csv) when export is True, defaults to data/processed
 #'@param tz_in input time zone, defaults to UTC
 #'@param tz_out output time zone, defaults to UTC
-#'@param export logical, whether to export the clean data, defaults to True
+#'@param export logical, whether to export the clean data, defaults to False
+#'@param cleaned_filename full name of output file (ending in .rds) when export is True
+#'@param cleaned_dir directory to save the processed GPS datasets as spreadsheets (.csv) when export is True
 #'@return list of cleaned animal GPS datasets
 #'@examples
 #'# Clean all animal GPS .csv datasets in the demo directory
 #'
-#'clean_export_files(system.file("extdata", "demo_nov19", package = "animaltracker"), export = FALSE)
+#'clean_export_files(system.file("extdata", "demo_nov19", package = "animaltracker"))
 #
 #'@export
 #'
-clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", cleaned_dir = "processed", tz_in = "UTC", tz_out = "UTC", export = TRUE) {
+clean_export_files <- function(data_dir, tz_in = "UTC", tz_out = "UTC", export = FALSE, cleaned_filename = NULL, cleaned_dir = NULL) {
   data_files <- list.files(data_dir, pattern = "*.(csv|txt|TXT)", recursive = TRUE, full.names = T)
   data_info <- get_file_meta(data_dir)
   
@@ -230,7 +230,7 @@ clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", c
     
     nstart <- nrow(df)
     
-    print(paste("processing ", nstart, "data points for animal #",aniid, "with gps unit #", gpsid, "..."))
+    message(paste("processing ", nstart, "data points for animal #",aniid, "with gps unit #", gpsid, "..."))
     
     ### REMOVE BAD DATA POINTS (as described on pages 26-39 of Word Doc)
     df<- clean_location_data(df, dtype,
@@ -238,9 +238,9 @@ clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", c
                              gpsid = gpsid, 
                              maxrate = 84, maxcourse = 100, maxdist = 840, maxtime = 100, tz_in = tz_in, tz_out = tz_out)
    
-    print(paste("...", nstart - nrow(df), "points removed"))
-    print(paste("...total distance traveled =", round(sum(df$DistGeo)/1000, 1), "km"))
-    print(paste("...saving", nrow(df), "good data points"))
+    message(paste("...", nstart - nrow(df), "points removed"))
+    message(paste("...total distance traveled =", round(sum(df$DistGeo)/1000, 1), "km"))
+    message(paste("...saving", nrow(df), "good data points"))
     
     if(export & !is.null(cleaned_dir)){
       utils::write.csv(df, file.path(cleaned_dir, paste0(aniid,".csv")), row.names = FALSE)
@@ -258,7 +258,7 @@ clean_export_files <- function(data_dir, cleaned_filename = "animal_data.rds", c
     # add df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df
   }
-  if(export) {
+  if(export & !is.null(cleaned_filename)) {
     if(grepl("\\.rds", cleaned_filename)){
       saveRDS(data_sets, cleaned_filename )
     }

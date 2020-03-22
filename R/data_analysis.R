@@ -209,17 +209,17 @@ qqplot_time <- function(rds_path) {
 #'
 #'@param correct reference df
 #'@param candidate df to be compared to the reference
-#'@param gps_out desired file name of .csv output summary by GPS collar when export is True, defaults to gps_out.csv
-#'@param date_out desired file name of .csv output summary by date when export is True, defaults to date_out.csv
-#'@param export logical, whether to export summaries to .csv, defaults to True
+#'@param export logical, whether to export summaries to .csv, defaults to False
+#'@param gps_out desired file name of .csv output summary by GPS collar when export is True
+#'@param date_out desired file name of .csv output summary by date when export is True
 #'@return list containing gps_out and date_out as dfs
 #'@examples
 #'# Compare and summarise unfiltered demo cows to filtered 
 #
-#'compare_summarise_data(demo_unfiltered_elev, demo_filtered_elev, export = FALSE)
+#'compare_summarise_data(demo_unfiltered_elev, demo_filtered_elev)
 #'@export
 #'
-compare_summarise_data <- function(correct, candidate, gps_out = "gps_out.csv", date_out = "date_out.csv", export = TRUE) {
+compare_summarise_data <- function(correct, candidate, export = FALSE, gps_out = NULL, date_out = NULL) {
   
   correct_gps_summary <- correct %>% 
     summarise_anidf(GPS, Latitude, Longitude, Distance, Course, Rate, Elevation)
@@ -236,7 +236,7 @@ compare_summarise_data <- function(correct, candidate, gps_out = "gps_out.csv", 
   gps_summary <- join_summaries(correct_gps_summary, candidate_gps_summary, by_str="GPS")
   date_summary <- join_summaries(correct_date_summary, candidate_date_summary, by_str="Date")
   
-  if(export) {
+  if(export & !is.null(gps_out) & !is.null(date_out)) {
     utils::write.csv(gps_summary, gps_out, row.names = FALSE)
     utils::write.csv(date_summary, date_out, row.names = FALSE)
   }
@@ -260,11 +260,11 @@ compare_summarise_data <- function(correct, candidate, gps_out = "gps_out.csv", 
 #'@examples
 #'# Summary of demo data by date
 #'
-#'summarise_anidf(demo, Date, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=FALSE)
+#'summarise_anidf(demo, Date, Latitude, Longitude, Distance, Course, Rate, Elevation, daily = FALSE)
 #'
 #'@export
 #'
-summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev, daily=FALSE) {
+summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev, daily = FALSE) {
   if(daily) {
     anidf <- anidf %>% 
       dplyr::group_by(GPS, Date)
@@ -378,8 +378,8 @@ join_summaries <- function(correct_summary, candidate_summary, by_str, daily = F
 #'@param df_summary data frame of summary statistics from both datasets to be compared
 #'@param by GPS or Date
 #'@param col_name variable in df_summary to be used for the y-axis, as a string
-#'@param out file name to save plot when export is True, defaults to violin.png
-#'@param export logical, whether to export plot, defaults to True
+#'@param export logical, whether to export plot, defaults to False
+#'@param out .png file name to save plot when export is True
 #'@return side-by-side violin plots
 #'@examples
 #'# Violin plot comparing unfiltered and filtered demo data summaries by date for a single variable
@@ -397,11 +397,11 @@ join_summaries <- function(correct_summary, candidate_summary, by_str, daily = F
 #'
 #'## Violin plot
 #'
-#'violin_compare(summary, Date, "meanElev", export = FALSE)
+#'violin_compare(summary, Date, "meanElev")
 #'
 #'@export
 #'
-violin_compare <- function(df_summary, by, col_name, out = "violin.png", export = TRUE) {
+violin_compare <- function(df_summary, by, col_name, export = FALSE, out = NULL) {
   df_summary <- df_summary %>% 
     dplyr::select({{by}}, paste0(col_name, ".x"), paste0(col_name, ".y")) %>% 
     tidyr::gather("source", obs, -{{by}}) %>% 
@@ -417,7 +417,7 @@ violin_compare <- function(df_summary, by, col_name, out = "violin.png", export 
     theme_minimal() +
     theme(legend.position = "none") 
   
-  if(export) {
+  if(export & !is.null(out)) {
     ggsave(out, violin)
   }
   
@@ -431,17 +431,17 @@ violin_compare <- function(df_summary, by, col_name, out = "violin.png", export 
 #'@param correct reference df
 #'@param candidate df to be compared to the reference
 #'@param col variable to plot the moving average for
-#'@param out file name to save plot when export is True, defaults to line.png
-#'@param export logical, whether to export plot, defaults to True
+#'@param export logical, whether to export plot, defaults to False
+#'@param out .png file name to save plot when export is True
 #'@return faceted line plot of moving averages over time grouped by GPS
 #'@examples
 #'# Faceted line plot comparing moving averages over time 
 #'# grouped by GPS for unfiltered and filtered demo data
 #'## Set distance as the y axis
-#'line_compare(demo_unfiltered, demo_filtered, Distance, export = FALSE)
+#'line_compare(demo_unfiltered, demo_filtered, Distance)
 #'@export
 #'
-line_compare <- function(correct, candidate, col, out = "line.png", export = TRUE) {
+line_compare <- function(correct, candidate, col, export = FALSE, out = NULL) {
   
   correct <- correct %>% 
     dplyr::group_by(GPS, Date) %>% 
@@ -461,7 +461,7 @@ line_compare <- function(correct, candidate, col, out = "line.png", export = TRU
     scale_color_discrete(guide = guide_legend(reverse = TRUE)) +
     facet_wrap(vars(GPS))
   
-  if(export) {
+  if(export & !is.null(out)) {
     ggsave(out, line)
   }
   
@@ -474,16 +474,16 @@ line_compare <- function(correct, candidate, col, out = "line.png", export = TRU
 #'
 #'@param correct reference df
 #'@param candidate df to be compared to the reference
-#'@param out desired file name of .csv output summary when export is True, defaults to summary_daily.csv
-#'@param export logical, whether to export summary to .csv, defaults to True
+#'@param export logical, whether to export summary to .csv, defaults to False
+#'@param out desired file name of .csv output summary when export is True
 #'@return summary df
 #'@examples
 #'# Compare and summarise unfiltered demo cows to filtered, grouped by both Date and GPS
 #'
-#'compare_summarise_daily(demo_unfiltered_elev, demo_filtered_elev, export = FALSE)
+#'compare_summarise_daily(demo_unfiltered_elev, demo_filtered_elev)
 #'@export
 #'
-compare_summarise_daily <- function(correct, candidate, out = "summary_daily.csv", export = TRUE) {
+compare_summarise_daily <- function(correct, candidate, export = TRUE, out = NULL) {
   correct_summary <- correct %>% 
     summarise_anidf(NULL, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=TRUE)
   
@@ -492,7 +492,7 @@ compare_summarise_daily <- function(correct, candidate, out = "summary_daily.csv
   
   summary_all <- join_summaries(correct_summary, candidate_summary, daily=TRUE)
   
-  if(export) {
+  if(export & !is.null(out)) {
     utils::write.csv(summary_all, out, row.names = FALSE)
   }
   
@@ -554,8 +554,7 @@ compare_flags <- function(correct, candidate, elev = TRUE, slope = TRUE) {
 
 
 #'
-#'Alternative implementation of the robust peak detection algorithm by van Brakel 2014 
-#'Classifies data points with modified z-scores greater than max_score as outliers ccording to Iglewicz and Hoaglin 1993
+#'Alternative implementation of the robust peak detection algorithm by van Brakel 2016 
 #'
 #'@param df_comparison output of compare_flags 
 #'@param lag width of interval to compute rolling median and MAD, defaults to 5

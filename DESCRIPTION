@@ -3,10 +3,11 @@ Title: Animal Tracker
 Version: 0.1.0
 Authors@R: c( person("Joe", "Champion", email = "joechampion@boisestate.edu", role = c("aut", "cre")), person("Thea", "Sukianto", email = "TheophiliaSukian@u.boisestate.edu", role=c("aut")), person("Chithkala", "Dhulipati", email = "chithkaladhulipa@u.boisestate.edu", role=c("aut")) )
 Description: Utilities for spatial-temporal analysis and visualization of animal (e.g. cattle) 
-    tracking data. The core feature is an R Shiny web application for customized processing 
+    tracking data. The core feature is a 'shiny' web application for customized processing 
     of GPS logs, including features for data augmentation (e.g. elevation lookup), data selection, 
     export, plotting, and statistical summaries. A data validation application allows for side-by-side
-    comparison via time series plots.
+    comparison via time series plots and extreme value detection described by
+    J.P. van Brakel <https://stackoverflow.com/questions/22583391/peak-signal-detection-in-realtime-timeseries-data/>.
 Depends: R (>= 3.5.0)
 Imports: zoo (>= 1.8.6), forcats (>= 0.4.0), lubridate (>= 1.7.0),
         tibble (>= 2.1.0), shinyBS (>= 0.61), V8 (>= 2.0), shinyjs (>=

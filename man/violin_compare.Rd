@@ -4,7 +4,7 @@
 \alias{violin_compare}
 \title{Compares summary statistics from two datasets as side-by-side violin plots}
 \usage{
-violin_compare(df_summary, by, col_name, out = "violin.png", export = TRUE)
+violin_compare(df_summary, by, col_name, export = FALSE, out = NULL)
 }
 \arguments{
 \item{df_summary}{data frame of summary statistics from both datasets to be compared}
@@ -13,9 +13,9 @@ violin_compare(df_summary, by, col_name, out = "violin.png", export = TRUE)
 
 \item{col_name}{variable in df_summary to be used for the y-axis, as a string}
 
-\item{out}{file name to save plot when export is True, defaults to violin.png}
+\item{export}{logical, whether to export plot, defaults to False}
 
-\item{export}{logical, whether to export plot, defaults to True}
+\item{out}{.png file name to save plot when export is True}
 }
 \value{
 side-by-side violin plots
@@ -38,6 +38,6 @@ summary <- join_summaries(unfiltered_summary, filtered_summary, "Date", daily=FA
 
 ## Violin plot
 
-violin_compare(summary, Date, "meanElev", export = FALSE)
+violin_compare(summary, Date, "meanElev")
 
 }

@@ -5,21 +5,16 @@
 \title{Compares two animal datasets and calculates daily summary statistics by GPS
 GPS, date, lat, long, course, distance, rate, elevation column names should match.}
 \usage{
-compare_summarise_daily(
-  correct,
-  candidate,
-  out = "summary_daily.csv",
-  export = TRUE
-)
+compare_summarise_daily(correct, candidate, export = TRUE, out = NULL)
 }
 \arguments{
 \item{correct}{reference df}
 
 \item{candidate}{df to be compared to the reference}
 
-\item{out}{desired file name of .csv output summary when export is True, defaults to summary_daily.csv}
+\item{export}{logical, whether to export summary to .csv, defaults to False}
 
-\item{export}{logical, whether to export summary to .csv, defaults to True}
+\item{out}{desired file name of .csv output summary when export is True}
 }
 \value{
 summary df
@@ -31,5 +26,5 @@ GPS, date, lat, long, course, distance, rate, elevation column names should matc
 \examples{
 # Compare and summarise unfiltered demo cows to filtered, grouped by both Date and GPS
 
-compare_summarise_daily(demo_unfiltered_elev, demo_filtered_elev, export = FALSE)
+compare_summarise_daily(demo_unfiltered_elev, demo_filtered_elev)
 }

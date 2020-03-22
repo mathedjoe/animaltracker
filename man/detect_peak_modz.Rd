@@ -2,8 +2,7 @@
 % Please edit documentation in R/data_analysis.R
 \name{detect_peak_modz}
 \alias{detect_peak_modz}
-\title{Alternative implementation of the robust peak detection algorithm by van Brakel 2014 
-Classifies data points with modified z-scores greater than max_score as outliers ccording to Iglewicz and Hoaglin 1993}
+\title{Alternative implementation of the robust peak detection algorithm by van Brakel 2016}
 \usage{
 detect_peak_modz(df_comparison, lag = 5, max_score = 3.5)
 }
@@ -18,8 +17,7 @@ detect_peak_modz(df_comparison, lag = 5, max_score = 3.5)
 df with classifications
 }
 \description{
-Alternative implementation of the robust peak detection algorithm by van Brakel 2014 
-Classifies data points with modified z-scores greater than max_score as outliers ccording to Iglewicz and Hoaglin 1993
+Alternative implementation of the robust peak detection algorithm by van Brakel 2016
 }
 \examples{
 # Join and reformat unfiltered demo data and filtered demo data

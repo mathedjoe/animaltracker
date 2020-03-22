@@ -5,7 +5,7 @@
 \title{Compares moving averages of a variable for two datasets over time, grouped by GPS
 GPS, Date, and col columns should match}
 \usage{
-line_compare(correct, candidate, col, out = "line.png", export = TRUE)
+line_compare(correct, candidate, col, export = FALSE, out = NULL)
 }
 \arguments{
 \item{correct}{reference df}
@@ -14,9 +14,9 @@ line_compare(correct, candidate, col, out = "line.png", export = TRUE)
 
 \item{col}{variable to plot the moving average for}
 
-\item{out}{file name to save plot when export is True, defaults to line.png}
+\item{export}{logical, whether to export plot, defaults to False}
 
-\item{export}{logical, whether to export plot, defaults to True}
+\item{out}{.png file name to save plot when export is True}
 }
 \value{
 faceted line plot of moving averages over time grouped by GPS
@@ -29,5 +29,5 @@ GPS, Date, and col columns should match
 # Faceted line plot comparing moving averages over time 
 # grouped by GPS for unfiltered and filtered demo data
 ## Set distance as the y axis
-line_compare(demo_unfiltered, demo_filtered, Distance, export = FALSE)
+line_compare(demo_unfiltered, demo_filtered, Distance)
 }

@@ -245,23 +245,23 @@ histogram_animal_elevation <- function(datapts) {
 #'Process and optionally export modeled elevation data from existing animal data file
 #'
 #'@param zoom level of zoom, defaults to 11
-#'@param get_slope logical, whether to compute slope (in degrees), defaults to true
-#'@param get_aspect logical, whether to compute aspect (in degrees), defaults to true
+#'@param get_slope logical, whether to compute slope (in degrees), defaults to True
+#'@param get_aspect logical, whether to compute aspect (in degrees), defaults to True
 #'@param in_path animal tracking data file to model elevation from
-#'@param out_path .rds file path for processed data when export is true, defaults to elev.rds
-#'@param export logical, whether to export data with elevation, defaults to true
+#'@param export logical, whether to export data with elevation, defaults to False
+#'@param out_path .rds file path for processed data when export is True
 #'@return list of data frames with gps data augmented by elevation
 #'@export
 #'
-process_elevation <- function(zoom = 11, get_slope=TRUE, get_aspect=TRUE, in_path, out_path = "elev.rds", export = TRUE) {
+process_elevation <- function(zoom = 11, get_slope=TRUE, get_aspect=TRUE, in_path, export = FALSE, out_path = NULL) {
   anidata <- readRDS(in_path)
   
   for ( i in 1:length(anidata) ){
-    print(noquote(paste("processing elevation data for file", i, "of", length(anidata))))
+    message(noquote(paste("processing elevation data for file", i, "of", length(anidata))))
     anidata[[i]]<- lookup_elevation_aws(anidata[[i]], get_slope, get_aspect)
     
   }
-  if(export) {
+  if(export & !is.null(out_path)) {
     saveRDS(anidata, out_path)
   }
   return(anidata)
