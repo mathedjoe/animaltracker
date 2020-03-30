@@ -1,10 +1,10 @@
 ### UI the Shiny App
 
 #'
-#'Defines a user interface for the shiny app
+#'Defines a user interface for the 'shiny' app
 #'
 #'
-#'@return ui function for use in a shiny app
+#'@return ui function for use in a 'shiny' app
 #'@export
 #'
 
@@ -27,7 +27,7 @@ app_ui <- function(){
              tabPanel("Data", 
                       sidebarLayout(
                         sidebarPanel( 
-                          h4("Upload Data"),
+                          h4("1. Upload Data"),
                           helpText("Select a zip folder on your computer containing .csv files. Please upload data from one
                                    area at a time."),
 
@@ -35,7 +35,16 @@ app_ui <- function(){
                           textOutput("numUploaded"),
                           hr(),
                           
-                          h4("Data Processing"),
+                          h4("2. Select Data"),
+                          reactivePickerOutput("choose_site") %>% shinycssloaders::withSpinner(),
+                          reactivePickerOutput("choose_ani"),
+                          datePickerOutput("choose_dates"),
+                          uiOutput("min_time"),
+                          uiOutput("max_time"),
+                          
+                          hr(),
+                          
+                          h4("3. Data Processing"),
                           shinyBS::bsCollapse(id = "uploadOptions",
                                      shinyBS::bsCollapsePanel("Cleaning Options",
                                                      checkboxInput("filterBox", label = "Filter bad data points", value = TRUE)
@@ -48,20 +57,12 @@ app_ui <- function(){
                                                      checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
                                      )
                           ),
-                          actionButton("processButton", "Process Data"),
+                          actionButton("processButton", "Process All"),
+                          actionButton("processSelectedButton", "Process Selected"),
                           
                           hr(),
                           
-                          h4("Select Data"),
-                          reactivePickerOutput("choose_site") %>% shinycssloaders::withSpinner(),
-                          reactivePickerOutput("choose_ani"),
-                          datePickerOutput("choose_dates"),
-                          uiOutput("min_time"),
-                          uiOutput("max_time"),
-                          
-                          hr(),
-                          
-                          h4("Download Data"),
+                          h4("4. Download Data"),
                           helpText("Save data to a (potentially large) .csv file."),
                           # Button
                           shinyBS::bsCollapse(id = "downloadOptionsPanel",

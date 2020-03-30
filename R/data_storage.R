@@ -93,8 +93,9 @@ store_batch_list <- function(data_dir) {
     if(i > 1 ){
       maxminsll <- update_maxminlatlong(maxminsll, df, dtype)
     }
-    df <- clean_location_data(df, dtype, filters = FALSE, ani_ids[i], gps_units[i])
-    current_meta <- get_meta(df, i, dtype, file_names[i], site_names[i], ani_ids[i], "temp.rds")
+    df <- clean_location_data(df, dtype, filters = FALSE, aniid = ani_ids[i], gpsid = gps_units[i])
+    df_clean <- clean_location_data(df, dtype, filters = TRUE, aniid = ani_ids[i], gpsid = gps_units[i])
+    current_meta <- get_meta(df_clean, i, dtype, file_names[i], site_names[i], ani_ids[i], "temp.rds")
     meta_df <- save_meta(meta_df, current_meta) 
     data_sets[[i]] <- df
   }
@@ -167,7 +168,7 @@ clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "U
   
   withCallingHandlers({
       shinyjs::html("console", "")
-      elev_data_sets <- data_sets %>% dplyr::bind_rows() %>% lookup_elevation_aws(zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
+      elev_data_sets <- data_sets %>% suppressWarnings(dplyr::bind_rows()) %>% lookup_elevation_aws(zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
   },
   message = function(m) {
       shinyjs::html(id = "console", html = m$message)
@@ -361,7 +362,7 @@ get_data_from_meta <- function(meta_df, min_date, max_date) {
   for(file_name in rds_files) {
     current_rds <- readRDS(file_name)
     for(df in current_rds) {
-      current_df <- dplyr::bind_rows(current_df, df)
+      current_df <- suppressWarnings(dplyr::bind_rows(current_df, df))
     }
   }
   

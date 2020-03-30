@@ -48,14 +48,6 @@ lookup_elevation_file <- function(elev, anidf, zoom = 11, get_slope = TRUE, get_
 #'@param get_aspect logical, whether to compute aspect (in degrees), defaults to true
 #'@return original data frame, with Elevation column appended
 #'@export
-#'@examples
-#'# Add elevation data to filtered demo data frame
-#'\donttest{
-#'\dontrun{
-#'## Lookup with slope and aspect
-#'lookup_elevation_aws(demo_filtered, zoom = 11, get_slope = TRUE, get_aspect = TRUE)
-#'}
-#'}
 lookup_elevation_aws <- function(anidf, zoom = 11, get_slope = TRUE, get_aspect = TRUE) {
   
   
@@ -113,11 +105,8 @@ read_zip_to_rasters <- function(filename, exdir = "inst/extdata/elev"){
 #'@return NMEA records in RMC and GGA formats as a data frame
 #'@export
 #'@examples
-#'\donttest{
-#'\dontrun{
+#'
 #'read_columbus(system.file("extdata", "demo_columbus.TXT", package = "animaltracker"))
-#'}
-#'}
 read_columbus <- function(filename){
   
   gps_raw <- readLines(filename)
@@ -251,37 +240,29 @@ histogram_animal_elevation <- function(datapts) {
 }
 
 
+
 #'
-#'Export modeled elevation data from existing animal data file
+#'Process and optionally export modeled elevation data from existing animal data file
 #'
 #'@param zoom level of zoom, defaults to 11
-#'@param get_slope logical, whether to compute slope (in degrees), defaults to true
-#'@param get_aspect logical, whether to compute aspect (in degrees), defaults to true
+#'@param get_slope logical, whether to compute slope (in degrees), defaults to True
+#'@param get_aspect logical, whether to compute aspect (in degrees), defaults to True
 #'@param in_path animal tracking data file to model elevation from
-#'@param out_path exported file path, .rds
+#'@param export logical, whether to export data with elevation, defaults to False
+#'@param out_path .rds file path for processed data when export is True
 #'@return list of data frames with gps data augmented by elevation
-#'@examples
-#'# Export elevation data from demo .rds datasets
-#'\donttest{
-#'\dontrun{
-
-#'process_elevation(zoom = 11, get_slope = TRUE, get_aspect = TRUE, 
-#'in_path = system.file("extdata", "demo_nov19.rds", 
-#'package = "animaltracker"), out_path = "demo_nov19_elev.rds")
-#'
-#'}
-#'}
 #'@export
 #'
-process_elevation <- function(zoom = 11, get_slope=TRUE, get_aspect=TRUE, in_path, out_path) {
+process_elevation <- function(zoom = 11, get_slope=TRUE, get_aspect=TRUE, in_path, export = FALSE, out_path = NULL) {
   anidata <- readRDS(in_path)
   
   for ( i in 1:length(anidata) ){
-    print(noquote(paste("processing elevation data for file", i, "of", length(anidata))))
+    message(noquote(paste("processing elevation data for file", i, "of", length(anidata))))
     anidata[[i]]<- lookup_elevation_aws(anidata[[i]], get_slope, get_aspect)
     
   }
-  saveRDS(anidata, out_path)
+  if(export & !is.null(out_path)) {
+    saveRDS(anidata, out_path)
+  }
   return(anidata)
 }
-

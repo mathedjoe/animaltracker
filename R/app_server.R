@@ -26,6 +26,7 @@ app_server <- function(input, output, session) {
   # initialize list of datasets
   meta <- reactiveVal(demo_meta)
   uploaded <- reactiveVal(FALSE)
+  processingInitiated <- reactiveVal(FALSE)
   
   raw_dat <- reactive({
     if(is.null(input$zipInput)) {
@@ -33,6 +34,7 @@ app_server <- function(input, output, session) {
     }
     dat_info <- store_batch_list(input$zipInput)
     meta(dat_info$meta)
+    uploaded(TRUE)
     return(dat_info)
   })
   
@@ -61,7 +63,6 @@ app_server <- function(input, output, session) {
   
   observeEvent(input$processButton, {
     if(!identical(raw_dat(), demo_info)) {
-      uploaded(TRUE)
       if(!is.null(input$selected_lat) && !is.null(input$selected_long)) {
         meta(clean_store_batch(raw_dat(), filters = TRUE, zoom = input$selected_zoom,
                                input$slopeBox, input$aspectBox, 
@@ -74,6 +75,12 @@ app_server <- function(input, output, session) {
                                raw_dat()$min_lat, raw_dat()$max_lat,
                                raw_dat()$min_long, raw_dat()$max_long))
       }
+    }
+  })
+  
+  observeEvent(input$processSelectedButton, {
+    if(!identical(raw_dat(), demo_info)) {
+      processingInitiated(TRUE)
     }
   })
   
@@ -102,7 +109,7 @@ app_server <- function(input, output, session) {
     
     cache_name <- paste0(ani_names,", ",min_datetime,"-",max_datetime)
     
-    if( (uploaded() || !(cache_name %in% names(cache()))) & (!is.na(min_datetime) & !is.na(max_datetime)) ) {
+    if( processingInitiated() || (uploaded() || !(cache_name %in% names(cache()))) & (!is.na(min_datetime) & !is.na(max_datetime)) ) {
       # if no user provided data, use demo data
       if(is.null(input$zipInput)) {
         current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id,
@@ -116,8 +123,40 @@ app_server <- function(input, output, session) {
       else {
         # temporarily set current_df to cached df to avoid error
         current_df <- cache()[[1]]$df
-        if(any(meta$ani_id  %in% choose_ani()) ){
-          current_df <- get_data_from_meta(meta, min_datetime, max_datetime)
+        if(processingInitiated()) {
+          processingInitiated(FALSE)
+          
+          cache_name <- paste(cache_name, "(processed)")
+            
+          current_df <- cache()[[choose_recent()]]$df %>%
+            dplyr::filter(Latitude >= input$selected_lat[1], Latitude <= input$selected_lat[2], 
+                          Longitude >= input$selected_long[1], Longitude <= input$selected_long[2],
+                          DateTime >= min_datetime, DateTime <= max_datetime) %>% 
+            clean_location_data(dtype = "", prep = FALSE, filters = input$filterBox) 
+          
+          status_message <- modalDialog(
+            pre(id = "console"),
+            title = "Please Wait...",
+            easyClose = TRUE,
+            footer = NULL
+          )
+          
+          showModal(status_message)
+          
+          withCallingHandlers({
+            shinyjs::html("console", "")
+            current_df <- lookup_elevation_aws(current_df, zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox)
+          },
+          message = function(m) {
+            shinyjs::html(id = "console", html = m$message)
+          })
+         
+          removeModal()  
+        }
+        else {
+          if(any(meta$ani_id  %in% choose_ani()) ){
+            current_df <- get_data_from_meta(meta, min_datetime, max_datetime)
+          }
         }
       }
      
@@ -238,12 +277,13 @@ app_server <- function(input, output, session) {
    
     # subset data if user has defined selected locations
     if(is.null(selected_locations())){
-      return(dat_main())
+      return(dat_main() %>% dplyr::filter(Latitude != 0 | Longitude != 0))
     }
   
     else{
       return(
         dat_main() %>%
+        dplyr::filter(Latitude != 0 | Longitude != 0) %>% 
         dplyr::filter(LocationID %in% selected_locations())
       )
     }
@@ -325,7 +365,7 @@ app_server <- function(input, output, session) {
     
     proxy <- leafletProxy("mainmap", session)
     
-    if (is.null(last_drawn()) || (!is.null(selected_locations()) & is.null(last_locations())) || (!is.null(selected_locations()) & !identical(last_locations(), selected_locations()) & !identical(last_drawn()$ani, current_anilist))  
+    if (grepl("(processed)", choose_recent()) || is.null(last_drawn()) || (!is.null(selected_locations()) & is.null(last_locations())) || (!is.null(selected_locations()) & !identical(last_locations(), selected_locations()) & !identical(last_drawn()$ani, current_anilist))  
          || (!any(current_anilist$ani %in% last_drawn()$ani)) || (identical(last_drawn()$ani, current_anilist$ani) & identical(last_locations(), selected_locations()) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2))) {
       for(ani in last_drawn()$ani) {
           proxy %>% clearGroup(ani)
@@ -393,7 +433,7 @@ app_server <- function(input, output, session) {
             ) 
       } # if new points
       else if(uploaded()) {
-        uploaded = FALSE
+        uploaded(FALSE)
         proxy %>%
           addCircleMarkers(
             data = pts,
