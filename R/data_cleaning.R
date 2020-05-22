@@ -152,6 +152,7 @@ clean_location_data <- function(df, dtype,
       TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
       DistGeo = geosphere::distGeo(cbind(Longitude, Latitude), 
                                    cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))), #compute geodesic distance between points
+      DistGeo = ifelse(DistGeo < 10^6, DistGeo, 0), 
       Rate = ifelse(TimeDiffMins != 0, DistGeo/TimeDiffMins, 0), # compute rate of travel (meters/min), default to 0 to prevent divide by 0 error
       CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
       RateFlag = 1*(Rate > maxrate), # flag any data points representing too fast travel
@@ -169,6 +170,7 @@ clean_location_data <- function(df, dtype,
           TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
           DistGeo = geosphere::distGeo(cbind(Longitude, Latitude),
                                        cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude)))),
+          DistGeo = ifelse(DistGeo < 10^6, DistGeo, 0), 
           Rate = ifelse(TimeDiffMins != 0, DistGeo/TimeDiffMins, 0),
           CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course)))
          

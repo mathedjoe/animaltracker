@@ -145,7 +145,8 @@ clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "U
   
   withCallingHandlers({
       shinyjs::html("console", "")
-      elev_data_sets <- data_sets %>% suppressWarnings(dplyr::bind_rows()) %>% lookup_elevation_aws(zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
+     #do.call(rbind, list(df, df2, df2))
+      elev_data_sets <- data_sets %>% dplyr::bind_rows() %>% lookup_elevation_aws(zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
   },
   message = function(m) {
       shinyjs::html(id = "console", html = m$message)
@@ -186,6 +187,8 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
 
   data_sets <- list()
   
+  all_data_sets <- data.frame()
+  
   for(i in 1:length(data_info$data)) {
    
     df <- data_info$data[[i]]
@@ -207,12 +210,12 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
                              aniid = aniid, 
                              gpsid = gpsid, 
                              maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = tz_in, tz_out = tz_out)
-    # print(str(df_out))
+   
     # add cleaned df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df_out
+    all_data_sets <- all_data_sets %>% rbind(df_out)
   } #cleaning for loop
     
-    all_data_sets <- suppressWarnings(dplyr::bind_rows(data_sets)) 
     
     # print(paste("Now have", nrow(all_data_sets), "rows of clean data."))
     
@@ -339,7 +342,7 @@ get_data_from_meta <- function(meta_df, min_date, max_date) {
   for(file_name in rds_files) {
     current_rds <- readRDS(file_name)
     for(df in current_rds) {
-      current_df <- suppressWarnings(dplyr::bind_rows(current_df, df))
+      current_df <- rbind(current_df, df)
     }
   }
   
