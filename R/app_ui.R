@@ -39,19 +39,19 @@ app_ui <- function(){
                           reactivePickerOutput("choose_site") %>% shinycssloaders::withSpinner(),
                           reactivePickerOutput("choose_ani"),
                           datePickerOutput("choose_dates"),
-                          uiOutput("min_time"),
-                          uiOutput("max_time"),
+                          timeOutput("min_time"),
+                          timeOutput("max_time"),
                           
                           hr(),
                           
                           h4("3. Data Processing"),
-                          shinyBS::bsCollapse(id = "uploadOptions",
+                          shinyBS::bsCollapse(id = "uploadOptions", open = "Elevation Options",
                                      shinyBS::bsCollapsePanel("Cleaning Options",
                                                      checkboxInput("filterBox", label = "Filter bad data points", value = TRUE)
                                      ),
                                      shinyBS::bsCollapsePanel("Elevation Options",
-                                                     uiOutput("lat_bounds"),
-                                                     uiOutput("long_bounds"),
+                                                     reactiveRangeOutput("lat_bounds"),
+                                                     reactiveRangeOutput("long_bounds"),
                                                      uiOutput("zoom"),
                                                      checkboxInput("slopeBox", label = "Include slope", value = TRUE),
                                                      checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
@@ -90,10 +90,10 @@ app_ui <- function(){
              
              ## PLOTS PANEL
              tabPanel("Plots",
-                      plotOutput("plot_elevation_line"),
-                      plotOutput("plot_samplerate_hist"),
-                      plotOutput("plot_rate_violin"),
-                      plotOutput("plot_time_heatmap", height = 1200)
+                      reactivePlotOutput("plot_elevation_line"),
+                      reactivePlotOutput("plot_samplerate_hist"),
+                      reactivePlotOutput("plot_rate_violin"),
+                      reactivePlotOutput("plot_time_heatmap")
                         
                          
              ),# end plots panel
