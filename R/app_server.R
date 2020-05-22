@@ -63,11 +63,11 @@ app_server <- function(input, output, session) {
   
   observeEvent(input$processButton, {
     if(!identical(raw_dat(), demo_info)) {
-      if(!is.null(input$selected_lat) && !is.null(input$selected_long)) {
+      if(!is.null(lat_bounds()) && !is.null(long_bounds())) {
         meta(clean_store_batch(raw_dat(), filters = TRUE, zoom = input$selected_zoom,
                                input$slopeBox, input$aspectBox, 
-                               input$selected_lat[1], input$selected_lat[2],
-                               input$selected_long[1], input$selected_long[2]))
+                               lat_bounds()[1], lat_bounds()[2],
+                               long_bounds()[1], long_bounds()[2]))
       }
       else {
         meta(clean_store_batch(raw_dat(), input$filterBox, zoom = input$selected_zoom,
@@ -93,91 +93,106 @@ app_server <- function(input, output, session) {
   
   # main dynamic data set
   dat_main <- reactive({
-    req(choose_ani(), choose_dates(), meta, input$selected_min_time, input$selected_max_time)
-    
-    meta <- meta()
-    
-    if(any(meta$ani_id  %in% choose_ani()) ){
-      meta <- meta %>%
-        dplyr::filter(ani_id %in% choose_ani())
-    }
-    
-    ani_names <- paste(choose_ani(), collapse = ", ")
-    
-    min_datetime <- lubridate::with_tz(lubridate::ymd_hms(paste(choose_dates()[1], input$selected_min_time), tz="UTC", quiet = TRUE), tz="UTC")
-    max_datetime <- lubridate::with_tz(lubridate::ymd_hms(paste(choose_dates()[2], input$selected_max_time), tz="UTC", quiet = TRUE), tz="UTC")
-    
-    cache_name <- paste0(ani_names,", ",min_datetime,"-",max_datetime)
-    
-    if( processingInitiated() || (uploaded() || !(cache_name %in% names(cache()))) & (!is.na(min_datetime) & !is.na(max_datetime)) ) {
-      # if no user provided data, use demo data
-      if(is.null(input$zipInput)) {
-        current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id,
-                 DateTime <= max_datetime,
-                 DateTime >= min_datetime)
-        if(nrow(current_df) == 0) {
-          current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id)
-        }
+    if(is.null(choose_ani()) || is.null(choose_dates()) || is.null(min_time()) || is.null(max_time())) {
+      if(is.null(choose_recent())) {
+        return(demo)
       }
-      # if user provided data, get it
-      else {
-        # temporarily set current_df to cached df to avoid error
-        current_df <- cache()[[1]]$df
-        if(processingInitiated()) {
-          processingInitiated(FALSE)
-          
-          cache_name <- paste(cache_name, "(processed)")
-            
-          current_df <- cache()[[choose_recent()]]$df %>%
-            dplyr::filter(Latitude >= input$selected_lat[1], Latitude <= input$selected_lat[2], 
-                          Longitude >= input$selected_long[1], Longitude <= input$selected_long[2],
-                          DateTime >= min_datetime, DateTime <= max_datetime) %>% 
-            clean_location_data(dtype = "", prep = FALSE, filters = input$filterBox) 
-          
-          status_message <- modalDialog(
-            pre(id = "console"),
-            title = "Please Wait...",
-            easyClose = TRUE,
-            footer = NULL
-          )
-          
-          showModal(status_message)
-          
-          withCallingHandlers({
-            shinyjs::html("console", "")
-            current_df <- lookup_elevation_aws(current_df, zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox)
-          },
-          message = function(m) {
-            shinyjs::html(id = "console", html = m$message)
-          })
-         
-          removeModal()  
-        }
-        else {
-          if(any(meta$ani_id  %in% choose_ani()) ){
-            current_df <- get_data_from_meta(meta, min_datetime, max_datetime)
-          }
-        }
-      }
-     
-      # add LocationID column to the restricted data set
-      current_df <- current_df %>% 
-        dplyr::mutate(LocationID = 1:dplyr::n())
-              
-      # enqueue to cache
-      updated_cache <- cache()
-      updated_cache[[cache_name]] <- list(df = current_df, ani = choose_ani(), date1 = min_datetime, date2 = max_datetime)
-      
-      # dequeue if there are more than 5 dfs 
-      if(length(updated_cache) > 5) {
-        updated_cache <- updated_cache[-1]
-      }
-      cache(updated_cache)
-    }
-    if(is.null(choose_recent())) {
       return(cache()[[1]]$df)
     }
     else {
+    
+      req(meta)
+      
+      meta <- meta()
+      
+      if(any(meta$ani_id  %in% choose_ani()) ){
+        meta <- meta %>%
+          dplyr::filter(ani_id %in% choose_ani())
+      }
+      
+      ani_names <- paste(choose_ani(), collapse = ", ")
+      
+      
+      min_datetime <- lubridate::with_tz(lubridate::ymd_hms(paste(choose_dates()[1], min_time()), tz="UTC", quiet = TRUE), tz="UTC")
+      max_datetime <- lubridate::with_tz(lubridate::ymd_hms(paste(choose_dates()[2], max_time()), tz="UTC", quiet = TRUE), tz="UTC")
+      
+      cache_name <- paste0(ani_names,", ",min_datetime,"-",max_datetime)
+  
+      if( processingInitiated() || (uploaded() || !(cache_name %in% names(cache())))) {
+        # if no user provided data, use demo data
+        if(is.null(input$zipInput)) {
+          current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id,
+                   DateTime <= max_datetime,
+                   DateTime >= min_datetime)
+          if(nrow(current_df) == 0) {
+            current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id)
+          }
+        }
+        # if user provided data, get it
+        else {
+          # temporarily set current_df to cached df to avoid error
+          current_df <- cache()[[1]]$df
+          if(processingInitiated()) {
+            processingInitiated(FALSE)
+            
+            cache_name <- paste(cache_name, "(processed)")
+            
+            current_df <- cache()[[choose_recent()]]$df %>%
+              dplyr::filter(Latitude >= lat_bounds()[1], Latitude <= lat_bounds()[2], 
+                            Longitude >= long_bounds()[1], Longitude <= long_bounds()[2],
+                            DateTime >= min_datetime, DateTime <= max_datetime) 
+            
+            if(nrow(current_df) == 0) {
+              return(cache()[[choose_recent()]]$df)
+            }
+            current_df <- clean_location_data(current_df, dtype = "", prep = FALSE, filters = input$filterBox) 
+          
+            
+            status_message <- modalDialog(
+              pre(id = "console"),
+              title = "Please Wait...",
+              easyClose = TRUE,
+              footer = NULL
+            )
+            
+            showModal(status_message)
+            
+            withCallingHandlers({
+              shinyjs::html("console", "")
+              current_df <- lookup_elevation_aws(current_df, zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox)
+            },
+            message = function(m) {
+              shinyjs::html(id = "console", html = m$message)
+            })
+           
+            removeModal()  
+          }
+          else {
+            if(any(meta$ani_id  %in% choose_ani()) ){
+              current_df <- get_data_from_meta(meta, min_datetime, max_datetime)
+            }
+          }
+        }
+       
+        # add LocationID column to the restricted data set
+        current_df <- current_df %>% 
+          dplyr::mutate(LocationID = 1:dplyr::n())
+        
+        
+                
+        # enqueue to cache
+        updated_cache <- cache()
+        updated_cache[[cache_name]] <- list(df = current_df, ani = choose_ani(), date1 = min_datetime, date2 = max_datetime)
+        
+        # dequeue if there are more than 5 dfs 
+        if(length(updated_cache) > 5) {
+          updated_cache <- updated_cache[-1]
+        }
+        cache(updated_cache)
+      }
+      if(is.null(choose_recent())) {
+        return(cache()[[1]]$df)
+      }
       return(cache()[[choose_recent()]]$df)
     }
   })
@@ -190,19 +205,11 @@ app_server <- function(input, output, session) {
   
   # select lat/long bounds
   
-  output$lat_bounds <- renderUI({
-    if(!input$filterBox) {
-      return()
-    }
-    shinyWidgets::numericRangeInput("selected_lat", "Latitude Range:", value = c(raw_dat()$min_lat, raw_dat()$max_lat))
-  })
+  lat_bounds <- callModule(reactiveRange, 
+                           id = "lat_bounds", type = "latitude", dat = raw_dat)
   
-  output$long_bounds <- renderUI({
-    if(!input$filterBox) {
-      return()
-    }
-    shinyWidgets::numericRangeInput("selected_long", "Longitude Range:", value = c(raw_dat()$min_long, raw_dat()$max_long))
-  })
+  long_bounds <- callModule(reactiveRange, 
+                           id = "long_bounds", type = "longitude", dat = raw_dat)
   
   output$zoom <- renderUI({
     req(input$mainmap_zoom)
@@ -215,7 +222,6 @@ app_server <- function(input, output, session) {
                             text = "Select Site(s)", min_selected = 1, max_selected = 2, 
                             multiple = TRUE, options = list(`actions-box` = TRUE))
   
-  
   # select animals
   choose_ani <- callModule(reactivePicker, "choose_ani",
                            type = "ani", req_list = list(meta = meta, selected_site = choose_site),
@@ -227,18 +233,11 @@ app_server <- function(input, output, session) {
                              req_list = list(meta = meta, selected_ani = choose_ani), text = "Date Range")
   
   # select time range
-  output$min_time <- renderUI({
-    req(meta, choose_ani())
-    
-    textInput("selected_min_time", "Min Time", value = strftime(min(meta()$min_date), format="%H:%M:%S", tz="UTC"), placeholder = "HH:MM:SS")
-  })
+  min_time <- callModule(time, id = "min_time",
+                         type = "min", meta = meta, selected_ani = choose_ani)
   
-  # select time range
-  output$max_time <- renderUI({
-    req(meta, choose_ani())
-    
-    textInput("selected_max_time", "Max Time", value = strftime(max(meta()$max_date), format="%H:%M:%S", tz="UTC"), placeholder = "HH:MM:SS")
-  })
+  max_time <- callModule(time, id = "max_time",
+                         type = "max", meta = meta, selected_ani = choose_ani)
   
   # select variables to compute statistics
   choose_cols <- callModule(staticPicker, "choose_cols",
@@ -255,8 +254,8 @@ app_server <- function(input, output, session) {
   # select recent data
   choose_recent <- callModule(reactivePicker, "choose_recent",
                               type = "recent", 
-                              req_list = list(dat_main = dat_main, selected_ani = choose_ani, dates = reactive({choose_dates()}), 
-                                              min_time = reactive({input$selected_min_time}), max_time = reactive({input$selected_max_time}), cache = cache),
+                              req_list = list(dat_main = dat_main, selected_ani = choose_ani, dates = choose_dates, 
+                                              min_time = min_time, max_time = max_time, cache = cache),
                               text = "Select Data", multiple = FALSE)
   
   # spatial points for maps
@@ -485,83 +484,18 @@ app_server <- function(input, output, session) {
   ######################################
   # DYNAMIC PLOTS PANEL
   ######################################
+  
   # Elevation Line Plot
-  output$plot_elevation_line <- renderPlot({
-   req(dat)
-    
-    # hist(dat()$TimeDiffMin [dat()$TimeDiffMin < 100], main = "Distribution of Time Between GPS Measurements" )
-    ggplot(dat(), aes(x=DateTime, y=Elevation, group=Animal, color=Animal)) + 
-      labs( title = "Elevation Time Series, by Animal",
-            x = "Date",
-            y = "Elevation (meters)") +
-      ylim(1000,2000) + 
-      geom_line(na.rm = TRUE) + 
-      geom_point(na.rm = TRUE) + 
-      theme_minimal()
-  })
+  output$plot_elevation_line <- callModule(reactivePlot, id = "plot_elevation_line", plot_type = "line", dat = dat)
   
   # Sample Rate Histograms
-  output$plot_samplerate_hist <- renderPlot({
-    req(dat)
-    
-    ggplot(dat(), aes(x=TimeDiffMins, fill=Animal))+
-      geom_histogram(  col="White", breaks = seq(0,40, 2)) +
-      facet_wrap(~Animal, ncol=2)+
-      labs( title = "Sample Rate, by GPS Unit" ,
-            x = "Time between GPS Readings (minutes)", 
-            y = "Frequency") + 
-      theme_minimal()
-    
-    
-  })
+  output$plot_samplerate_hist <- callModule(reactivePlot, id = "plot_samplerate_hist", plot_type = "hist", dat = dat)
   
   # Rate by Animal
-
-  output$plot_rate_violin <- renderPlot({
-    req(dat)
-    
-    ggplot(dat() %>% dplyr::filter(Rate < 50), aes(x=Animal, y= Rate, fill=Animal))+
-      geom_violin() + 
-      geom_boxplot(width=.2, outlier.color = NA) +
-      theme_minimal()+
-      labs( title = "Rate of Travel, by GPS Unit" ,
-            x = "Animal", 
-            y = "Rate of Travel (meters/minute)") +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-    
-  })
+  output$plot_rate_violin <- callModule(reactivePlot, id = "plot_rate_violin", plot_type = "violin", dat = dat)
   
   # time spent by lat/long
-  output$plot_time_heatmap <- renderPlot({
-    req(dat)
-    
-    dat<- dat()
-    # Heatmap of Time Spent
-    mybreaks <- list(x = round( seq(min(dat$Longitude), max(dat$Longitude), length.out = 10 ),3),
-                     y = round( seq(min(dat$Latitude), max(dat$Latitude), length.out = 10 ),3))
-    ggplot(dat %>% 
-             dplyr::mutate( LongBin = cut_number(Longitude, 100, 
-                                          labels= round( seq(min(Longitude), max(Longitude), length.out = 100 ),3)
-             ),
-             LatBin = cut_number(Latitude, 100, 
-                                 labels=round( seq(min(Latitude), max(Latitude), length.out = 100 ), 3)
-             )) %>%
-             group_by(LongBin, LatBin, Animal) %>%
-             summarize(Duration = sum(TimeDiffMins, na.rm = TRUE)/60), 
-           aes (x = LongBin,  y = LatBin, fill = Duration))+
-      geom_tile()+
-      facet_wrap(~Animal, ncol=2)+
-      labs( title = "Total Time Spent per Location (hours)" ,
-            x = "Longitude", 
-            y = "Latitude")+
-      scale_fill_gradientn(colors = c("white", "green", "red"))+
-      scale_x_discrete( breaks = mybreaks$x) +
-      scale_y_discrete( breaks = mybreaks$y) +
-      coord_equal()+
-      theme_minimal()
-    
-  })
+  output$plot_time_heatmap <- callModule(reactivePlot, id = "plot_time_heatmap", plot_type = "heatmap", dat = dat)
   
   
   ######################################
@@ -569,7 +503,6 @@ app_server <- function(input, output, session) {
   # Summary Statistics
   
   # Time Difference
- 
   timediff_title <- callModule(statsLabel, "timediff_title", 
                                choose_cols, choose_stats, 
                                "TimeDiffMins", "Time Difference (minutes) Between GPS Measurements")
@@ -580,7 +513,6 @@ app_server <- function(input, output, session) {
                          "TimeDiffMins", TimeDiffMins, dat)
   
   # Elevation
-  
   elevation_title <- callModule(statsLabel, "elevation_title", 
                                choose_cols, choose_stats, 
                                "Elevation", "Elevation")
@@ -591,7 +523,6 @@ app_server <- function(input, output, session) {
                          "Elevation", Elevation, dat)
   
   # Speed
-  
   speed_title <- callModule(statsLabel, "speed_title", 
                             choose_cols, choose_stats, 
                             "Speed", "Speed")
@@ -602,7 +533,6 @@ app_server <- function(input, output, session) {
                       "Speed", Speed, dat)
   
   # Course
-  
   course_title <- callModule(statsLabel, "course_title", 
                              choose_cols, choose_stats, 
                              "Course", "Course")
@@ -613,7 +543,6 @@ app_server <- function(input, output, session) {
                        "Course", Course, dat)
   
   # Course Difference
-  
   coursediff_title <- callModule(statsLabel, "coursediff_title", 
                              choose_cols, choose_stats, 
                              "CourseDiff", "Course Difference Between GPS Measurements")
@@ -624,7 +553,6 @@ app_server <- function(input, output, session) {
                        "CourseDiff", CourseDiff, dat)
   
   # Distance
-  
   distance_title <- callModule(statsLabel, "distance_title", 
                              choose_cols, choose_stats, 
                              "Distance", "Distance")
@@ -635,7 +563,6 @@ app_server <- function(input, output, session) {
                        "Distance", Distance, dat)
   
   # Rate
-  
   rate_title <- callModule(statsLabel, "rate_title", 
                              choose_cols, choose_stats, 
                              "Rate", "Rate")
@@ -646,7 +573,6 @@ app_server <- function(input, output, session) {
                        "Rate", Rate, dat)
   
   # Slope
-  
   slope_title <- callModule(statsLabel, "slope_title", 
                              choose_cols, choose_stats, 
                              "Slope", "Slope")
@@ -657,7 +583,6 @@ app_server <- function(input, output, session) {
                        "Slope", Slope, dat)
   
   # Aspect
-  
   aspect_title <- callModule(statsLabel, "aspect_title", 
                              choose_cols, choose_stats, 
                              "Aspect", "Aspect")

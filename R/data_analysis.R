@@ -207,13 +207,13 @@ qqplot_time <- function(rds_path) {
 #'Compares two animal data frames and calculates summary statistics. 
 #'GPS, date, lat, long, course, distance, rate, elevation column names should match. 
 #'
-#'@param correct reference df
-#'@param candidate df to be compared to the reference
+#'@param correct reference data frame
+#'@param candidate data frame to be compared to the reference
 #'@param use_elev logical, whether to include elevation in summary, defaults to True
 #'@param export logical, whether to export summaries to .csv, defaults to False
 #'@param gps_out desired file name of .csv output summary by GPS collar when export is True
 #'@param date_out desired file name of .csv output summary by date when export is True
-#'@return list containing gps_out and date_out as dfs
+#'@return list containing gps_out and date_out as data frames
 #'@examples
 #'# Compare and summarise unfiltered demo cows to filtered 
 #
@@ -273,7 +273,7 @@ compare_summarise_data <- function(correct, candidate, use_elev = TRUE, export =
 #'@param elev elevation column, must be defined when use_elev is true, otherwise NULL
 #'@param use_elev logical, whether to include elevation in summary, defaults to true
 #'@param daily whether to group by both GPS and Date for daily summary, defaults to false
-#'@return df of summary statistics for the animal data frame
+#'@return data frame of summary statistics for the animal data frame
 #'@examples
 #'# Summary of demo data by date
 #'
@@ -314,11 +314,11 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev = NUL
 #'
 #'Joins two animal data frame summaries by a column and appends differences
 #'
-#'@param correct_summary summary df of reference dataset, returned by summarise_anidf
-#'@param candidate_summary summary df of dataset to be compared to reference, returned by summarise_anidf
+#'@param correct_summary summary data frame of reference dataset, returned by summarise_anidf
+#'@param candidate_summary summary data frame of dataset to be compared to reference, returned by summarise_anidf
 #'@param by_str column to join by as a string, null if daily=TRUE
 #'@param daily whether to group by both GPS and Date for daily summary, defaults to False
-#'@return df of joined summaries with differences
+#'@return data frame of joined summaries with differences
 #'@examples
 #'# Join date summaries of unfiltered and filtered demo data
 
@@ -450,8 +450,8 @@ violin_compare <- function(df_summary, by, col_name, export = FALSE, out = NULL)
 #'Compares moving averages of a variable for two datasets over time, grouped by GPS
 #'GPS, Date, and col columns should match
 #'
-#'@param correct reference df
-#'@param candidate df to be compared to the reference
+#'@param correct reference data frame
+#'@param candidate data frame to be compared to the reference
 #'@param col variable to plot the moving average for
 #'@param export logical, whether to export plot, defaults to False
 #'@param out .png file name to save plot when export is True
@@ -494,12 +494,12 @@ line_compare <- function(correct, candidate, col, export = FALSE, out = NULL) {
 #'Compares two animal datasets and calculates daily summary statistics by GPS
 #'GPS, date, lat, long, course, distance, rate, elevation column names should match. 
 #'
-#'@param correct reference df
-#'@param candidate df to be compared to the reference
+#'@param correct reference data frame
+#'@param candidate data frame to be compared to the reference
 #'@param export logical, whether to export summary to .csv, defaults to False
 #'@param out desired file name of .csv output summary when export is True
 #'@param use_elev logical, whether to include elevation in summary, defaults to true
-#'@return summary df
+#'@return summary data frame
 #'@examples
 #'# Compare and summarise unfiltered demo cows to filtered, grouped by both Date and GPS
 #'
@@ -533,13 +533,13 @@ compare_summarise_daily <- function(correct, candidate, use_elev = TRUE, export 
 #'
 #'Joins and reformats two animal data frames for the purpose of flag comparison
 #'
-#'@param correct reference df
+#'@param correct reference data frame
 #'@param candidate df to be compared to the reference
 #'@param use_elev logical, whether to include elevation in comparison, defaults to true
 #'@param use_slope logical, whether to include slope in comparison, defaults to true
-#'@param has_flags logical, whether correct df has predefined flags, defaults to false
+#'@param has_flags logical, whether correct data frame has predefined flags, defaults to false
 #'@param dropped_flag dropped flag column, must be defined when has_flags is true, otherwise null
-#'@return joined and reformatted df
+#'@return joined and reformatted data frame
 #'@examples
 #'# Join and reformat unfiltered demo data and filtered demo data
 #'

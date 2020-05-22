@@ -1,7 +1,8 @@
 #'
-#'Shiny Module UI output for the animaltracker app's summary statistics labels.
+#''shiny' Module UI output for the animaltracker app's summary statistics labels.
 #'
 #'@param id chosen ID of UI output
+#'@return 'shiny' uiOutput object for label
 #'
 statsLabelOutput <- function(id) {
   ns <- NS(id)
@@ -10,15 +11,16 @@ statsLabelOutput <- function(id) {
 
 
 #'
-#'Shiny Module server-side UI generator for the animaltracker app's summary statistics labels.
+#''shiny' module server-side UI generator for the animaltracker app's summary statistics labels.
 #'
-#'@param input Shiny server input, automatically populated
-#'@param output Shiny server output, automatically populated
-#'@param session Shiny server session, automatically populated
+#'@param input 'shiny' server input, automatically populated
+#'@param output 'shiny' server output, automatically populated
+#'@param session 'shiny' server session, automatically populated
 #'@param selected_cols selected columns from animaltracker app input
 #'@param selected_stats selected summary statistics from animaltracker app input
 #'@param col_name column name to compute summary statistics
 #'@param text text of summary statistics label
+#'@return 'shiny' renderUI object for label
 #'
 statsLabel <- function(input, output, session, selected_cols, selected_stats, col_name, text) {
   output$label <- renderUI({
@@ -29,9 +31,10 @@ statsLabel <- function(input, output, session, selected_cols, selected_stats, co
 }
 
 #'
-#'Shiny Module UI output for the animaltracker app's summary statistics tables.
+#''shiny' module UI output for the animaltracker app's summary statistics tables.
 #'
 #'@param id chosen ID of UI output
+#'@return 'shiny' uiOutput object for table
 #'
 statsOutput <- function(id) {
   ns <- NS(id)
@@ -39,16 +42,17 @@ statsOutput <- function(id) {
 }
 
 #'
-#'Shiny Module server-side UI generator for the animaltracker app's summary statistics tables.
+#''shiny' module server-side UI generator for the animaltracker app's summary statistics tables.
 #'
-#'@param input Shiny server input, automatically populated
-#'@param output Shiny server output, automatically populated
-#'@param session Shiny server session, automatically populated
+#'@param input 'shiny' server input, automatically populated
+#'@param output 'shiny' server output, automatically populated
+#'@param session 'shiny' server session, automatically populated
 #'@param selected_cols selected columns from animaltracker app input
 #'@param selected_stats selected summary statistics from animaltracker app input
 #'@param col_name column name to compute summary statistics
 #'@param col column to compute summary statistics
 #'@param dat animal data frame containing col
+#'@return 'shiny' renderTable object for table
 #'
 stats <- function(input, output, session, selected_cols, selected_stats, col_name, col, dat) {
   generate_table <- reactive({
