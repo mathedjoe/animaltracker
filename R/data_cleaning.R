@@ -138,7 +138,8 @@ clean_location_data <- function(df, dtype,
         Animal = aniid,
         Animal = as.factor(Animal),
         Date = strftime(DateTime, format="%Y-%m-%d", tz=tz_out)# reclassify Date as a Date variable
-      )
+      ) %>% 
+      filter(!is.na(Date))
   }
   if(filters) {
     df <- df %>% 
@@ -152,26 +153,26 @@ clean_location_data <- function(df, dtype,
       TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
       DistGeo = geosphere::distGeo(cbind(Longitude, Latitude), 
                                    cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))), #compute geodesic distance between points
-      DistGeo = ifelse(DistGeo < 10^6, DistGeo, 0), 
-      Rate = ifelse(TimeDiffMins != 0, DistGeo/TimeDiffMins, 0), # compute rate of travel (meters/min), default to 0 to prevent divide by 0 error
+      DistGeo = ifelse(DistGeo > 10^6, 0, DistGeo), 
+      Rate = DistGeo/TimeDiffMins, # compute rate of travel (meters/min)
       CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
-      RateFlag = 1*(Rate > maxrate), # flag any data points representing too fast travel
-      CourseFlag = 1*(CourseDiff >= maxcourse),
-      DistanceFlag = 1*(DistGeo >= maxdist)# compute sequential time differences (in mins)
+      RateFlag = 1*(Rate >= maxrate | is.na(Rate)), # flag any data points representing too fast travel
+      MegaRateFlag = 1*(Rate >= 10*maxrate), # flag any data with severe rates
+      CourseFlag = 1*(CourseDiff >= maxcourse), # flag any data with large change in course
+      DistanceFlag = 1*(DistGeo >= maxdist)# flag any large change in distance
     ) 
   
     if(filters) {
       df <- df %>%
         dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistanceFlag ) %>%
-        dplyr::filter(TotalFlags < 2,
-                      !DistanceFlag ) %>%
+        dplyr::filter(TotalFlags < 2, !DistanceFlag, !MegaRateFlag ) %>%
         dplyr::mutate( # recalculate columns affected by filtering
           TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="secs")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), 
           TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
           DistGeo = geosphere::distGeo(cbind(Longitude, Latitude),
                                        cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude)))),
-          DistGeo = ifelse(DistGeo < 10^6, DistGeo, 0), 
-          Rate = ifelse(TimeDiffMins != 0, DistGeo/TimeDiffMins, 0),
+          DistGeo = ifelse(DistGeo > 10^6, 0, DistGeo), 
+          Rate = DistGeo/TimeDiffMins,
           CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course)))
          
         ) %>%

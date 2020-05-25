@@ -11,11 +11,11 @@ This document analyzes the results of the `animaltracker` package's data cleanin
 
 The cleaning process uses flag-based rules for discarding cases (rows) of data. 
 
-- If the `Rate` $>$ 84, mark the case with a `RateFlag`.
+- If measured rate of travel exceeds 84 m/min, mark the case with a `RateFlag`.
 
-- If the `Course` $\ge$ 100, mark the case with a `CourseFlag`.
+- If course change exceeds 100 degrees, mark the case with a `CourseFlag`.
 
-- If the `Distance` $\ge$ 840, mark the case with a `DistanceFlag`.
+- If measured distance traveled exceeds 840 m, mark the case with a `DistanceFlag`.
 
 - Discard any case with a `DistanceFlag`, or 2+ flags (or both).
 
@@ -25,26 +25,48 @@ Configure and load needed packages (use `install.packages("packagename")` to ins
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-```{r results='hide', message=FALSE}
+```{r message=FALSE, warning= FALSE}
 library(dplyr)
 library(ggplot2)
 library(tidyr)
+library(animaltracker)
+library(psych)
+
 ```
 
-## Prepare Data
-```{r}
-clean_anitracker <- read.csv("df_candidate.csv", stringsAsFactors = FALSE) %>%
-  #################
-  ### !!! HOT FIX FOR ERROR IN GEODIST 
-  ## IMPLEMENT IN APP, THEN DELETE AFTER RE-CLEANING
-  mutate(
-    DistGeo = ifelse(DistGeo < 10^6, DistGeo, 0), ### !!! hot fix for GeoDist error
-    Rate = ifelse(TimeDiffMins != 0, DistGeo/TimeDiffMins, 0), 
-    RateFlag = 1*(Rate > 84), 
-    DistanceFlag = 1*(DistGeo >= 840)
-  )
-  #################
+## Read and Prepare Data
+```{r message=FALSE, warning = FALSE}
+###  read the manually cleaned data
 clean_manual <- read.csv("df_correct.csv", stringsAsFactors = FALSE)
+
+### read and clean the raw data with the animaltracker app
+folder_rawdata <- "../test_data/DeepWell_2018_Collar_Raw"
+nm_files <- list.files(folder_rawdata)
+
+clean_anitracker <- data.frame() # container for cleaned data
+for(filename in nm_files) {
+  
+  # extract metadata from file names
+  aniid <- as.integer(gsub("DW_(\\d{3})(.*)", "\\1", filename))
+  gpsid <- as.integer(gsub("DW_(\\d{3})_(\\d{2})(.*)", "\\2", filename))
+  
+  # read the raw data
+  df_raw <- read.csv(file.path(folder_rawdata, filename), stringsAsFactors = FALSE)
+  
+  # clean with animaltracker
+  df_clean_animaltracker <- clean_location_data(df_raw, 
+                                dtype = "igotu", filters = FALSE, maxtime =150,
+                                aniid = aniid, gpsid = gpsid) 
+  
+  # add to the combined clean data
+  clean_anitracker <- rbind( clean_anitracker, df_clean_animaltracker)
+}
+
+### reshape data cleaned data to conform with manually cleaned data
+clean_anitracker <- clean_anitracker %>% 
+  rename(Cow = Animal) %>% # use same name for cow id
+  type.convert() # classify columns of data into types (e.g., numeric, factors)
+
 ```
 First, we join the cleaned data from the animaltracker app (`r nrow(clean_anitracker)` rows, `r ncol(clean_anitracker)` columns) with the cleaned data from manual processing (`r nrow(clean_manual)` rows, `r ncol(clean_manual)` columns). 
 
@@ -58,23 +80,26 @@ clean_manual <- clean_manual %>%
   arrange(Cow, Index, Altitude) %>% 
   mutate(merge_index = 1:n())
 
-join <- dplyr::full_join(clean_anitracker, clean_manual, by="merge_index") %>%
-  dplyr::rename(Index = Index.y,
+join <- full_join(clean_anitracker, clean_manual, by="merge_index") %>%
+  rename(Index = Index.y,
                 Cow = Cow.y,
                 Altitude = Altitude.y,
                 Order = Order.y,
                 Keep.y = Keep,
                 Speed = Speed.x,
-                Course = Course.x,
+                CourseDiff.x = CourseDiff,
+                CourseDiff.y = coursedifference,
                 DateTime = DateTime.x,
                 Dist.x = Distance.x,
                 Dist.y = Distance.y,
                 DistFlag.x = DistanceFlag,
-                DistFlag.y = DistFlag) %>% 
-  dplyr::mutate(Keep.x = 1*(TotalFlags.x < 2 & !DistFlag.x)) 
+                DistFlag.y = DistFlag,
+                MegaRateFlag.x = MegaRateFlag) %>%
+  mutate( Cow = factor(Cow), 
+          Keep.x = 1*(TotalFlags.x < 2 & !DistFlag.x & !MegaRateFlag.x)) 
 ```
 
-The merged data has the `r nrow(join)` rows.
+The merged data has `r nrow(join)` rows.
 
 # Analysis
 
@@ -90,82 +115,95 @@ The cleaning methods agree in `r round(100*sum(diag(keepxtab))/sum(keepxtab),2)`
 All cases kept by manual processing (n = `r keepxtab[1,2]`) but discarded by `animaltracker` were marked with a `RateFlag` by manual, but not animaltracker. 
 ```{r}
 manual_keep <- join %>% 
-  dplyr::filter(Keep.x < Keep.y) %>% 
-dplyr::select(ind = merge_index, Cow, DateTime, Speed, Course, TimeDiffMins, Rate.x, Dist.x, Rate.y, Dist.y, RateFlag.x, CourseFlag.x, DistFlag.x, RateFlag.y, CourseFlag.y, DistFlag.y) 
+  filter(Keep.x < Keep.y) %>% 
+  select(ind = merge_index, Cow, DateTime, TimeDiffMins, 
+              Rate.x, Rate.y, RateFlag.x, RateFlag.y, 
+              Dist.x, Dist.y, DistFlag.x, DistFlag.y,
+              CourseDiff.x, CourseDiff.y, CourseFlag.x, CourseFlag.y) 
 
 manual_keep %>% 
-  dplyr::summarise(RateFlag.x = sum(RateFlag.x),
+  summarise(RateFlag.x = sum(RateFlag.x),
                    CourseFlag.x = sum(CourseFlag.x),
                    DistFlag.x = sum(DistFlag.x),
                    RateFlag.y = sum(RateFlag.y),
                    CourseFlag.y = sum(CourseFlag.y),
                    DistFlag.y = sum(DistFlag.y)) %>% 
   tidyr::gather("Flag", "Count") %>% 
-  dplyr::mutate(Source = ifelse(grepl(".x", Flag), "animaltracker", "manual"),
+  mutate(Source = ifelse(grepl(".x", Flag), "animaltracker", "manual"),
                 Flag = substr(Flag, 1, nchar(Flag)-2)) %>%
   ggplot( aes(Flag, Count, fill = Source)) +
   geom_bar(stat = "identity", position = "dodge") +
-  ggtitle(paste0("Observations Kept by Manual Processing, discarded by Animaltracker\n","N = ",nrow(manual_keep)) )
+  ggtitle(paste0("Observations Kept by Manual Processing, 
+                 discarded by Animaltracker\n","N = ",nrow(manual_keep)) )
 ```
 ```{r}
-manual_keep %>% head(10)
+manual_keep %>% sample_n(10) # random sample of 10 cases
 ```
 Nearly all cases kept by `animaltracker` but discarded by manual processing (n = `r keepxtab[2,1]`)  had different values of `RateFlag` and `CourseFlag`. 
 ```{r}
 anitracker_keep <- join %>% 
-  dplyr::filter(Keep.x > Keep.y) %>% 
-  dplyr::select(ind = merge_index, Cow, DateTime, Speed, Course, TimeDiffMins, Rate.x, Dist.x, Rate.y, Dist.y, RateFlag.x, CourseFlag.x, DistFlag.x, RateFlag.y, CourseFlag.y, DistFlag.y) 
+  filter(Keep.x > Keep.y) %>% 
+  select(ind = merge_index, Cow, DateTime, TimeDiffMins, 
+              Rate.x, Rate.y, RateFlag.x, RateFlag.y, 
+              Dist.x, Dist.y, DistFlag.x, DistFlag.y,
+              CourseDiff.x, CourseDiff.y, CourseFlag.x, CourseFlag.y) 
 
 anitracker_keep %>% 
-  dplyr::summarise(RateFlag.x = sum(RateFlag.x),
+  summarise(RateFlag.x = sum(RateFlag.x),
                    CourseFlag.x = sum(CourseFlag.x),
                    DistFlag.x = sum(DistFlag.x),
                    RateFlag.y = sum(RateFlag.y),
                    CourseFlag.y = sum(CourseFlag.y),
                    DistFlag.y = sum(DistFlag.y)) %>% 
   tidyr::gather("Flag", "Count") %>% 
-  dplyr::mutate(Source = ifelse(grepl(".x", Flag), "animaltracker", "manual"),
+  mutate(Source = ifelse(grepl(".x", Flag), "animaltracker", "manual"),
                 Flag = substr(Flag, 1, nchar(Flag)-2)) %>%
   ggplot( aes(Flag, Count, fill = Source)) +
   geom_bar(stat = "identity", position = "dodge") +
-  ggtitle(paste0("Observations Kept by AnimalTracker, discarded by Manual Processing\n","N = ",nrow(anitracker_keep)) )
+  ggtitle(paste0("Observations Kept by AnimalTracker, 
+                 discarded by Manual Processing\n","N = ",nrow(anitracker_keep)) )
 ```
 ```{r}
-anitracker_keep %>% head(10)
+anitracker_keep %>% sample_n(10) # random sample of 10 cases
 ```
 
 ## Effects of Cleaning Differences on Outcome Measures
 
-As evidenced by the split time series plots below, there are no substantive differences between the cleaned datasets in cumulative distances, `Rate`, or `Course`. 
+It's important to estimate the effects of processing errors on the key measured outcomes.
 
-### Cumulative Distance by Cow
+### Cumulative Distance (per day)
+
+The time series plots below indicate a very close conformity between the data cleaned in `animaltracker` and the manually cleaned data.
 
 ```{r}
 cumdist <- join %>% 
-  dplyr::group_by(Cow) %>% 
-  dplyr::arrange(Index, .by_group=TRUE) %>% 
-  dplyr::mutate(Dist.y = dplyr::lag(Dist.y,1), 
-                Dist.x = ifelse(is.na(Dist.x), 0, Dist.x),
-                Dist.y = ifelse(is.na(Dist.y), 0, Dist.y),
-                cumDist.x = cumsum(Dist.x),
-                cumDist.y = cumsum(Dist.y)) %>%
-  dplyr::ungroup()
+  group_by(Cow) %>% 
+  arrange(merge_index) %>% 
+  mutate(Dist.y = lag(Dist.y,1), 
+                cumDist.x = cumsum(replace_na(Dist.x,0)),
+                cumDist.y = cumsum(replace_na(Dist.y,0))) %>%
+  ungroup()
 
 cumdist_anitracker <- cumdist %>% 
-  dplyr::select(Index, Cow, cumDist.x, DistFlag.x) %>% 
-  dplyr::rename(Flag = DistFlag.x,
+  group_by(Cow) %>% arrange(merge_index) %>%
+  mutate(index = 1:n()) %>% ungroup() %>%
+  ungroup() %>%
+  select(Cow, index, cumDist.x, DistFlag.x) %>% 
+  rename(Flag = DistFlag.x,
                 cumDist = cumDist.x) %>% 
-  dplyr::mutate(Source = "animaltracker")
+  mutate(Source = "animaltracker")
 
 cumdist_manual <- cumdist %>% 
-  dplyr::select(Index, Cow, cumDist.y, DistFlag.y) %>% 
-  dplyr::rename(Flag = DistFlag.y,
+  group_by(Cow) %>% arrange(merge_index) %>%
+  mutate(index = 1:n()) %>% ungroup() %>%
+  select(Cow, index, Cow, cumDist.y, DistFlag.y) %>% 
+  rename(Flag = DistFlag.y,
                 cumDist = cumDist.y) %>% 
-  dplyr::mutate(Source = "manual")
+  mutate(Source = "manual")
 
-plot_data <- dplyr::bind_rows(cumdist_anitracker, cumdist_manual)
+plot_data <- bind_rows(cumdist_anitracker, cumdist_manual)
 
-ggplot(plot_data, aes(x=Index, y=cumDist, group=Source, color=Source)) +
+ggplot(plot_data, aes(x=index, y=cumDist, group=Source, color=Source)) +
   geom_line(aes(size = Source)) +
   ylab("Cumulative Distance") +
   scale_color_discrete(guide = guide_legend(reverse = TRUE)) +
@@ -174,53 +212,85 @@ ggplot(plot_data, aes(x=Index, y=cumDist, group=Source, color=Source)) +
   theme(axis.text.x = element_text(angle = -45))
 ```
 
-### Rate by Cow
+### Relative Error of Cumulative Distance Estimates
+
+The following summarizes the relative error of cumulative distances calculated from the `animaltracker` app in comparison to the manually processed data.
 
 ```{r}
-rate_anitracker <- join %>% 
-  dplyr::select(Index, Cow, Rate.x, RateFlag.x) %>% 
-  dplyr::rename(Flag = RateFlag.x,
-                Rate = Rate.x) %>% 
-  dplyr::mutate(Source = "animaltracker")
+error_cumdist <- join %>%
+  group_by(Cow) %>% 
+  arrange(merge_index) %>%
+  mutate(
+    Dist.y = lag(Dist.y,1), 
+    cumDist.x = cumsum(replace_na(Dist.x,0)),
+    cumDist.y = cumsum(replace_na(Dist.y,0)) ) %>% 
+  group_by(Cow, Date.x) %>%
+  summarize(
+    cumDist.x = sum(cumDist.x, na.rm=TRUE),
+    cumDist.y = sum(cumDist.y, na.rm = TRUE),
+    cumDist.relerror = (cumDist.x-cumDist.y)/cumDist.y
+  ) %>% 
+  ungroup() 
 
-rate_manual <- join %>% 
-  dplyr::select(Index, Cow, Rate.y, RateFlag.y) %>% 
-  dplyr::mutate(Flag = RateFlag.y,
-                Rate = as.numeric(Rate.y)) %>% 
-  dplyr::mutate(Source = "manual")
+ggplot(error_cumdist, aes(x = Cow, y = cumDist.relerror, fill = Cow))+
+    geom_violin(trim=TRUE)+
+    geom_point()+
+    scale_y_continuous(trans='log10')
 
-plot_data <- dplyr::bind_rows(rate_anitracker, rate_manual)
-
-ggplot(plot_data, aes(x=Index, y=Rate, group=Source, color=Source)) +
-  geom_line(aes(size = Source)) +
-  ylab("Rate") +
-  scale_color_discrete(guide = guide_legend(reverse = TRUE)) +
-  scale_size_manual(values=c(2, 1)) +
-  facet_wrap(vars(Cow)) +
-  theme(axis.text.x = element_text(angle = -45))
 ```
 
-### Course by Cow
+Based on N = `r nrow(error_cumdist)` days of data, the overall relative error rate in cumulative distance per day is `r round(100*mean(error_cumdist$cumDist.relerror),2)`%.
 
 ```{r}
-course_anitracker <- join %>% 
-  dplyr::select(Index, Cow, Course, CourseFlag.x) %>% 
-  dplyr::rename(Flag = CourseFlag.x) %>% 
-  dplyr::mutate(Source = "animaltracker")
+error_cumdist %>%
+  group_by(Cow) %>% 
+  mutate(index = 1:n()) %>% 
+  ungroup() %>%
+  select(index, name = Cow, value = cumDist.relerror) %>% 
+  mutate(name = paste0("Cow_", name)) %>%
+  pivot_wider() %>% 
+  select(-index) %>%
+  psych::describe() %>%
+  select(n, mean, sd, median, range, se ) %>%
+  print(digits = 4)
 
-course_manual <- join %>% 
-  dplyr::select(Index, Cow, Course.y, CourseFlag.y) %>% 
-  dplyr::rename(Flag = CourseFlag.y,
-                Course = Course.y) %>% 
-  dplyr::mutate(Source = "manual")
+```
 
-plot_data <- dplyr::bind_rows(course_anitracker, course_manual)
+### Rate of Travel
 
-ggplot(plot_data, aes(x=Index, y=Course, group=Source, color=Source)) +
-  geom_line(aes(size = Source)) +
-  ylab("Course") +
-  scale_color_discrete(guide = guide_legend(reverse = TRUE)) +
-  scale_size_manual(values=c(2, 1)) +
-  facet_wrap(vars(Cow)) +
-  theme(axis.text.x = element_text(angle = -45))
+Another key outcome is the estimated speed of travel (meters/min). The following describes differences in estimated `Rate` measures between the data cleaned in `animaltracker` and the manually cleaned data.
+
+```{r}
+rates_keep <- join %>% 
+    filter(Keep.x > 0 ) %>%
+    select(merge_index, Rate = Rate.x) %>% 
+    mutate(source = "animaltracker") %>%
+  rbind(
+    join %>% 
+      filter(Keep.y > 0) %>%
+      select(merge_index, Rate = Rate.y) %>%
+      mutate(source = "manual")
+  ) %>%
+  mutate(source = factor(source),
+         Rate = as.numeric(Rate))
+
+rates_keep %>%
+  pivot_wider(names_from = "source", values_from="Rate") %>%
+  select(-merge_index) %>%
+  psych::describe() %>%
+  select(n, mean, sd, median, range, se ) %>%
+  print(digits = 3)
+  
+```
+
+```{r}
+ggplot(rates_keep, aes(x = source, y = Rate, fill = source))+
+  geom_violin(trim=TRUE) +
+  theme_minimal()
+```
+
+```{r}
+ggplot(rates_keep %>% filter(Rate < 84), aes(x = source, y = Rate, fill = source))+
+  geom_violin(trim=TRUE) +
+  theme_minimal()
 ```
