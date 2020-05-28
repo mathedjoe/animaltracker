@@ -146,37 +146,37 @@ clean_location_data <- function(df, dtype,
       dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time), nSatellites > 0) %>% 
       dplyr::distinct(DateTime, .keep_all = TRUE) # remove duplicate timestamps
   }
-
-  df <- df %>% 
-    dplyr::mutate(
-      TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="secs")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), # compute sequential time differences (in seconds)
-      TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
-      DistGeo = geosphere::distGeo(cbind(Longitude, Latitude), 
-                                   cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))), #compute geodesic distance between points
-      DistGeo = ifelse(DistGeo > 10^6, 0, DistGeo), 
-      Rate = DistGeo/TimeDiffMins, # compute rate of travel (meters/min)
-      CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
-      RateFlag = 1*(Rate >= maxrate | is.na(Rate)), # flag any data points representing too fast travel
-      MegaRateFlag = 1*(Rate >= 10*maxrate), # flag any data with severe rates
-      CourseFlag = 1*(CourseDiff >= maxcourse), # flag any data with large change in course
-      DistanceFlag = 1*(DistGeo >= maxdist)# flag any large change in distance
+  ## special function for processing gps data with igotu (protocol from Colt Knight)
+  process_gps_igotu <- function(df_igotu){
+    df_igotu %>%
+      dplyr::mutate(
+        TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="secs")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), # compute sequential time differences (in seconds)
+        TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
+        DistGeo = geosphere::distGeo(cbind(Longitude, Latitude), 
+                                     cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))), #compute geodesic distance between points
+        DistGeo = ifelse(DistGeo > 10^6, 0, DistGeo), 
+        Rate = DistGeo/TimeDiffMins, # compute rate of travel (meters/min)
+        CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
+        ### implement filtering rules
+        TimeFlag =1*(TimeDiff == 0),
+        RateFlag = 1*(Rate >= maxrate | is.na(Rate)), # flag any data points representing too fast travel
+        MegaRateFlag = 1*(Rate >= 10*maxrate | is.na(Rate)), # flag any data with severe rates
+        CourseFlag = 1*(CourseDiff >= maxcourse), # flag any data with large change in course
+        DistFlag = 1*(DistGeo >= maxdist | ( (TimeDiffMins!=0) & DistGeo/TimeDiffMins > maxrate) ), # flag any large change in distance
+        TotalFlags = RateFlag + CourseFlag + DistFlag,
+        Keep = 1*(TotalFlags < 2 & !DistFlag & !MegaRateFlag & !TimeFlag) # implement key filtering rule
     ) 
+  }
+  
+  df <- process_gps_igotu(df)
+   
   
     if(filters) {
       df <- df %>%
-        dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistanceFlag ) %>%
-        dplyr::filter(TotalFlags < 2, !DistanceFlag, !MegaRateFlag ) %>%
-        dplyr::mutate( # recalculate columns affected by filtering
-          TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="secs")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), 
-          TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
-          DistGeo = geosphere::distGeo(cbind(Longitude, Latitude),
-                                       cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude)))),
-          DistGeo = ifelse(DistGeo > 10^6, 0, DistGeo), 
-          Rate = DistGeo/TimeDiffMins,
-          CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course)))
-         
-        ) %>%
-        dplyr::select(-contains("Flag")) # remove flags after use
+        dplyr::filter( Keep ) %>%
+        process_gps_igotu(.) %>%
+        dplyr::filter( Keep ) %>%
+        dplyr::select(-contains("Flag"), -Keep) # remove flags after use
       
       if(dtype == "columbus") {
         df <- df %>% 
@@ -189,7 +189,7 @@ clean_location_data <- function(df, dtype,
           TimeFlag = 1*(is.na(DateTime) | is.na(Date) | is.na(Time))
         ) %>%
         tibble::add_column(DuplicateDateFlag = 1*duplicated(df$DateTime)) %>%
-        dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistanceFlag + TimeFlag + DuplicateDateFlag)
+        dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistFlag + TimeFlag + DuplicateDateFlag)
     }
     
   return(as.data.frame(df))
