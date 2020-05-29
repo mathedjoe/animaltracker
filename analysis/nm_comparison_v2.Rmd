@@ -29,6 +29,10 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(ggplot2)
 library(tidyr)
+
+library(animaltracker)
+library(psych)
+library(caret)
 ```
 
 ## Prepare Data
@@ -80,9 +84,19 @@ The merged data has the `r nrow(join)` rows.
 
 ## Overall Agreement
 First, we compare the results of cleaning the data within `animaltracker` (via the `clean_location_data` function) to results of manual cleaning via spreadsheet.
-```{r}
+```{r include=FALSE}
 keepxtab <- with(join, table(Keep.x, Keep.y))
 ```
+The cleaning methods agree in `r round(100*sum(diag(keepxtab))/sum(keepxtab),3)`% of cases, except for `r keepxtab[2,1]` cases (`r round(100*keepxtab[2,1]/sum(keepxtab),3)`%) kept by `animaltracker` but discarded by manual processing and `r keepxtab[1,2]` cases (`r round(100*keepxtab[1,2]/sum(keepxtab),3)`%) kept by manual processing but discarded by `animaltracker`. 
+
+The relatively low number of discarded points in the data set suggests a need for careful analysis. The following confusion matrix and associated statistics provides details.
+```{r}
+confusionMatrix(factor(join$Keep.x, labels = c( "discard", "keep")), 
+                factor(join$Keep.y, labels = c( "discard", "keep")), 
+                positive = "keep", dnn = c("animaltracker", "manual"), 
+                mode="everything")
+```
+
 The cleaning methods agree in `r round(100*sum(diag(keepxtab))/sum(keepxtab),2)`% of cases, except for `r keepxtab[2,1]` cases (`r round(100*keepxtab[2,1]/sum(keepxtab),2)`%) kept by `animaltracker` but discarded by manual processing and `r keepxtab[1,2]` cases (`r round(100*keepxtab[1,2]/sum(keepxtab),2)`%) kept by manual processing but discarded by `animaltracker`.
 
 ## Analysis of Cases with Different Results
