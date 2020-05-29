@@ -2,7 +2,7 @@
 % Please edit documentation in R/validation_app.R
 \name{run_validation_app}
 \alias{run_validation_app}
-\title{Run the Shiny validation app}
+\title{Run the 'shiny' validation app}
 \usage{
 run_validation_app()
 }
@@ -10,5 +10,5 @@ run_validation_app()
 None
 }
 \description{
-Run the Shiny validation app
+Run the 'shiny' validation app
 }

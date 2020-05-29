@@ -5,7 +5,7 @@ if(getRversion() >= '2.5.1') {
                     'cumDistUpper', 'RateLower', 'RateUpper'))
 }
 #'
-#'Run the Shiny validation app
+#'Run the 'shiny' validation app
 #'
 #'@export
 #'@return None

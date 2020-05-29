@@ -2,7 +2,7 @@
 % Please edit documentation in R/inputs_module.R
 \name{reactivePicker}
 \alias{reactivePicker}
-\title{Shiny Module server-side UI generator for the animaltracker app's dynamic dropdown selections.}
+\title{'shiny' module server-side UI generator for the animaltracker app's dynamic dropdown selections.}
 \usage{
 reactivePicker(
   input,
@@ -18,11 +18,11 @@ reactivePicker(
 )
 }
 \arguments{
-\item{input}{Shiny server input, automatically populated}
+\item{input}{'shiny' server input, automatically populated}
 
-\item{output}{Shiny server output, automatically populated}
+\item{output}{'shiny' server output, automatically populated}
 
-\item{session}{Shiny server session, automatically populated}
+\item{session}{'shiny' server session, automatically populated}
 
 \item{type}{purpose of picker - currently supported types are "site", "ani", and "recent"}
 
@@ -38,6 +38,9 @@ reactivePicker(
 
 \item{options}{options for shinyWidgets pickerInput}
 }
+\value{
+'shiny' renderUI object for dropdown selection
+}
 \description{
-Shiny Module server-side UI generator for the animaltracker app's dynamic dropdown selections.
+'shiny' module server-side UI generator for the animaltracker app's dynamic dropdown selections.
 }

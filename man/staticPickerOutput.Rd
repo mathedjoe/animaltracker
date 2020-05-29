@@ -9,6 +9,9 @@ staticPickerOutput(id)
 \arguments{
 \item{id}{chosen ID of UI output}
 }
+\value{
+'shiny' uiOutput object for dropdown selection
+}
 \description{
 Shiny Module UI output for the animaltracker app's basic dropdown selections.
 }

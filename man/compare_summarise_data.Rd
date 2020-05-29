@@ -5,19 +5,30 @@
 \title{Compares two animal data frames and calculates summary statistics. 
 GPS, date, lat, long, course, distance, rate, elevation column names should match.}
 \usage{
-compare_summarise_data(correct, candidate, gps_out, date_out)
+compare_summarise_data(
+  correct,
+  candidate,
+  use_elev = TRUE,
+  export = FALSE,
+  gps_out = NULL,
+  date_out = NULL
+)
 }
 \arguments{
-\item{correct}{reference df}
+\item{correct}{reference data frame}
 
-\item{candidate}{df to be compared to the reference}
+\item{candidate}{data frame to be compared to the reference}
 
-\item{gps_out}{desired file name of .csv output summary by GPS collar}
+\item{use_elev}{logical, whether to include elevation in summary, defaults to True}
 
-\item{date_out}{desired file name of .csv output summary by date}
+\item{export}{logical, whether to export summaries to .csv, defaults to False}
+
+\item{gps_out}{desired file name of .csv output summary by GPS collar when export is True}
+
+\item{date_out}{desired file name of .csv output summary by date when export is True}
 }
 \value{
-list containing gps_out and date_out as dfs
+list containing gps_out and date_out as data frames
 }
 \description{
 Compares two animal data frames and calculates summary statistics. 
@@ -25,17 +36,5 @@ GPS, date, lat, long, course, distance, rate, elevation column names should matc
 }
 \examples{
 # Compare and summarise unfiltered demo cows to filtered 
-\donttest{
-\dontrun{
-## Get elevation data for unfiltered demo
-unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
-get_slope=FALSE, get_aspect=FALSE)
-
-## Get elevation data for filtered demo
-filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
-
-## Compare and summarise
-compare_summarise_data(unfiltered_elev, filtered_elev, "ex_gps_compare.csv", "ex_date_compare.csv")
-}
-}
+compare_summarise_data(demo_unfiltered_elev, demo_filtered_elev)
 }

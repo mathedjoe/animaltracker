@@ -1,0 +1,226 @@
+---
+title: "Animaltracker Data Validation: New Mexico Data"
+author: "Joe Champion, Thea Sukianto"
+date: "May 22, 2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+This document analyzes the results of the `animaltracker` package's data cleaning procedures by comparing data flagged by the app to data flagged by manual processing via spreadsheet.
+
+The cleaning process uses flag-based rules for discarding cases (rows) of data. 
+
+- If the `Rate` $>$ 84, mark the case with a `RateFlag`.
+
+- If the `Course` $\ge$ 100, mark the case with a `CourseFlag`.
+
+- If the `Distance` $\ge$ 840, mark the case with a `DistanceFlag`.
+
+- Discard any case with a `DistanceFlag`, or 2+ flags (or both).
+
+# Preliminaries
+
+Configure and load needed packages (use `install.packages("packagename")` to install any missing libraries).
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r results='hide', message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+```
+
+## Prepare Data
+```{r}
+clean_anitracker <- read.csv("df_candidate.csv", stringsAsFactors = FALSE) %>%
+  #################
+  ### !!! HOT FIX FOR ERROR IN GEODIST 
+  ## IMPLEMENT IN APP, THEN DELETE AFTER RE-CLEANING
+  mutate(
+    DistGeo = ifelse(DistGeo < 10^6, DistGeo, 0), ### !!! hot fix for GeoDist error
+    Rate = ifelse(TimeDiffMins != 0, DistGeo/TimeDiffMins, 0), 
+    RateFlag = 1*(Rate > 84), 
+    DistanceFlag = 1*(DistGeo >= 840)
+  )
+  #################
+clean_manual <- read.csv("df_correct.csv", stringsAsFactors = FALSE)
+```
+First, we join the cleaned data from the animaltracker app (`r nrow(clean_anitracker)` rows, `r ncol(clean_anitracker)` columns) with the cleaned data from manual processing (`r nrow(clean_manual)` rows, `r ncol(clean_manual)` columns). 
+
+Rows are matched by the combination of `Cow`, `Index` (uniquely identifies almost all rows) and `Altitude` (to break ties in rare duplicates). 
+```{r}
+clean_anitracker <- clean_anitracker %>% 
+  arrange(Cow, Index, Altitude) %>% 
+  mutate(merge_index = 1:n())
+
+clean_manual <- clean_manual %>% 
+  arrange(Cow, Index, Altitude) %>% 
+  mutate(merge_index = 1:n())
+
+join <- dplyr::full_join(clean_anitracker, clean_manual, by="merge_index") %>%
+  dplyr::rename(Index = Index.y,
+                Cow = Cow.y,
+                Altitude = Altitude.y,
+                Order = Order.y,
+                Keep.y = Keep,
+                Speed = Speed.x,
+                Course = Course.x,
+                DateTime = DateTime.x,
+                Dist.x = Distance.x,
+                Dist.y = Distance.y,
+                DistFlag.x = DistanceFlag,
+                DistFlag.y = DistFlag) %>% 
+  dplyr::mutate(Keep.x = 1*(TotalFlags.x < 2 & !DistFlag.x)) 
+```
+
+The merged data has the `r nrow(join)` rows.
+
+# Analysis
+
+## Overall Agreement
+First, we compare the results of cleaning the data within `animaltracker` (via the `clean_location_data` function) to results of manual cleaning via spreadsheet.
+```{r}
+keepxtab <- with(join, table(Keep.x, Keep.y))
+```
+The cleaning methods agree in `r round(100*sum(diag(keepxtab))/sum(keepxtab),2)`% of cases, except for `r keepxtab[2,1]` cases (`r round(100*keepxtab[2,1]/sum(keepxtab),2)`%) kept by `animaltracker` but discarded by manual processing and `r keepxtab[1,2]` cases (`r round(100*keepxtab[1,2]/sum(keepxtab),2)`%) kept by manual processing but discarded by `animaltracker`.
+
+## Analysis of Cases with Different Results
+
+All cases kept by manual processing (n = `r keepxtab[1,2]`) but discarded by `animaltracker` were marked with a `RateFlag` by manual, but not animaltracker. 
+```{r}
+manual_keep <- join %>% 
+  dplyr::filter(Keep.x < Keep.y) %>% 
+dplyr::select(ind = merge_index, Cow, DateTime, Speed, Course, TimeDiffMins, Rate.x, Dist.x, Rate.y, Dist.y, RateFlag.x, CourseFlag.x, DistFlag.x, RateFlag.y, CourseFlag.y, DistFlag.y) 
+
+manual_keep %>% 
+  dplyr::summarise(RateFlag.x = sum(RateFlag.x),
+                   CourseFlag.x = sum(CourseFlag.x),
+                   DistFlag.x = sum(DistFlag.x),
+                   RateFlag.y = sum(RateFlag.y),
+                   CourseFlag.y = sum(CourseFlag.y),
+                   DistFlag.y = sum(DistFlag.y)) %>% 
+  tidyr::gather("Flag", "Count") %>% 
+  dplyr::mutate(Source = ifelse(grepl(".x", Flag), "animaltracker", "manual"),
+                Flag = substr(Flag, 1, nchar(Flag)-2)) %>%
+  ggplot( aes(Flag, Count, fill = Source)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle(paste0("Observations Kept by Manual Processing, discarded by Animaltracker\n","N = ",nrow(manual_keep)) )
+```
+```{r}
+manual_keep %>% head(10)
+```
+Nearly all cases kept by `animaltracker` but discarded by manual processing (n = `r keepxtab[2,1]`)  had different values of `RateFlag` and `CourseFlag`. 
+```{r}
+anitracker_keep <- join %>% 
+  dplyr::filter(Keep.x > Keep.y) %>% 
+  dplyr::select(ind = merge_index, Cow, DateTime, Speed, Course, TimeDiffMins, Rate.x, Dist.x, Rate.y, Dist.y, RateFlag.x, CourseFlag.x, DistFlag.x, RateFlag.y, CourseFlag.y, DistFlag.y) 
+
+anitracker_keep %>% 
+  dplyr::summarise(RateFlag.x = sum(RateFlag.x),
+                   CourseFlag.x = sum(CourseFlag.x),
+                   DistFlag.x = sum(DistFlag.x),
+                   RateFlag.y = sum(RateFlag.y),
+                   CourseFlag.y = sum(CourseFlag.y),
+                   DistFlag.y = sum(DistFlag.y)) %>% 
+  tidyr::gather("Flag", "Count") %>% 
+  dplyr::mutate(Source = ifelse(grepl(".x", Flag), "animaltracker", "manual"),
+                Flag = substr(Flag, 1, nchar(Flag)-2)) %>%
+  ggplot( aes(Flag, Count, fill = Source)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle(paste0("Observations Kept by AnimalTracker, discarded by Manual Processing\n","N = ",nrow(anitracker_keep)) )
+```
+```{r}
+anitracker_keep %>% head(10)
+```
+
+## Effects of Cleaning Differences on Outcome Measures
+
+As evidenced by the split time series plots below, there are no substantive differences between the cleaned datasets in cumulative distances, `Rate`, or `Course`. 
+
+### Cumulative Distance by Cow
+
+```{r}
+cumdist <- join %>% 
+  dplyr::group_by(Cow) %>% 
+  dplyr::arrange(Index, .by_group=TRUE) %>% 
+  dplyr::mutate(Dist.y = dplyr::lag(Dist.y,1), 
+                Dist.x = ifelse(is.na(Dist.x), 0, Dist.x),
+                Dist.y = ifelse(is.na(Dist.y), 0, Dist.y),
+                cumDist.x = cumsum(Dist.x),
+                cumDist.y = cumsum(Dist.y)) %>%
+  dplyr::ungroup()
+
+cumdist_anitracker <- cumdist %>% 
+  dplyr::select(Index, Cow, cumDist.x, DistFlag.x) %>% 
+  dplyr::rename(Flag = DistFlag.x,
+                cumDist = cumDist.x) %>% 
+  dplyr::mutate(Source = "animaltracker")
+
+cumdist_manual <- cumdist %>% 
+  dplyr::select(Index, Cow, cumDist.y, DistFlag.y) %>% 
+  dplyr::rename(Flag = DistFlag.y,
+                cumDist = cumDist.y) %>% 
+  dplyr::mutate(Source = "manual")
+
+plot_data <- dplyr::bind_rows(cumdist_anitracker, cumdist_manual)
+
+ggplot(plot_data, aes(x=Index, y=cumDist, group=Source, color=Source)) +
+  geom_line(aes(size = Source)) +
+  ylab("Cumulative Distance") +
+  scale_color_discrete(guide = guide_legend(reverse = TRUE)) +
+  scale_size_manual(values=c(2, 1)) +
+  facet_wrap(vars(Cow)) +
+  theme(axis.text.x = element_text(angle = -45))
+```
+
+### Rate by Cow
+
+```{r}
+rate_anitracker <- join %>% 
+  dplyr::select(Index, Cow, Rate.x, RateFlag.x) %>% 
+  dplyr::rename(Flag = RateFlag.x,
+                Rate = Rate.x) %>% 
+  dplyr::mutate(Source = "animaltracker")
+
+rate_manual <- join %>% 
+  dplyr::select(Index, Cow, Rate.y, RateFlag.y) %>% 
+  dplyr::mutate(Flag = RateFlag.y,
+                Rate = as.numeric(Rate.y)) %>% 
+  dplyr::mutate(Source = "manual")
+
+plot_data <- dplyr::bind_rows(rate_anitracker, rate_manual)
+
+ggplot(plot_data, aes(x=Index, y=Rate, group=Source, color=Source)) +
+  geom_line(aes(size = Source)) +
+  ylab("Rate") +
+  scale_color_discrete(guide = guide_legend(reverse = TRUE)) +
+  scale_size_manual(values=c(2, 1)) +
+  facet_wrap(vars(Cow)) +
+  theme(axis.text.x = element_text(angle = -45))
+```
+
+### Course by Cow
+
+```{r}
+course_anitracker <- join %>% 
+  dplyr::select(Index, Cow, Course, CourseFlag.x) %>% 
+  dplyr::rename(Flag = CourseFlag.x) %>% 
+  dplyr::mutate(Source = "animaltracker")
+
+course_manual <- join %>% 
+  dplyr::select(Index, Cow, Course.y, CourseFlag.y) %>% 
+  dplyr::rename(Flag = CourseFlag.y,
+                Course = Course.y) %>% 
+  dplyr::mutate(Source = "manual")
+
+plot_data <- dplyr::bind_rows(course_anitracker, course_manual)
+
+ggplot(plot_data, aes(x=Index, y=Course, group=Source, color=Source)) +
+  geom_line(aes(size = Source)) +
+  ylab("Course") +
+  scale_color_discrete(guide = guide_legend(reverse = TRUE)) +
+  scale_size_manual(values=c(2, 1)) +
+  facet_wrap(vars(Cow)) +
+  theme(axis.text.x = element_text(angle = -45))
+```

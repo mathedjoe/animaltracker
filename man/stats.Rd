@@ -2,7 +2,7 @@
 % Please edit documentation in R/stats_module.R
 \name{stats}
 \alias{stats}
-\title{Shiny Module server-side UI generator for the animaltracker app's summary statistics tables.}
+\title{'shiny' module server-side UI generator for the animaltracker app's summary statistics tables.}
 \usage{
 stats(
   input,
@@ -16,11 +16,11 @@ stats(
 )
 }
 \arguments{
-\item{input}{Shiny server input, automatically populated}
+\item{input}{'shiny' server input, automatically populated}
 
-\item{output}{Shiny server output, automatically populated}
+\item{output}{'shiny' server output, automatically populated}
 
-\item{session}{Shiny server session, automatically populated}
+\item{session}{'shiny' server session, automatically populated}
 
 \item{selected_cols}{selected columns from animaltracker app input}
 
@@ -32,6 +32,9 @@ stats(
 
 \item{dat}{animal data frame containing col}
 }
+\value{
+'shiny' renderTable object for table
+}
 \description{
-Shiny Module server-side UI generator for the animaltracker app's summary statistics tables.
+'shiny' module server-side UI generator for the animaltracker app's summary statistics tables.
 }

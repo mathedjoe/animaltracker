@@ -2,13 +2,16 @@
 % Please edit documentation in R/stats_module.R
 \name{statsLabelOutput}
 \alias{statsLabelOutput}
-\title{Shiny Module UI output for the animaltracker app's summary statistics labels.}
+\title{'shiny' Module UI output for the animaltracker app's summary statistics labels.}
 \usage{
 statsLabelOutput(id)
 }
 \arguments{
 \item{id}{chosen ID of UI output}
 }
+\value{
+'shiny' uiOutput object for label
+}
 \description{
-Shiny Module UI output for the animaltracker app's summary statistics labels.
+'shiny' Module UI output for the animaltracker app's summary statistics labels.
 }

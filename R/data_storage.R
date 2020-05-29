@@ -1,26 +1,3 @@
-###
-# DATA STORAGE PROCESS
-# 1. new data is uploaded through the app 
-#   (user uploads files (maybe in a zip folder) or points to a folder on their computer)
-# 2. clean the data one file at a time
-# 3. save meta data
-#     (fileid, filename, site, date min/max, cows, min/max lat/longitude, storage location (rds))
-# 4. cleaned data is stored in an rds (e.g., 50 files of data per rds)
-# 5. cache.rds keeps track of recent data frames used by the shiny app
-# 6. current.df is the current set of data used by the shiny app
-#
-# functions:
-#    clean_batch
-#       - clean_df
-#       - get_meta
-#       - save_meta
-#    get_data_from_meta
-#       - options to select days/times/cows/sites
-#       - check if cached
-#    save_to_cache
-#   
-# the shiny app needs to use some of these functions
-
 if(getRversion() >= '2.5.1') {
   globalVariables(c('data_dir', 'read.csv'))
 }
@@ -93,8 +70,9 @@ store_batch_list <- function(data_dir) {
     if(i > 1 ){
       maxminsll <- update_maxminlatlong(maxminsll, df, dtype)
     }
-    df <- clean_location_data(df, dtype, filters = FALSE, ani_ids[i], gps_units[i])
-    current_meta <- get_meta(df, i, dtype, file_names[i], site_names[i], ani_ids[i], "temp.rds")
+    df <- clean_location_data(df, dtype, filters = FALSE, aniid = ani_ids[i], gpsid = gps_units[i])
+    df_clean <- clean_location_data(df, dtype, filters = TRUE, aniid = ani_ids[i], gpsid = gps_units[i])
+    current_meta <- get_meta(df_clean, i, dtype, file_names[i], site_names[i], ani_ids[i], "temp.rds")
     meta_df <- save_meta(meta_df, current_meta) 
     data_sets[[i]] <- df
   }
@@ -120,62 +98,36 @@ store_batch_list <- function(data_dir) {
 #'@param filters filter bad data points, defaults to true
 #'@param tz_in input time zone, defaults to UTC
 #'@param tz_out output time zone, defaults to UTC
-#'@param get_slope logical, whether to look up elevation, defaults to false
-#'@param zoom level of zoom, defaults to 11
-#'@param get_slope logical, whether to compute slope (in degrees), defaults to true
-#'@param get_aspect logical, whether to compute aspect (in degrees), defaults to true
 #'@return clean df with all animal data files from the directory
 #'
-clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "UTC", lookup_elev = FALSE, zoom = 11, get_slope = TRUE, get_aspect = TRUE) {
+clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "UTC") {
   data_sets <- list()
   withProgress(message = paste0("Preparing raw data", ifelse(filters, " (filtered)", " (unfiltered)")), detail = paste0("0/",length(data_info$data), " files prepped"), value = 0, {
     
   for(i in 1:length(data_info$data)) {
     df <- data_info$data[[i]]
     dtype <- data_info$meta$dtype[i]
-    
-    if(dtype == "igotu") {
-      df <- df[!duplicated(as.list(df))] # discard any columns that are duplicates of index
-      colnames(df)[1] <- "Index"
-      suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
-    }
-    
-    df <- utils::type.convert(df)
-    
+  
     aniid <- data_info$ani[i]
     gpsid <- data_info$gps[i]
     
     # clean df
-    df_out<- clean_location_data(df, dtype, filters,
-                                 aniid = aniid, 
-                                 gpsid = gpsid, 
-                                 maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = tz_in, tz_out = tz_out)
+    if(filters) {
+      df_out <- clean_location_data(df, dtype, filters,
+                                   aniid = aniid, 
+                                   gpsid = gpsid, 
+                                   maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = tz_in, tz_out = tz_out)
+    }
+    else {
+      df_out <- df
+    }
     # add cleaned df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df_out
-    incProgress(1/(2*length(data_info$data)), detail = paste0(i,"/",length(data_info$data), " files prepped"))
+    incProgress(1/(length(data_info$data)), detail = paste0(i,"/",length(data_info$data), " files prepped"))
   } #cleaning for loop
   }) #progress bar
   
-  status_message <- modalDialog(
-    pre(id = "console"),
-    title = "Please Wait...",
-    easyClose = TRUE,
-    footer = NULL
-  )
-  
-  showModal(status_message)
-  
-  withCallingHandlers({
-      shinyjs::html("console", "")
-      elev_data_sets <- data_sets %>% dplyr::bind_rows() %>% lookup_elevation_aws(zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
-  },
-  message = function(m) {
-      shinyjs::html(id = "console", html = m$message)
-  })
-  
-  removeModal()
-  
-  return(elev_data_sets)
+  return(do.call(rbind, data_sets))
 }
 
 #'
@@ -208,6 +160,8 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
 
   data_sets <- list()
   
+  all_data_sets <- data.frame()
+  
   for(i in 1:length(data_info$data)) {
    
     df <- data_info$data[[i]]
@@ -229,12 +183,12 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
                              aniid = aniid, 
                              gpsid = gpsid, 
                              maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = tz_in, tz_out = tz_out)
-    # print(str(df_out))
+   
     # add cleaned df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df_out
+    all_data_sets <- all_data_sets %>% rbind(df_out)
   } #cleaning for loop
     
-    all_data_sets <- suppressWarnings(dplyr::bind_rows(data_sets)) 
     
     # print(paste("Now have", nrow(all_data_sets), "rows of clean data."))
     
@@ -361,7 +315,7 @@ get_data_from_meta <- function(meta_df, min_date, max_date) {
   for(file_name in rds_files) {
     current_rds <- readRDS(file_name)
     for(df in current_rds) {
-      current_df <- dplyr::bind_rows(current_df, df)
+      current_df <- rbind(current_df, df)
     }
   }
   

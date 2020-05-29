@@ -1,10 +1,10 @@
 ### UI the Shiny App
 
 #'
-#'Defines a user interface for the shiny app
+#'Defines a user interface for the 'shiny' app
 #'
 #'
-#'@return ui function for use in a shiny app
+#'@return ui function for use in a 'shiny' app
 #'@export
 #'
 
@@ -27,7 +27,7 @@ app_ui <- function(){
              tabPanel("Data", 
                       sidebarLayout(
                         sidebarPanel( 
-                          h4("Upload Data"),
+                          h4("1. Upload Data"),
                           helpText("Select a zip folder on your computer containing .csv files. Please upload data from one
                                    area at a time."),
 
@@ -35,33 +35,34 @@ app_ui <- function(){
                           textOutput("numUploaded"),
                           hr(),
                           
-                          h4("Data Processing"),
-                          shinyBS::bsCollapse(id = "uploadOptions",
+                          h4("2. Select Data"),
+                          reactivePickerOutput("choose_site") %>% shinycssloaders::withSpinner(),
+                          reactivePickerOutput("choose_ani"),
+                          datePickerOutput("choose_dates"),
+                          timeOutput("min_time"),
+                          timeOutput("max_time"),
+                          
+                          hr(),
+                          
+                          h4("3. Data Processing"),
+                          shinyBS::bsCollapse(id = "uploadOptions", open = "Elevation Options",
                                      shinyBS::bsCollapsePanel("Cleaning Options",
                                                      checkboxInput("filterBox", label = "Filter bad data points", value = TRUE)
                                      ),
                                      shinyBS::bsCollapsePanel("Elevation Options",
-                                                     uiOutput("lat_bounds"),
-                                                     uiOutput("long_bounds"),
+                                                     reactiveRangeOutput("lat_bounds"),
+                                                     reactiveRangeOutput("long_bounds"),
                                                      uiOutput("zoom"),
                                                      checkboxInput("slopeBox", label = "Include slope", value = TRUE),
                                                      checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
                                      )
                           ),
-                          actionButton("processButton", "Process Data"),
+                          actionButton("processButton", "Process All"),
+                          actionButton("processSelectedButton", "Process Selected"),
                           
                           hr(),
                           
-                          h4("Select Data"),
-                          reactivePickerOutput("choose_site") %>% shinycssloaders::withSpinner(),
-                          reactivePickerOutput("choose_ani"),
-                          datePickerOutput("choose_dates"),
-                          uiOutput("min_time"),
-                          uiOutput("max_time"),
-                          
-                          hr(),
-                          
-                          h4("Download Data"),
+                          h4("4. Download Data"),
                           helpText("Save data to a (potentially large) .csv file."),
                           # Button
                           shinyBS::bsCollapse(id = "downloadOptionsPanel",
@@ -89,10 +90,10 @@ app_ui <- function(){
              
              ## PLOTS PANEL
              tabPanel("Plots",
-                      plotOutput("plot_elevation_line"),
-                      plotOutput("plot_samplerate_hist"),
-                      plotOutput("plot_rate_violin"),
-                      plotOutput("plot_time_heatmap", height = 1200)
+                      reactivePlotOutput("plot_elevation_line"),
+                      reactivePlotOutput("plot_samplerate_hist"),
+                      reactivePlotOutput("plot_rate_violin"),
+                      reactivePlotOutput("plot_time_heatmap")
                         
                          
              ),# end plots panel
