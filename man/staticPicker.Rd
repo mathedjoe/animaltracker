@@ -2,7 +2,7 @@
 % Please edit documentation in R/inputs_module.R
 \name{staticPicker}
 \alias{staticPicker}
-\title{Shiny Module server-side UI generator for the animaltracker app's basic dropdown selections.}
+\title{'shiny' module server-side UI generator for the animaltracker app's basic dropdown selections.}
 \usage{
 staticPicker(
   input,
@@ -16,11 +16,11 @@ staticPicker(
 )
 }
 \arguments{
-\item{input}{Shiny server input, automatically populated}
+\item{input}{'shiny' server input, automatically populated}
 
-\item{output}{Shiny server output, automatically populated}
+\item{output}{'shiny' server output, automatically populated}
 
-\item{session}{Shiny server session, automatically populated}
+\item{session}{'shiny' server session, automatically populated}
 
 \item{selected_ani}{selected animals from animaltracker app input}
 
@@ -32,6 +32,9 @@ staticPicker(
 
 \item{max_selected}{index of highest selected value in choices}
 }
+\value{
+'shiny' renderUI object for dropdown selection
+}
 \description{
-Shiny Module server-side UI generator for the animaltracker app's basic dropdown selections.
+'shiny' module server-side UI generator for the animaltracker app's basic dropdown selections.
 }

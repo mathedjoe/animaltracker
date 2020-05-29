@@ -2,7 +2,7 @@
 % Please edit documentation in R/app.R
 \name{run_shiny_animaltracker}
 \alias{run_shiny_animaltracker}
-\title{You can run the animaltracker Shiny app by calling this function.}
+\title{You can run the animaltracker 'shiny' app by calling this function.}
 \usage{
 run_shiny_animaltracker(browser = TRUE, showcase = FALSE)
 }
@@ -15,13 +15,5 @@ run_shiny_animaltracker(browser = TRUE, showcase = FALSE)
 None
 }
 \description{
-You can run the animaltracker Shiny app by calling this function.
-}
-\examples{
-\donttest{
-\dontrun{
-# Run the animaltracker app
-run_shiny_animaltracker()
-}
-}
+You can run the animaltracker 'shiny' app by calling this function.
 }

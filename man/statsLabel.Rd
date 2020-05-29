@@ -2,7 +2,7 @@
 % Please edit documentation in R/stats_module.R
 \name{statsLabel}
 \alias{statsLabel}
-\title{Shiny Module server-side UI generator for the animaltracker app's summary statistics labels.}
+\title{'shiny' module server-side UI generator for the animaltracker app's summary statistics labels.}
 \usage{
 statsLabel(
   input,
@@ -15,11 +15,11 @@ statsLabel(
 )
 }
 \arguments{
-\item{input}{Shiny server input, automatically populated}
+\item{input}{'shiny' server input, automatically populated}
 
-\item{output}{Shiny server output, automatically populated}
+\item{output}{'shiny' server output, automatically populated}
 
-\item{session}{Shiny server session, automatically populated}
+\item{session}{'shiny' server session, automatically populated}
 
 \item{selected_cols}{selected columns from animaltracker app input}
 
@@ -29,6 +29,9 @@ statsLabel(
 
 \item{text}{text of summary statistics label}
 }
+\value{
+'shiny' renderUI object for label
+}
 \description{
-Shiny Module server-side UI generator for the animaltracker app's summary statistics labels.
+'shiny' module server-side UI generator for the animaltracker app's summary statistics labels.
 }

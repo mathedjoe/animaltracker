@@ -45,8 +45,7 @@ app_server <- function(input, output, session) {
       return(demo_unfiltered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), filters = FALSE, 
-                            zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox))
+      return(clean_batch_df(raw_dat(), filters = FALSE))
     }
   })
   
@@ -55,8 +54,7 @@ app_server <- function(input, output, session) {
       return(demo_filtered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), filters = TRUE,
-                            zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox))
+      return(clean_batch_df(raw_dat(), filters = TRUE))
     }
   })
   

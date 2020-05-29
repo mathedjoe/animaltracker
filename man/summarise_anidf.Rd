@@ -4,7 +4,18 @@
 \alias{summarise_anidf}
 \title{Calculates summary statistics for an animal data frame}
 \usage{
-summarise_anidf(anidf, by, lat, long, dist, course, rate, elev, daily = FALSE)
+summarise_anidf(
+  anidf,
+  by,
+  lat,
+  long,
+  dist,
+  course,
+  rate,
+  elev = NULL,
+  use_elev = TRUE,
+  daily = FALSE
+)
 }
 \arguments{
 \item{anidf}{the animal data frame}
@@ -21,12 +32,14 @@ summarise_anidf(anidf, by, lat, long, dist, course, rate, elev, daily = FALSE)
 
 \item{rate}{rate column}
 
-\item{elev}{elevation column}
+\item{elev}{elevation column, must be defined when use_elev is true, otherwise NULL}
 
-\item{daily}{whether to group by both GPS and Date for daily summary, defaults to False}
+\item{use_elev}{logical, whether to include elevation in summary, defaults to true}
+
+\item{daily}{whether to group by both GPS and Date for daily summary, defaults to false}
 }
 \value{
-df of summary statistics for the animal data frame
+data frame of summary statistics for the animal data frame
 }
 \description{
 Calculates summary statistics for an animal data frame

@@ -145,7 +145,6 @@ clean_location_data <- function(df, dtype,
       dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time), nSatellites > 0) %>% 
       dplyr::distinct(DateTime, .keep_all = TRUE) # remove duplicate timestamps
   }
-
   df <- df %>% 
     dplyr::mutate(
       TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="secs")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), # compute sequential time differences (in seconds)
@@ -190,7 +189,6 @@ clean_location_data <- function(df, dtype,
         tibble::add_column(DuplicateDateFlag = 1*duplicated(df$DateTime)) %>%
         dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistanceFlag + TimeFlag + DuplicateDateFlag)
     }
-    
   return(as.data.frame(df))
 }
 

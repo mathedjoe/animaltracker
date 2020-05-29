@@ -2,13 +2,16 @@
 % Please edit documentation in R/inputs_module.R
 \name{reactivePickerOutput}
 \alias{reactivePickerOutput}
-\title{Shiny Module UI output for the animaltracker app's dynamic dropdown selections.}
+\title{'shiny' module UI output for the animaltracker app's dynamic dropdown selections.}
 \usage{
 reactivePickerOutput(id)
 }
 \arguments{
 \item{id}{chosen ID of UI output}
 }
+\value{
+'shiny' uiOutput object for dropdown selection
+}
 \description{
-Shiny Module UI output for the animaltracker app's dynamic dropdown selections.
+'shiny' module UI output for the animaltracker app's dynamic dropdown selections.
 }
