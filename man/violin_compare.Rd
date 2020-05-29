@@ -4,7 +4,7 @@
 \alias{violin_compare}
 \title{Compares summary statistics from two datasets as side-by-side violin plots}
 \usage{
-violin_compare(df_summary, by, col_name, out)
+violin_compare(df_summary, by, col_name, export = FALSE, out = NULL)
 }
 \arguments{
 \item{df_summary}{data frame of summary statistics from both datasets to be compared}
@@ -13,7 +13,9 @@ violin_compare(df_summary, by, col_name, out)
 
 \item{col_name}{variable in df_summary to be used for the y-axis, as a string}
 
-\item{out}{file name to save plot}
+\item{export}{logical, whether to export plot, defaults to False}
+
+\item{out}{.png file name to save plot when export is True}
 }
 \value{
 side-by-side violin plots
@@ -23,22 +25,12 @@ Compares summary statistics from two datasets as side-by-side violin plots
 }
 \examples{
 # Violin plot comparing unfiltered and filtered demo data summaries by date for a single variable
-\donttest{
-\dontrun{
-
-## Get elevation data for unfiltered demo
-unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
-get_slope=FALSE, get_aspect=FALSE)
-
-## Get elevation data for filtered demo
-filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
-
 ## Summarise unfiltered demo
-unfiltered_summary <- summarise_anidf(unfiltered_elev, Date, Latitude, Longitude, 
+unfiltered_summary <- summarise_anidf(demo_unfiltered_elev, Date, Latitude, Longitude, 
 Distance, Course, Rate, Elevation, daily=FALSE)
 
 ## Summarise filtered demo
-filtered_summary <- summarise_anidf(filtered_elev, Date, Latitude, Longitude, 
+filtered_summary <- summarise_anidf(demo_filtered_elev, Date, Latitude, Longitude, 
 Distance, Course, Rate, Elevation, daily=FALSE)
 
 ## Join
@@ -46,8 +38,6 @@ summary <- join_summaries(unfiltered_summary, filtered_summary, "Date", daily=FA
 
 ## Violin plot
 
-violin_compare(summary, Date, "meanElev", "ex_elev_violin.png")
+violin_compare(summary, Date, "meanElev")
 
-}
-}
 }

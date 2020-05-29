@@ -4,46 +4,41 @@
 \alias{join_summaries}
 \title{Joins two animal data frame summaries by a column and appends differences}
 \usage{
-join_summaries(correct_summary, candidate_summary, by_str, daily = FALSE)
+join_summaries(
+  correct_summary,
+  candidate_summary,
+  by_str,
+  daily = FALSE,
+  use_elev = TRUE
+)
 }
 \arguments{
-\item{correct_summary}{summary df of reference dataset, returned by summarise_anidf}
+\item{correct_summary}{summary data frame of reference dataset, returned by summarise_anidf}
 
-\item{candidate_summary}{summary df of dataset to be compared to reference, returned by summarise_anidf}
+\item{candidate_summary}{summary data frame of dataset to be compared to reference, returned by summarise_anidf}
 
 \item{by_str}{column to join by as a string, null if daily=TRUE}
 
 \item{daily}{whether to group by both GPS and Date for daily summary, defaults to False}
+
+\item{use_elev}{logical, whether to include elevation in summary, defaults to true}
 }
 \value{
-df of joined summaries with differences
+data frame of joined summaries with differences
 }
 \description{
 Joins two animal data frame summaries by a column and appends differences
 }
 \examples{
 # Join date summaries of unfiltered and filtered demo data
-\donttest{
-\dontrun{
-
-## Get elevation data for unfiltered demo
-unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
-get_slope=FALSE, get_aspect=FALSE)
-
-## Get elevation data for filtered demo
-filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
-
 ## Summarise unfiltered demo by date
-unfiltered_summary <- summarise_anidf(unfiltered_elev, Date, Latitude, Longitude, 
+unfiltered_summary <- summarise_anidf(demo_unfiltered_elev, Date, Latitude, Longitude, 
 Distance, Course, Rate, Elevation, daily=FALSE)
 
 ## Summarise filtered demo by date
-filtered_summary <- summarise_anidf(filtered_elev, Date, Latitude, Longitude, 
+filtered_summary <- summarise_anidf(demo_filtered_elev, Date, Latitude, Longitude, 
 Distance, Course, Rate, Elevation, daily=FALSE)
 
 ## Join
 join_summaries(unfiltered_summary, filtered_summary, "Date", daily=FALSE)
-
-}
-}
 }

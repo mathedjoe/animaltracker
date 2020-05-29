@@ -98,63 +98,36 @@ store_batch_list <- function(data_dir) {
 #'@param filters filter bad data points, defaults to true
 #'@param tz_in input time zone, defaults to UTC
 #'@param tz_out output time zone, defaults to UTC
-#'@param get_slope logical, whether to look up elevation, defaults to false
-#'@param zoom level of zoom, defaults to 11
-#'@param get_slope logical, whether to compute slope (in degrees), defaults to true
-#'@param get_aspect logical, whether to compute aspect (in degrees), defaults to true
 #'@return clean df with all animal data files from the directory
 #'
-clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "UTC", lookup_elev = FALSE, zoom = 11, get_slope = TRUE, get_aspect = TRUE) {
+clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "UTC") {
   data_sets <- list()
   withProgress(message = paste0("Preparing raw data", ifelse(filters, " (filtered)", " (unfiltered)")), detail = paste0("0/",length(data_info$data), " files prepped"), value = 0, {
     
   for(i in 1:length(data_info$data)) {
     df <- data_info$data[[i]]
     dtype <- data_info$meta$dtype[i]
-    
-    if(dtype == "igotu") {
-      df <- df[!duplicated(as.list(df))] # discard any columns that are duplicates of index
-      colnames(df)[1] <- "Index"
-      suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
-    }
-    
-    df <- utils::type.convert(df)
-    
+  
     aniid <- data_info$ani[i]
     gpsid <- data_info$gps[i]
     
     # clean df
-    df_out<- clean_location_data(df, dtype, filters,
-                                 aniid = aniid, 
-                                 gpsid = gpsid, 
-                                 maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = tz_in, tz_out = tz_out)
+    if(filters) {
+      df_out <- clean_location_data(df, dtype, filters,
+                                   aniid = aniid, 
+                                   gpsid = gpsid, 
+                                   maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = tz_in, tz_out = tz_out)
+    }
+    else {
+      df_out <- df
+    }
     # add cleaned df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df_out
-    incProgress(1/(2*length(data_info$data)), detail = paste0(i,"/",length(data_info$data), " files prepped"))
+    incProgress(1/(length(data_info$data)), detail = paste0(i,"/",length(data_info$data), " files prepped"))
   } #cleaning for loop
   }) #progress bar
   
-  status_message <- modalDialog(
-    pre(id = "console"),
-    title = "Please Wait...",
-    easyClose = TRUE,
-    footer = NULL
-  )
-  
-  showModal(status_message)
-  
-  withCallingHandlers({
-      shinyjs::html("console", "")
-     #do.call(rbind, list(df, df2, df2))
-      elev_data_sets <- data_sets %>% dplyr::bind_rows() %>% lookup_elevation_aws(zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
-  },
-  message = function(m) {
-      shinyjs::html(id = "console", html = m$message)
-  })
-  
-  removeModal()
-  
-  return(elev_data_sets)
+  return(do.call(rbind, data_sets))
 }
 
 #'

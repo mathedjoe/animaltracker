@@ -5,12 +5,14 @@
 \title{Generate metadata for an animal data frame -
 filename, site, date min/max, animals, min/max lat/longitude, storage location}
 \usage{
-get_meta(df, file_id, file_name, site, ani_id, storage_loc)
+get_meta(df, file_id, dtype, file_name, site, ani_id, storage_loc)
 }
 \arguments{
 \item{df}{clean animal data frame}
 
-\item{file_id}{ID number of .csv source of animal data frame}
+\item{file_id}{ID number of source of animal data frame}
+
+\item{dtype}{igotu or columbus}
 
 \item{file_name}{.csv source of animal data frame}
 

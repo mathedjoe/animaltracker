@@ -146,6 +146,7 @@ clean_location_data <- function(df, dtype,
       dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time), nSatellites > 0) %>% 
       dplyr::distinct(DateTime, .keep_all = TRUE) # remove duplicate timestamps
   }
+
   ## special function for processing gps data with igotu (protocol from Colt Knight)
   process_gps_igotu <- function(df_igotu){
     df_igotu %>%
@@ -191,7 +192,6 @@ clean_location_data <- function(df, dtype,
         tibble::add_column(DuplicateDateFlag = 1*duplicated(df$DateTime)) %>%
         dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistFlag + TimeFlag + DuplicateDateFlag)
     }
-    
   return(as.data.frame(df))
 }
 

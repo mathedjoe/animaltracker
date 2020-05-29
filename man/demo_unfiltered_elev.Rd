@@ -3,12 +3,12 @@
 \docType{data}
 \name{demo_unfiltered_elev}
 \alias{demo_unfiltered_elev}
-\title{Unfiltered demo animal GPS data from cows with elevation appended at zoom 1}
-\format{A data frame with 2288 rows and 33 variables}
+\title{Unfiltered demo animal GPS data from cows with elevation}
+\format{A data frame with 2288 rows and 35 variables}
 \usage{
 demo_unfiltered_elev
 }
 \description{
-Unfiltered demo animal GPS data from cows with elevation appended at zoom 1
+Unfiltered demo animal GPS data from cows with elevation
 }
 \keyword{datasets}

@@ -2,13 +2,13 @@
 % Please edit documentation in R/app_ui.R
 \name{app_ui}
 \alias{app_ui}
-\title{Defines a user interface for the shiny app}
+\title{Defines a user interface for the 'shiny' app}
 \usage{
 app_ui()
 }
 \value{
-ui function for use in a shiny app
+ui function for use in a 'shiny' app
 }
 \description{
-Defines a user interface for the shiny app
+Defines a user interface for the 'shiny' app
 }

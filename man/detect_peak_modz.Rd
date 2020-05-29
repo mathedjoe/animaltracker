@@ -22,21 +22,8 @@ Alternative implementation of the robust peak detection algorithm by van Brakel 
 Classifies data points with modified z-scores greater than max_score as outliers ccording to Iglewicz and Hoaglin 1993
 }
 \examples{
-\donttest{
-\dontrun{
 # Join and reformat unfiltered demo data and filtered demo data
 
-## Get elevation data for unfiltered demo
-unfiltered_elev <- lookup_elevation_aws(demo_unfiltered, zoom=1, 
-get_slope=FALSE, get_aspect=FALSE)
+detect_peak_modz(demo_comparison, lag = 5, max_score = 3.5)
 
-## Get elevation data for filtered demo
-filtered_elev <- lookup_elevation_aws(demo_filtered, zoom=1, get_slope=FALSE, get_aspect=FALSE)
-
-## Get comparison df
-comparison <- compare_flags(unfiltered_elev, filtered_elev)
-
-detect_peak_modz(comparison, lag = 5, max_score = 3.5)
-}
-}
 }

@@ -14,7 +14,8 @@ if(getRversion() >= '2.5.1') {
                     'avg', 'Data', 'obs', 'Latitude.x', 'Latitude.y', 'Longitude.x',
                     'Longitude.y', 'Distance.x', 'Distance.y', 'Rate.x', 'Rate.y', 'Course.x',
                     'Course.y', 'Elevation.x', 'Elevation.y', 'Slope.x', 'Slope.y',
-                    'cumDist.y', 'Rate.y'))
+                    'cumDist.y', 'Rate.y', 'RateFlag.x', 'RateFlag.y', 'CourseFlag.x', 'CourseFlag.y',
+                    'DistanceFlag.x', 'DistanceFlag.y', 'TotalFlags.x', 'TotalFlags.y'))
 }
 
 #'
@@ -290,23 +291,21 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev = NUL
     anidf <- anidf %>% 
       dplyr::group_by({{by}}) 
   }
-  if(!use_elev) {
-    summary <- anidf %>% 
-      dplyr::summarise(n = n(),
-                       meanLat = mean({{lat}}),
-                       sdLat = stats::sd({{lat}}),
-                       meanLong = mean({{long}}),
-                       sdLong = stats::sd({{long}}),
-                       meanDist = mean({{dist}}),
-                       sdDist = stats::sd({{dist}}),
-                       meanCourse = mean({{course}}),
-                       sdCourse = stats::sd({{course}}),
-                       meanRate = mean({{rate}}),
-                       sdRate = stats::sd({{rate}}))
+  summary <- anidf %>% 
+    dplyr::summarise(n = n(),
+                     meanLat = mean({{lat}}),
+                     sdLat = stats::sd({{lat}}),
+                     meanLong = mean({{long}}),
+                     sdLong = stats::sd({{long}}),
+                     meanDist = mean({{dist}}),
+                     sdDist = stats::sd({{dist}}),
+                     meanCourse = mean({{course}}),
+                     sdCourse = stats::sd({{course}}),
+                     meanRate = mean({{rate}}),
+                     sdRate = stats::sd({{rate}}))
    
-  }
-  else {
-    summary <- dplyr::bind_cols(summary, summary %>% dplyr::summarise(meanElev = mean({{elev}}), sdElev = stats::sd({{elev}})))
+  if(use_elev) {
+    summary <- dplyr::bind_cols(summary, anidf %>% dplyr::summarise(meanElev = mean({{elev}}), sdElev = stats::sd({{elev}})))
   }
   return(summary)
 }
@@ -318,6 +317,7 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev = NUL
 #'@param candidate_summary summary data frame of dataset to be compared to reference, returned by summarise_anidf
 #'@param by_str column to join by as a string, null if daily=TRUE
 #'@param daily whether to group by both GPS and Date for daily summary, defaults to False
+#'@param use_elev logical, whether to include elevation in summary, defaults to true
 #'@return data frame of joined summaries with differences
 #'@examples
 #'# Join date summaries of unfiltered and filtered demo data
