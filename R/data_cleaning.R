@@ -81,7 +81,7 @@ get_file_meta <- function(data_dir){
 clean_location_data <- function(df, dtype, 
                                 prep = TRUE, filters = TRUE, 
                                 aniid = NA, gpsid = NA, 
-                                maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = "UTC", tz_out = "UTC"){
+                                maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=60*60, tz_in = "UTC", tz_out = "UTC"){
   if(prep) {
     # make sure quantitative columns are read in properly
     df <- df %>% 
@@ -142,6 +142,7 @@ clean_location_data <- function(df, dtype,
       filter(!is.na(Date))
   }
   if(filters) {
+    
     df <- df %>% 
       dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time), nSatellites > 0) %>% 
       dplyr::distinct(DateTime, .keep_all = TRUE) # remove duplicate timestamps
@@ -174,9 +175,9 @@ clean_location_data <- function(df, dtype,
   
     if(filters) {
       df <- df %>%
-        dplyr::filter( Keep ) %>%
+        dplyr::filter( as.logical(Keep) ) %>%
         process_gps_igotu(.) %>%
-        dplyr::filter( Keep ) %>%
+        dplyr::filter( as.logical(Keep) ) %>%
         dplyr::select(-contains("Flag"), -Keep) # remove flags after use
       
       if(dtype == "columbus") {
