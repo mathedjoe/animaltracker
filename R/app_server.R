@@ -88,7 +88,6 @@ app_server <- function(input, output, session) {
   # last data set accessed
   cache <- reactiveVal(list())
   
-  
   # main dynamic data set
   dat_main <- reactive({
     if(is.null(choose_ani()) || is.null(choose_dates()) || is.null(min_time()) || is.null(max_time())) {

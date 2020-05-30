@@ -54,26 +54,88 @@ lookup_elevation_aws <- function(anidf, zoom = 11, get_slope = TRUE, get_aspect 
   # extract coordinates from the animal data
   locations <- anidf %>% dplyr::select(x = Longitude, y = Latitude)
   
-  # retrieve terrain data for the region containing the animal data
-  ## DEM source = Amazon Web Services (https://aws.amazon.com/public-datasets/terrain/) terrain tiles.
-  elev <- elevatr::get_elev_raster(locations, prj = "+proj=longlat", z=zoom)
+  base_url <- "https://s3.amazonaws.com/elevation-tiles-prod/geotiff/"
+  ll_geo <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
+  web_merc <- "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs"
+  prj <- "+proj=longlat"
+  
+  message("computing tiles for the given locations and zoom level")
+  elev_data <- locations %>% 
+    dplyr::mutate(
+      lat_rad = y * pi/180, # convert degrees latitude to radians
+      n = 2^zoom, # zoom refers to a logarithm base 2 number of gridlines
+      tilex = (x + 180)/360 * n, # identify longitude gridline
+      tiley = (1 - log(tan(lat_rad) + (1/cos(lat_rad)))/pi)/2 * n, # identify latitude grid line
+      tilex = floor(tilex),
+      tiley = floor(tiley),
+      elevation = NA,
+      slope = NA,
+      aspect = NA
+    ) %>%
+    dplyr::select(x, y, tilex, tiley, elevation, slope, aspect)
+  
+  tiles <- elev_data %>%
+    dplyr::select(tilex, tiley) %>%
+    dplyr::filter(!duplicated(.))
+  
+  
+  message("projecting locations to a spatial data frame")
+  locations <- sp::SpatialPointsDataFrame(sp::coordinates(locations), 
+                                          proj4string = sp::CRS(prj), 
+                                          data =  data.frame(elevation = vector("numeric", nrow(locations)))  )
+  
+  ## DOWNLOAD TILES, EXTRACT ELEVATIONS
+  message(paste("Downloading DEMs via", nrow(tiles), "tiles at Zoom =", zoom) )
+  progbar <- txtProgressBar(min = 0, max = nrow(tiles), initial = 0, width = 60, style=3) 
+  
+  for (i in 1:nrow(tiles)){
+    setTxtProgressBar(progbar,i)
+    # Download this tile
+    tmpfile <- tempfile()
+    url <- paste0(base_url, zoom, "/", tiles$tilex[i], "/", tiles$tiley[i], ".tif")
+    
+    resp <- httr::GET(url, httr::write_disk(tmpfile, overwrite = TRUE))
+    if (httr::http_type(resp) != "image/tiff") {
+      stop("API did not return tif", call. = FALSE)
+    }
+    
+    tile_this <- raster::raster(tmpfile)
+    raster::projection(tile_this) <- web_merc
+    tile_this <- raster::projectRaster(tile_this, crs = CRS(prj) )
+    
+    ## update elevation for data in this tile
+    data_isthis <- (elev_data$tilex == tiles$tilex[i]) & (elev_data$tiley == tiles$tiley[i])
+    locations_this <- elev_data[data_isthis, c("x","y")]
+    
+    elev_data$elevation[data_isthis] <- raster::extract(tile_this, locations_this)
+    
+    # compute slope and aspect if requested
+    if(get_slope | get_aspect){
+      elev_terr <- raster::terrain( tile_this, opt=c('slope', 'aspect'), unit='degrees')
+    }
+    
+    if(get_slope){
+      elev_data$slope[data_isthis] <-  round(raster::extract(elev_terr$slope, locations_this), 1)
+    }
+    
+    if(get_aspect){
+      elev_data$aspect[data_isthis] <-  round(raster::extract(elev_terr$aspect, locations_this), 1)
+      
+    }
+    
+  }
   
   # add Elevation column to the animal data
-  anidf$Elevation <- raster::extract(elev, locations)
-  
-  if(get_slope | get_aspect){
-    elev_terr <- raster::terrain(elev, opt=c('slope', 'aspect'), unit='degrees')
-  }
+  anidf$Elevation <- elev_data$elevation
   
   if(get_slope){
-    slope <- elev_terr$slope
-    anidf$Slope <- round(raster::extract(slope, locations), 1)
+    anidf$Slope <- elev_data$slope
   }
   
- if(get_aspect){
-    aspect <- elev_terr$aspect
-    anidf$Aspect <- round(raster::extract(aspect, locations), 1)
+  if(get_aspect){
+    anidf$Aspect <- elev_data$aspect
   }
+
   return(anidf)
 }
 
