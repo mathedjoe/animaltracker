@@ -86,7 +86,7 @@ lookup_elevation_aws <- function(anidf, zoom = 11, get_slope = TRUE, get_aspect 
   
   ## DOWNLOAD TILES, EXTRACT ELEVATIONS
   message(paste("Downloading DEMs via", nrow(tiles), "tiles at Zoom =", zoom) )
-  progbar <- progress_bar$new(format = "[:bar] :percent eta: :eta", total = nrow(tiles), width = 60)
+  progbar <- progress::progress_bar$new(format = "[:bar] :percent eta: :eta", total = nrow(tiles), width = 60)
   
   for (i in 1:nrow(tiles)){
     progbar$tick()

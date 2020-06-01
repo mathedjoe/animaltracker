@@ -27,6 +27,7 @@ app_server <- function(input, output, session) {
   meta <- reactiveVal(demo_meta)
   uploaded <- reactiveVal(FALSE)
   processingInitiated <- reactiveVal(FALSE)
+  processingInitiatedAll <- reactiveVal(FALSE)
   
   raw_dat <- reactive({
     if(is.null(input$zipInput)) {
@@ -61,12 +62,14 @@ app_server <- function(input, output, session) {
   
   observeEvent(input$processButton, {
       if(!is.null(lat_bounds()) && !is.null(long_bounds())) {
-        meta(clean_store_batch(raw_dat(), filters = TRUE, zoom = input$selected_zoom,
+        processingInitiatedAll(TRUE)
+        meta(clean_store_batch(raw_dat(), filters = input$filterBox, zoom = input$selected_zoom,
                                input$slopeBox, input$aspectBox, 
                                lat_bounds()[1], lat_bounds()[2],
                                long_bounds()[1], long_bounds()[2]))
       }
       else {
+        processingInitiatedAll(TRUE)
         meta(clean_store_batch(raw_dat(), input$filterBox, zoom = input$selected_zoom,
                                input$slopeBox, input$aspectBox, 
                                raw_dat()$min_lat, raw_dat()$max_lat,
@@ -75,9 +78,7 @@ app_server <- function(input, output, session) {
   })
   
   observeEvent(input$processSelectedButton, {
-    if(!identical(raw_dat(), demo_info)) {
-      processingInitiated(TRUE)
-    }
+    processingInitiated(TRUE)
   })
   
   ######################################
@@ -113,7 +114,7 @@ app_server <- function(input, output, session) {
       
       cache_name <- paste0(ani_names,", ",min_datetime,"-",max_datetime)
   
-      if( processingInitiated() || (uploaded() || !(cache_name %in% names(cache())))) {
+      if( processingInitiatedAll() || processingInitiated() || (uploaded() || !(cache_name %in% names(cache())))) {
         # if no user provided data, use demo data
         if(is.null(input$zipInput)) {
           current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id,
@@ -161,6 +162,17 @@ app_server <- function(input, output, session) {
             })
            
             removeModal()  
+          }
+          else if(processingInitiatedAll()) {
+            processingInitiatedAll(FALSE)
+            meta <- meta()
+            ani_names <- paste(meta$ani_id, collapse = ", ")
+            
+            min_datetime <- min(meta$min_date)
+            max_datetime <- max(meta$max_date)
+            
+            cache_name <- paste(paste0(ani_names,", ",min_datetime,"-",max_datetime), "(processed)")
+            current_df <- get_data_from_meta(meta, min_datetime, max_datetime)
           }
           else {
             if(any(meta$ani_id  %in% choose_ani()) ){
