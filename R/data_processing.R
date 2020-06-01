@@ -86,10 +86,10 @@ lookup_elevation_aws <- function(anidf, zoom = 11, get_slope = TRUE, get_aspect 
   
   ## DOWNLOAD TILES, EXTRACT ELEVATIONS
   message(paste("Downloading DEMs via", nrow(tiles), "tiles at Zoom =", zoom) )
-  progbar <- txtProgressBar(min = 0, max = nrow(tiles), initial = 0, width = 60, style=3) 
+  progbar <- progress_bar$new(format = "[:bar] :percent eta: :eta", total = nrow(tiles), width = 60)
   
   for (i in 1:nrow(tiles)){
-    setTxtProgressBar(progbar,i)
+    progbar$tick()
     # Download this tile
     tmpfile <- tempfile()
     url <- paste0(base_url, zoom, "/", tiles$tilex[i], "/", tiles$tiley[i], ".tif")
@@ -101,7 +101,7 @@ lookup_elevation_aws <- function(anidf, zoom = 11, get_slope = TRUE, get_aspect 
     
     tile_this <- raster::raster(tmpfile)
     raster::projection(tile_this) <- web_merc
-    tile_this <- raster::projectRaster(tile_this, crs = CRS(prj) )
+    tile_this <- raster::projectRaster(tile_this, crs = sp::CRS(prj) )
     
     ## update elevation for data in this tile
     data_isthis <- (elev_data$tilex == tiles$tilex[i]) & (elev_data$tiley == tiles$tiley[i])
@@ -138,6 +138,8 @@ lookup_elevation_aws <- function(anidf, zoom = 11, get_slope = TRUE, get_aspect 
 
   return(anidf)
 }
+
+
 
 
 #'

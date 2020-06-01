@@ -60,7 +60,6 @@ app_server <- function(input, output, session) {
   
   
   observeEvent(input$processButton, {
-    if(!identical(raw_dat(), demo_info)) {
       if(!is.null(lat_bounds()) && !is.null(long_bounds())) {
         meta(clean_store_batch(raw_dat(), filters = TRUE, zoom = input$selected_zoom,
                                input$slopeBox, input$aspectBox, 
@@ -73,7 +72,6 @@ app_server <- function(input, output, session) {
                                raw_dat()$min_lat, raw_dat()$max_lat,
                                raw_dat()$min_long, raw_dat()$max_long))
       }
-    }
   })
   
   observeEvent(input$processSelectedButton, {

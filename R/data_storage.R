@@ -155,7 +155,8 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
   colnames(meta_df) <- meta_cols
  
   num_saved_rds <- 0
-
+  
+  
   withProgress(message = "Processing data", detail = paste0("0/",length(data_info$data), " files processed"), value = 0, {
 
   data_sets <- list()
@@ -167,7 +168,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
     df <- data_info$data[[i]]
     dtype <- data_info$meta$dtype[i]
     
-    if(dtype == "igotu") {
+    if(dtype == "igotu" & data_info$meta$storage[1] != "demo_nov19.rds") {
       df <- df[!duplicated(as.list(df))] # discard any columns that are duplicates of index
       colnames(df)[1] <- "Index"
       suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
@@ -179,11 +180,12 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
     gpsid <- data_info$gps[i]
     
     # clean df
+    
     df_out<- clean_location_data(df, dtype, filters,
                              aniid = aniid, 
                              gpsid = gpsid, 
-                             maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = tz_in, tz_out = tz_out)
-   
+                             maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=60*60, tz_in = tz_in, tz_out = tz_out)
+    
     # add cleaned df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df_out
     all_data_sets <- all_data_sets %>% rbind(df_out)
@@ -207,7 +209,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
     showModal(status_message)
     
     if(nrow(elev_data_sets) == 0) {
-      incProgress(0, detail = "Appending elevation at zoom = ", zoom, " for invalid bounds. Defaulting to all data.")
+      incProgress(0, detail = paste0("Appending elevation at zoom = ", zoom, " for invalid bounds. Defaulting to all data."))
       withCallingHandlers({
         shinyjs::html("console", "")
         elev_data_sets <- lookup_elevation_aws(all_data_sets, zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)
