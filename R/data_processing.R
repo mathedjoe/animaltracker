@@ -50,6 +50,8 @@ lookup_elevation_file <- function(elev, anidf, zoom = 11, get_slope = TRUE, get_
 #'@export
 lookup_elevation_aws <- function(anidf, zoom = 11, get_slope = TRUE, get_aspect = TRUE) {
   
+  # make a container for computed elevation data
+  df_out <- anidf
   
   # extract coordinates from the animal data
   locations <- anidf %>% dplyr::select(x = Longitude, y = Latitude)
@@ -59,7 +61,6 @@ lookup_elevation_aws <- function(anidf, zoom = 11, get_slope = TRUE, get_aspect 
   web_merc <- "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs"
   prj <- "+proj=longlat"
   
-  message("computing tiles for the given locations and zoom level")
   elev_data <- locations %>% 
     dplyr::mutate(
       lat_rad = y * pi/180, # convert degrees latitude to radians
@@ -78,68 +79,67 @@ lookup_elevation_aws <- function(anidf, zoom = 11, get_slope = TRUE, get_aspect 
     dplyr::select(tilex, tiley) %>%
     dplyr::filter(!duplicated(.))
   
-  
-  message("projecting locations to a spatial data frame")
   locations <- sp::SpatialPointsDataFrame(sp::coordinates(locations), 
                                           proj4string = sp::CRS(prj), 
                                           data =  data.frame(elevation = vector("numeric", nrow(locations)))  )
   
   ## DOWNLOAD TILES, EXTRACT ELEVATIONS
-  message(paste("Downloading DEMs via", nrow(tiles), "tiles at Zoom =", zoom) )
-  progbar <- progress_bar$new(format = "[:bar] :percent eta: :eta", total = nrow(tiles), width = 60)
-  
-  for (i in 1:nrow(tiles)){
-    progbar$tick()
-    # Download this tile
-    tmpfile <- tempfile()
-    url <- paste0(base_url, zoom, "/", tiles$tilex[i], "/", tiles$tiley[i], ".tif")
+  withProgress( message = paste("Downloading & Processing DEMs, Zoom =", zoom), 
+                value = 0, min = 0, max = nrow(tiles), {
     
-    resp <- httr::GET(url, httr::write_disk(tmpfile, overwrite = TRUE))
-    if (httr::http_type(resp) != "image/tiff") {
-      stop("API did not return tif", call. = FALSE)
-    }
-    
-    tile_this <- raster::raster(tmpfile)
-    raster::projection(tile_this) <- web_merc
-    tile_this <- raster::projectRaster(tile_this, crs = sp::CRS(prj) )
-    
-    ## update elevation for data in this tile
-    data_isthis <- (elev_data$tilex == tiles$tilex[i]) & (elev_data$tiley == tiles$tiley[i])
-    locations_this <- elev_data[data_isthis, c("x","y")]
-    
-    elev_data$elevation[data_isthis] <- raster::extract(tile_this, locations_this)
-    
-    # compute slope and aspect if requested
-    if(get_slope | get_aspect){
-      elev_terr <- raster::terrain( tile_this, opt=c('slope', 'aspect'), unit='degrees')
-    }
-    
-    if(get_slope){
-      elev_data$slope[data_isthis] <-  round(raster::extract(elev_terr$slope, locations_this), 1)
-    }
-    
-    if(get_aspect){
-      elev_data$aspect[data_isthis] <-  round(raster::extract(elev_terr$aspect, locations_this), 1)
+    for (i in 1:nrow(tiles)){
+      setProgress(i, detail = paste0(i,"/",nrow(tiles), " tiles processed"))
+      
+      # Download this tile
+      tmpfile <- tempfile()
+      url <- paste0(base_url, zoom, "/", tiles$tilex[i], "/", tiles$tiley[i], ".tif")
+      
+      resp <- httr::GET(url, httr::write_disk(tmpfile, overwrite = TRUE))
+      if (httr::http_type(resp) != "image/tiff") {
+        stop("API did not return tif", call. = FALSE)
+      }
+      
+      tile_this <- raster::raster(tmpfile)
+      raster::projection(tile_this) <- web_merc
+      tile_this <- raster::projectRaster(tile_this, crs = sp::CRS(prj) )
+      
+      ## update elevation for data in this tile
+      data_isthis <- (elev_data$tilex == tiles$tilex[i]) & (elev_data$tiley == tiles$tiley[i])
+      locations_this <- elev_data[data_isthis, c("x","y")]
+      
+      elev_data$elevation[data_isthis] <- raster::extract(tile_this, locations_this)
+      
+      # compute slope and aspect if requested
+      if(get_slope | get_aspect){
+        elev_terr <- raster::terrain( tile_this, opt=c('slope', 'aspect'), unit='degrees')
+      }
+      
+      if(get_slope){
+        elev_data$slope[data_isthis] <-  round(raster::extract(elev_terr$slope, locations_this), 1)
+      }
+      
+      if(get_aspect){
+        elev_data$aspect[data_isthis] <-  round(raster::extract(elev_terr$aspect, locations_this), 1)
+        
+      }
       
     }
     
-  }
+  })# end progress wrapper
   
   # add Elevation column to the animal data
-  anidf$Elevation <- elev_data$elevation
+  df_out$Elevation <- elev_data$elevation
   
   if(get_slope){
-    anidf$Slope <- elev_data$slope
+    df_out$Slope <- elev_data$slope
   }
   
   if(get_aspect){
-    anidf$Aspect <- elev_data$aspect
+    df_out$Aspect <- elev_data$aspect
   }
 
-  return(anidf)
+  return(df_out)
 }
-
-
 
 
 #'
