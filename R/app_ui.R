@@ -78,6 +78,8 @@ app_ui <- function(){
                           
                           leafletOutput("mainmap", height = 640) %>% shinycssloaders::withSpinner(),
                           htmlOutput("mapinfo"),
+                          h4("Display Fencing"),
+                          fileInput("kmzInput", "Upload kmz file", accept=c(".kmz")),
                           h4("Recent Data"),
                           reactivePickerOutput("choose_recent"),
                           textOutput("nrow_recent"),

@@ -370,6 +370,45 @@ app_server <- function(input, output, session) {
       colorFactor(scales::hue_pal()(length(current_anilist$ani)), current_anilist$ani)
     
     proxy <- leafletProxy("mainmap", session)
+
+    # Add fencing
+    
+    if(!is.null(input$kmzInput)) {
+      unlink(file.path("temp"), recursive=TRUE)
+      
+      kmz_coords <- getKMLcoordinates(kmlfile = unzip(zipfile = input$kmzInput$datapath, 
+                                                      exdir = "temp"),
+                                      ignoreAltitude = TRUE)
+      for(kmz_element in kmz_coords) {
+        if(!is.matrix(kmz_element)) {
+          proxy %>% 
+            addCircleMarkers(
+              data = kmz_element,
+              lng = kmz_element[1],
+              lat = kmz_element[2],
+              radius = 4,
+              stroke = FALSE,
+              weight = 3,
+              opacity = .8,
+              fillOpacity = 1,
+              popup = ~ paste(
+                paste("Lat/Lon:", paste(kmz_element[2], kmz_element[1], sep =
+                                          ", "))
+              )
+            ) 
+        }
+        else if(kmz_element[1, 1] == kmz_element[nrow(kmz_element), 1] &
+                kmz_element[1, 2] == kmz_element[nrow(kmz_element), 2]) {
+          proxy %>% 
+            addPolygons(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2)
+        }
+        else {
+          proxy %>% 
+            addPolylines(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2)
+        }
+      }
+      unlink(file.path("temp"), recursive=TRUE)
+    }
     
     if (grepl("(processed)", choose_recent()) || is.null(last_drawn()) || (!is.null(selected_locations()) & is.null(last_locations())) || (!is.null(selected_locations()) & !identical(last_locations(), selected_locations()) & !identical(last_drawn()$ani, current_anilist))  
          || (!any(current_anilist$ani %in% last_drawn()$ani)) || (identical(last_drawn()$ani, current_anilist$ani) & identical(last_locations(), selected_locations()) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2))) {
