@@ -20,7 +20,7 @@ app_ui <- function(){
   }'
     navbarPage(theme = shinythemes::shinytheme("yeti"),
              header = div(shinyjs::useShinyjs(),
-                          shinyjs::extendShinyjs(text = jsCode)),
+                          shinyjs::extendShinyjs(text = jsCode, functions = NULL)),
              title = "Animal Tracker",
              
              ## DATA PANEL

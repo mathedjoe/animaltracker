@@ -381,16 +381,18 @@ app_server <- function(input, output, session) {
                                       ignoreAltitude = TRUE)
       for(kmz_element in kmz_coords) {
         if(!is.matrix(kmz_element)) {
+          df_point <- data.frame(lng = kmz_element[1], lat = kmz_element[2])
           proxy %>% 
             addCircleMarkers(
-              data = kmz_element,
-              lng = kmz_element[1],
-              lat = kmz_element[2],
+              data = df_point,
+              group = "fencing",
               radius = 4,
               stroke = FALSE,
               weight = 3,
               opacity = .8,
               fillOpacity = 1,
+              color = "black",
+              fillColor = "black",
               popup = ~ paste(
                 paste("Lat/Lon:", paste(kmz_element[2], kmz_element[1], sep =
                                           ", "))
@@ -400,11 +402,11 @@ app_server <- function(input, output, session) {
         else if(kmz_element[1, 1] == kmz_element[nrow(kmz_element), 1] &
                 kmz_element[1, 2] == kmz_element[nrow(kmz_element), 2]) {
           proxy %>% 
-            addPolygons(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2)
+            addPolygons(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "fencing")
         }
         else {
           proxy %>% 
-            addPolylines(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2)
+            addPolylines(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "fencing")
         }
       }
       unlink(file.path("temp"), recursive=TRUE)
