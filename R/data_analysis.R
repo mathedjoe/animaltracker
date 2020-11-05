@@ -279,7 +279,7 @@ compare_summarise_data <- function(correct, candidate, use_elev = TRUE, export =
 #'@examples
 #'# Summary of demo data by date
 #'
-#'summarise_anidf(demo, Date, Latitude, Longitude, Distance, Course, Rate, Elevation, daily=FALSE)
+#'summarise_anidf(demo, Date, Latitude, Longitude, Distance, Course, Rate, Elevation)
 #'
 #'@export
 #'
@@ -304,11 +304,15 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev = NUL
                      sdCourse = stats::sd({{course}}),
                      meanRate = mean({{rate}}),
                      sdRate = stats::sd({{rate}}))
-   
   if(use_elev) {
-    summary <- dplyr::bind_cols(summary, anidf %>% dplyr::summarise(meanElev = mean({{elev}}), sdElev = stats::sd({{elev}})))
+    if(daily) {
+      summary <- dplyr::full_join(summary, anidf %>% dplyr::summarise(meanElev = mean({{elev}}), sdElev = stats::sd({{elev}})), by = c("GPS", "Date"))
+    }
+    else {
+      summary <- dplyr::full_join(summary, anidf %>% dplyr::summarise(meanElev = mean({{elev}}), sdElev = stats::sd({{elev}})), by = colnames(summary)[1])
+    }
   }
-  return(summary)
+  return(summary %>% dplyr::ungroup())
 }
 
 #'
@@ -338,16 +342,12 @@ summarise_anidf <- function(anidf, by, lat, long, dist, course, rate, elev = NUL
 #'
 join_summaries <- function(correct_summary, candidate_summary, by_str, daily = FALSE, use_elev = TRUE) {
   if(daily) {
-    summary_all <- dplyr::full_join(correct_summary, candidate_summary, by=c("GPS", "Date"))
+    summary_all <- dplyr::full_join(correct_summary, candidate_summary, by = c("GPS", "Date"))
   }
   else {
-    summary_all <- dplyr::full_join(correct_summary, candidate_summary, by=by_str)
+    summary_all <- dplyr::full_join(correct_summary, candidate_summary, by = by_str)
   }
-  if(use_elev) {
-    elev <- summary_all %>% 
-      dplyr::mutate(meanElevDiff = meanElev.x - meanElev.y) %>% 
-      dplyr::mutate(sdElevDiff = sqrt((sdElev.x)^2 + (sdElev.y)^2)) 
-  }
+  
   summary_all <- summary_all %>% 
     # create difference columns
     dplyr::mutate(nDiff = n.x - n.y) %>% 
@@ -362,35 +362,11 @@ join_summaries <- function(correct_summary, candidate_summary, by_str, daily = F
     dplyr::mutate(meanRateDiff = meanRate.x - meanRate.y) %>% 
     dplyr::mutate(sdRateDiff = sqrt((sdRate.x)^2 + (sdRate.y)^2))
   
-  
-    # reorder summary columns
-   if(daily) {
-     summary_select <- summary_all %>% 
-       dplyr::select(GPS, Date)
-   }
-   else {
-     summary_select <- summary_all %>% 
-       dplyr::select(1)
-   }
-  
-   summary_all <- summary_select %>% 
-     dplyr::bind_cols(summary_all %>% 
-                        dplyr::select(n.x, n.y, nDiff,
-                                      meanLat.x, meanLat.y, meanLatDiff,
-                                      sdLat.x, sdLat.y, sdLatDiff,
-                                      meanLong.x, meanLong.y, meanLongDiff,
-                                      sdLong.x, sdLong.y, sdLongDiff,
-                                      meanDist.x, meanDist.y, meanDistDiff,
-                                      sdDist.x, sdDist.y, sdDistDiff,
-                                      meanCourse.x, meanCourse.y, meanCourseDiff,
-                                      sdCourse.x, sdCourse.y, sdCourseDiff,
-                                      meanRate.x, meanRate.y, meanRateDiff,
-                                      sdRate.x, sdRate.y, sdRateDiff))
-   
-   if(use_elev) {
-     summary_all <- summary_all %>% 
-       dplyr::bind_cols(elev)
-   }
+  if(use_elev) {
+    summary <- summary_all %>% 
+      dplyr::mutate(meanElevDiff = meanElev.x - meanElev.y) %>% 
+      dplyr::mutate(sdElevDiff = sqrt((sdElev.x)^2 + (sdElev.y)^2)) 
+  }
    
    return(summary_all)
 }
@@ -520,7 +496,6 @@ compare_summarise_daily <- function(correct, candidate, use_elev = TRUE, export 
     candidate_summary <- candidate %>% 
       summarise_anidf(NULL, Latitude, Longitude, Distance, Course, Rate, use_elev=FALSE, daily=TRUE)
   }
-  
   summary_all <- join_summaries(correct_summary, candidate_summary, daily=TRUE)
   
   if(export) {
