@@ -1,7 +1,8 @@
 if(getRversion() >= '2.5.1') {
   globalVariables(c('ggplot2', 'Altitude', '..density..', 'DateMMDDYY', 'Status',
                     'QualFix', 'LatDir', 'LonDir', 'LatitudeFix', 'LatDirFix',
-                    'LongitudeFix', 'LonDirFix', 'MagVar', 'MagVarDir'))
+                    'LongitudeFix', 'LonDirFix', 'MagVar', 'MagVarDir', 'y', 'x',
+                    'lat_rad', 'tilex', 'tiley', 'elevation', 'slope', 'aspect', '.'))
 }
 
 #'

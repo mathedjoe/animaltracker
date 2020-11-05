@@ -4,7 +4,9 @@
 \name{demo_meta}
 \alias{demo_meta}
 \title{Metadata for demo animal GPS data from cows}
-\format{A data frame with 6 rows and 11 variables}
+\format{
+A data frame with 6 rows and 11 variables
+}
 \usage{
 demo_meta
 }

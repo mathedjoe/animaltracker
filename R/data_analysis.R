@@ -15,7 +15,8 @@ if(getRversion() >= '2.5.1') {
                     'Longitude.y', 'Distance.x', 'Distance.y', 'Rate.x', 'Rate.y', 'Course.x',
                     'Course.y', 'Elevation.x', 'Elevation.y', 'Slope.x', 'Slope.y',
                     'cumDist.y', 'Rate.y', 'RateFlag.x', 'RateFlag.y', 'CourseFlag.x', 'CourseFlag.y',
-                    'DistanceFlag.x', 'DistanceFlag.y', 'TotalFlags.x', 'TotalFlags.y'))
+                    'DistanceFlag.x', 'DistanceFlag.y', 'TotalFlags.x', 'TotalFlags.y',
+                    'DistanceFlag'))
 }
 
 #'

@@ -14,7 +14,7 @@ clean_location_data(
   maxrate = 84,
   maxcourse = 100,
   maxdist = 840,
-  maxtime = 100,
+  maxtime = 60 * 60,
   tz_in = "UTC",
   tz_out = "UTC"
 )
