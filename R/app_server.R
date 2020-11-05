@@ -2,7 +2,7 @@
 
 if(getRversion() >= '2.5.1') {
   globalVariables(c('demo_info', 'demo_unfiltered', 'demo_filtered', 'demo_meta', 'demo',
-                    'ani_id', 'Animal', 'Date', 'site', 'LocationID', 'tags', 'js', 'DateTime',
+                    'ani_id', 'Animal', 'Date', 'site', 'LocationID', 'tags', 'DateTime',
                     'Elevation', 'TimeDiffMins', 'Rate', 'Longitude', 'Latitude', 'LongBin',
                     'LatBin', 'Duration', 'stopApp', 'Speed', 'Slope', 'Aspect'))
 }
@@ -376,7 +376,7 @@ app_server <- function(input, output, session) {
     if(!is.null(input$kmzInput)) {
       unlink(file.path("temp"), recursive=TRUE)
       
-      kmz_coords <- getKMLcoordinates(kmlfile = unzip(zipfile = input$kmzInput$datapath, 
+      kmz_coords <- maptools::getKMLcoordinates(kmlfile = utils::unzip(zipfile = input$kmzInput$datapath, 
                                                       exdir = "temp"),
                                       ignoreAltitude = TRUE)
       for(kmz_element in kmz_coords) {
