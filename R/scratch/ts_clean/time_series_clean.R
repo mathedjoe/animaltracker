@@ -229,7 +229,11 @@ car_eps <- 128.75 /(6*111)
 
 my_clusters <- cluster_analyze(df, "011", "2018-06-22", knn_eps = cow_eps) # maybe works?
 
-ex_clusters <- cluster_analyze(df, sampling_combos$Animal[28], sampling_combos$Date[28], knn_eps = cow_eps) # WORKS
+ex_clusters <- cluster_analyze(df, sampling_combos$Animal[28], sampling_combos$Date[28], knn_eps = cow_eps)
+
+ex_clusters_car <- cluster_analyze(df, sampling_combos$Animal[2], sampling_combos$Date[2], 
+                                   knn_eps = car_eps*.48)
+
 
 ## get cluster analysis plots for all the animal / date examples in the sampling combos data
 
