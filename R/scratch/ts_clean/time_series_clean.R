@@ -208,8 +208,6 @@ cluster_analyze <- function(data, animal, date, knn_k = 5, knn_eps = .001, verbo
   plot_out <- ggplot( data_out, aes(x = Longitude, y= Latitude, color = cluster) ) +
     geom_point(  )+
     geom_line( data = data_out[!is.na(data_out$cluster),] )+
-    # scale_discrete_manual("color", values = col_out_scale)+
-    # geom_line(aes(x = Longitude.Pred, y= Latitude.Pred), color = "#333333")+
     labs(title = "Density Based Spatial Clustering", subtitle = paste0("date = ", date,"; animal = ", animal)) +
     theme_minimal()+
     coord_fixed()
@@ -252,6 +250,33 @@ for(i in 1:length(my_dbscans)){
   print(my_dbscans[[i]])
 }
 dev.off()
+
+###########
+## try OPTICS algorithm
+## helps identify eps value for dbscan
+xdf <- df %>% 
+  filter(Date == "2018-06-22", Animal == "011") %>%
+  select(Longitude, Latitude)
+
+res <- optics(xdf, minPts = 10)
+res
+
+plot(res)
+abline(h = .001, col = "red")
+
+res2 <- extractDBSCAN(res, eps_cl = .001)
+
+data_out <- xdf %>%
+  mutate(cluster = as.factor(ifelse(res2$cluster ==0, NA, res2$cluster))) 
+
+ggplot( data_out, aes(x = Longitude, y= Latitude, color = cluster) ) +
+  geom_point(  )+
+  geom_line( data = data_out[!is.na(data_out$cluster),] )+
+  labs(title = "Density Based Spatial Clustering", subtitle = paste0("date = ","; animal = ")) +
+  theme_minimal()+
+  coord_fixed()
+
+
 
 
 ###############
