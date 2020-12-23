@@ -80,6 +80,8 @@ app_ui <- function(){
                           htmlOutput("mapinfo"),
                           h4("Display Fencing"),
                           fileInput("kmzInput", "Upload kmz file", accept=c(".kmz")),
+                          h4("Display Water"),
+                          fileInput("waterInput", "Upload kmz file", accept=c(".kmz")),
                           h4("Recent Data"),
                           reactivePickerOutput("choose_recent"),
                           textOutput("nrow_recent"),

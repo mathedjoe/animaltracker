@@ -335,3 +335,75 @@ process_elevation <- function(zoom = 11, get_slope=TRUE, get_aspect=TRUE, in_pat
   }
   return(anidata)
 }
+
+#'
+#'Convert kml coordinates to sf for mapping and calculations
+#'
+#'@param kmz_element kmz object containing coordinates
+#'@param shift optional length 2 vector of coordinates to shift kml by
+#'@export
+# 
+kmz_to_sf <- function(kmz_element, shift = c(0,0)){
+  if(!is.matrix(kmz_element)) {
+    ## it's one point
+    return( st_point(kmz_element, dim = "XY") + shift )
+  }
+  
+  # it's a list of points
+  if(kmz_element[1, 1] == kmz_element[nrow(kmz_element), 1] &
+     kmz_element[1, 2] == kmz_element[nrow(kmz_element), 2]){
+    ## it's a polygon
+    return(st_polygon(list(as.matrix(kmz_element))) + shift )
+    
+  }
+  else {
+    ## it's a polygonal line
+    return(st_linestring(kmz_element, dim = "XY") + shift)
+  }
+}
+
+#'
+#'Find distance between n points and water objects
+#'
+#'@param points number of points to generate, or data.frame with lat/lon coordinates
+#'@param xlim latitude bounds if points is a number
+#'@param ylim longitude bounds if points is a number
+#'@param water list of sf geoms representing water locations
+#'@return data.frame containing coordinates and their corresponding closest water sources
+#'@export
+#'
+dist_points_to_water <- function(points, xlim = c(0,25), ylim = c(0,25), water){
+  
+  if (length(points) == 1){
+    points_data <- data.frame( lat = runif(points, xlim[1], xlim[2]),
+                               lon = runif(points, ylim[1], ylim[2]))
+    
+  }
+  else{
+    points_data <- points
+  }
+  
+  # convert point data to sf
+  pts <- sf::st_as_sf(points_data, coords = c("lon", "lat"))
+  
+  # compute pairwise distance from each point to each water feature
+  if( length(water) * nrow(points_data) > 10^6) {
+    print(paste0("Warning: ", length(water) * nrow(points_data),
+                 " distances to calculate, this may take a long time.")
+    )
+  }
+  # pairwise distances
+  dist_to_water <- sf::st_distance(pts, water)
+  
+  # find closest distance to water from pairwise distances
+  dist_to_water <- bind_cols(points_data, as.data.frame(dist_to_water)) %>%
+    dplyr::mutate(index = 1:n()) %>%
+    tidyr::pivot_longer( contains('V'), 'water_object', 'dist', values_to = "distance") %>%
+    dplyr::group_by(index) %>%
+    dplyr::mutate(min_dist = min(distance),
+           closest_water = water_object[distance == min_dist]) %>%
+    tidyr::pivot_wider( names_from = water_object, values_from = distance, names_prefix = "dist_") %>%
+    dplyr::ungroup() %>% dplyr::select(-index)
+  
+  return(dist_to_water)
+}

@@ -371,14 +371,103 @@ app_server <- function(input, output, session) {
     
     proxy <- leafletProxy("mainmap", session)
 
-    # Add fencing
+    # Add water
+    
+    if(!is.null(input$waterInput)) {
+      unlink(file.path("temp"), recursive=TRUE)
+      
+      water_coords <- maptools::getKMLcoordinates(kmlfile = utils::unzip(zipfile = input$waterInput$datapath, 
+                                                      exdir = "temp"),
+                                      ignoreAltitude = TRUE)
+      water_geoms <- sf::st_sfc(lapply(water_coords, kmz_to_sf))
+      names(water_geoms) <- paste0("V",1:length(water_geoms))
+      water_dists <- dist_points_to_water(points = data.frame(lat = pts$Latitude, lon = pts$Longitude), 
+                                          water = water_geoms)
+      custom_icon_list <- list("asterisk", "plus", "star", "heart", "ok", "map-marker",
+                               "stop", "remove-circle", "minus-sign", "eye-open", "bell")
+      
+      my_icons <- custom_icon_list[1:length(names(water_geoms))]
+      names(my_icons) <- names(water_geoms)
+      pt_markers <- water_dists %>%
+        select(lat, lon, closest_water) %>%
+        mutate(closest_water = as.factor(closest_water),
+               water_label = factor(closest_water, labels = my_icons[levels(closest_water)]))
+
+      pt_indices <- c()
+      line_indices <- c()
+      polygon_indices <- c()
+      pts$closest_water <- pt_markers$closest_water
+      pts$water_label <- pt_markers$water_label
+      for(i in 1:length(water_geoms)) {
+        if(typeof(water_geoms[[i]]) == "double") {
+          if(length(dim(water_geoms[[i]]) > 1)) {
+            line_indices <- c(line_indices, i)
+          }
+          else {
+            pt_indices <- c(pt_indices, i)
+          }
+        }
+        else if(typeof(water_geoms[[i]]) == "list") {
+          polygon_indices <- c(polygon_indices, i)
+        }
+      }
+      for(ani in last_drawn()$ani) {
+        proxy %>% clearGroup(ani)
+      }
+      proxy %>% 
+        addPolygons(data = water_geoms[[polygon_indices]], color = "blue") %>%
+        addPolylines(data = water_geoms[[line_indices]], color = "blue") %>%
+        # centroids
+        addAwesomeMarkers(data = water_geoms[c(polygon_indices, line_indices)] %>% sf::st_centroid(),
+                          icon = awesomeIcons(
+                            icon =  as.character(my_icons[names(water_geoms)[c(polygon_indices, line_indices)]]),
+                            iconColor = 'black',
+                            markerColor = 'blue',
+                            squareMarker = TRUE)) %>% 
+        addAwesomeMarkers(data = water_geoms[pt_indices],
+                          icon = awesomeIcons(
+                            icon =  as.character(my_icons[names(water_geoms)[pt_indices]]),
+                            iconColor = 'black',
+                            markerColor = 'blue',
+                            squareMarker = TRUE
+                          ),
+                          #popup = ~ paste(
+                            #paste("<h4>", paste("Water ID:", names(my_icons)[pt_indices]), "</h4>"),
+                            #paste("Lat/Lon:", paste(st_coordinates(water_geoms[pt_indices])$Y, 
+                                                    #st_coordinates(water_geoms[pt_indices])$X, 
+                                                    #sep = ", ")),
+                            #sep = "<br/>")
+                          ) %>%
+        addAwesomeMarkers(data = pts,
+                          icon = awesomeIcons(
+                            icon =  ~water_label,
+                            markerColor = ~ factpal(Animal)),
+                            group = pts$Animal,
+                            popup = ~ paste(
+                              paste("<h4>", paste("Animal ID:", pts$Animal), "</h4>"),
+                              paste("Date/Time:", pts$DateTime),
+                              paste("Elevation:", pts$Elevation),
+                              paste("Slope:", pts$Slope),
+                              paste("Aspect:", pts$Aspect),
+                              paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
+                                                        ", ")),
+                              paste("Closest Water:", pts$closest_water),
+                              paste("LocationID:", pts$LocationID),
+                              
+                              sep = "<br/>"
+                          ),
+                          clusterOptions = markerClusterOptions( freezeAtZoom = 16, spiderfyOnMaxZoom = TRUE)) 
+      
+      
+      unlink(file.path("temp"), recursive=TRUE)
+    }
     
     if(!is.null(input$kmzInput)) {
       unlink(file.path("temp"), recursive=TRUE)
       
       kmz_coords <- maptools::getKMLcoordinates(kmlfile = utils::unzip(zipfile = input$kmzInput$datapath, 
-                                                      exdir = "temp"),
-                                      ignoreAltitude = TRUE)
+                                                                       exdir = "temp"),
+                                                ignoreAltitude = TRUE)
       for(kmz_element in kmz_coords) {
         if(!is.matrix(kmz_element)) {
           df_point <- data.frame(lng = kmz_element[1], lat = kmz_element[2])
@@ -412,6 +501,7 @@ app_server <- function(input, output, session) {
       unlink(file.path("temp"), recursive=TRUE)
     }
     
+    
     if (grepl("(processed)", choose_recent()) || is.null(last_drawn()) || (!is.null(selected_locations()) & is.null(last_locations())) || (!is.null(selected_locations()) & !identical(last_locations(), selected_locations()) & !identical(last_drawn()$ani, current_anilist))  
          || (!any(current_anilist$ani %in% last_drawn()$ani)) || (identical(last_drawn()$ani, current_anilist$ani) & identical(last_locations(), selected_locations()) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2))) {
       for(ani in last_drawn()$ani) {
@@ -439,7 +529,8 @@ app_server <- function(input, output, session) {
               paste("LocationID:", pts$LocationID),
               
               sep = "<br/>"
-            )
+            ),
+            clusterOptions = markerClusterOptions()
           )
       # is a subset selected?
       if(!is.null(selected_locations())) {
@@ -476,7 +567,8 @@ app_server <- function(input, output, session) {
                 paste("LocationID:", pts$LocationID),
                 
                 sep = "<br/>"
-              )
+              ),
+              clusterOptions = markerClusterOptions()
             ) 
       } # if new points
       else if(uploaded()) {
@@ -503,7 +595,8 @@ app_server <- function(input, output, session) {
               paste("LocationID:", pts$LocationID),
               
               sep = "<br/>"
-            )
+            ),
+            clusterOptions = markerClusterOptions()
           ) 
       }
     } # else if closing bracket
@@ -520,7 +613,7 @@ app_server <- function(input, output, session) {
       hideGroup("heat map") %>% # turn off heatmap by default
       addLayersControl(
         baseGroups = c("satellite", "street map"),
-        overlayGroups = c("data points", "heat map"),
+        overlayGroups = c(pts$Animal, "heat map"),
         options = layersControlOptions(collapsed = FALSE)
       )
     last_drawn(current_anilist)
