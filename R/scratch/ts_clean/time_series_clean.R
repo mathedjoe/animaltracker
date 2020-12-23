@@ -43,14 +43,17 @@ sampling_combos <- df %>%
 df_sample <- df %>% 
   # filter(Date == "2018-06-16" | Date == "2018-06-17" | Date == "2018-06-18" | Date == "2018-06-19") 
    # filter(Date == sampling_combos$Date[1], Animal == sampling_combos$Animal[1] )
-  filter(Date == "2018-05-24", Animal == "011")
+  # filter(Date == "2018-05-24", Animal == "011")
+  filter(Date == "2018-05-28", Animal == "257") %>%
+  arrange(Index)
+
 
 table(df_sample$Keep, exclude = NULL)
 
 ## 2d trajectory
 p_latlon <- df_sample %>%
   ggplot( aes(x = Longitude, y= Latitude) )  +
-  geom_line()+
+  geom_path()+
   geom_point( aes(color = Keep))+
   theme_minimal()+
   coord_fixed()
@@ -58,13 +61,13 @@ p_latlon <- df_sample %>%
 ##  time series for lat / lon
 p_lat <- df_sample %>% 
   ggplot( aes(x = TimeElapsed, y= Latitude) ) +
-  geom_line()+
+  geom_path()+
   geom_point(aes(color = Keep))+
   theme_minimal()
 
 p_lon <-  df_sample %>% 
   ggplot( aes(x = TimeElapsed, y= Longitude) ) +
-    geom_line()+
+    geom_path()+
     geom_point(aes(color = Keep))+
     theme_minimal()
 
@@ -146,7 +149,7 @@ col_out_scale <-  c("#1a9641", "#fdae61", "#d7191c")
   ## 2d trajectory
   p_latlon <-  df_sample_pred %>% 
     ggplot() +
-    geom_line(aes(x = Longitude.Pred, y= Latitude.Pred), color = "#333333")+
+    geom_path(aes(x = Longitude.Pred, y= Latitude.Pred), color = "#333333")+
     geom_point( aes(x = Longitude, y= Latitude, color = out_marss, group = seq_along(index)) )+
     scale_discrete_manual("color", values = col_out_scale)+
     theme_minimal()+
@@ -158,14 +161,14 @@ col_out_scale <-  c("#1a9641", "#fdae61", "#d7191c")
   ##  time series for lat / lon
   p_lat <- df_sample_pred %>% 
     ggplot( aes(x = TimeElapsed) ) +
-    geom_line(aes(y= Latitude.Pred), color = "#333333")+
+    geom_path(aes(y= Latitude.Pred), color = "#333333")+
     geom_point( aes(y= Latitude, color = out_marss, group = seq_along(index)) )+
     scale_discrete_manual("color", values = col_out_scale)+
     theme_minimal()
   
   p_lon <-  df_sample_pred %>% 
     ggplot( aes(x = TimeElapsed) ) +
-    geom_line(aes(y= Longitude.Pred), color = "#333333")+
+    geom_path(aes(y= Longitude.Pred), color = "#333333")+
     geom_point( aes(y= Longitude, color = out_marss, group = seq_along(index)) )+
     scale_discrete_manual("color", values = col_out_scale)+
     theme_minimal()
@@ -197,7 +200,8 @@ library("dbscan")
 cluster_analyze <- function(data, animal, date, knn_k = 5, knn_eps = .001, verbose = TRUE){
   df <- data %>% 
     filter(Date == date, Animal == animal) %>%
-    select(Longitude, Latitude)
+    arrange(Index) %>% 
+    select(Longitude, Latitude) 
   
   res <- dbscan(df, eps = knn_eps, minPts = knn_k )
   if(verbose){ print( res )}
@@ -207,7 +211,7 @@ cluster_analyze <- function(data, animal, date, knn_k = 5, knn_eps = .001, verbo
   
   plot_out <- ggplot( data_out, aes(x = Longitude, y= Latitude, color = cluster) ) +
     geom_point(  )+
-    geom_line( data = data_out[!is.na(data_out$cluster),] )+
+    geom_path( )+
     labs(title = "Density Based Spatial Clustering", subtitle = paste0("date = ", date,"; animal = ", animal)) +
     theme_minimal()+
     coord_fixed()
@@ -271,7 +275,7 @@ data_out <- xdf %>%
 
 ggplot( data_out, aes(x = Longitude, y= Latitude, color = cluster) ) +
   geom_point(  )+
-  geom_line( data = data_out[!is.na(data_out$cluster),] )+
+  geom_path( data = data_out[!is.na(data_out$cluster),] )+
   labs(title = "Density Based Spatial Clustering", subtitle = paste0("date = ","; animal = ")) +
   theme_minimal()+
   coord_fixed()
