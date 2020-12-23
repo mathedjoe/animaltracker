@@ -185,6 +185,7 @@ col_out_scale <-  c("#1a9641", "#fdae61", "#d7191c")
   # %>% prop.table() %>% round(.,2)
 
   
+
 ###############
 ## AUTOMATED APPROACH #4
 ## IMPLEMENT Density Based Clustering via the DBSCAN algorithm / package
@@ -227,9 +228,11 @@ cow_eps <- 84/(111*1000)
 car_eps <- 128.75 /(6*111)
 
 my_clusters <- cluster_analyze(df, "011", "2018-06-22", knn_eps = cow_eps) # maybe works?
+
 ex_clusters <- cluster_analyze(df, sampling_combos$Animal[28], sampling_combos$Date[28], knn_eps = cow_eps) # WORKS
 
 ## get cluster analysis plots for all the animal / date examples in the sampling combos data
+
 my_dbscans <- lapply( 1:nrow(sampling_combos), 
                       function(i){
                         cluster_analyze(df, sampling_combos$Animal[i], sampling_combos$Date[i], 
