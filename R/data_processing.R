@@ -346,19 +346,19 @@ process_elevation <- function(zoom = 11, get_slope=TRUE, get_aspect=TRUE, in_pat
 kmz_to_sf <- function(kmz_element, shift = c(0,0)){
   if(!is.matrix(kmz_element)) {
     ## it's one point
-    return( st_point(kmz_element, dim = "XY") + shift )
+    return( sf::st_point(kmz_element, dim = "XY") + shift )
   }
   
   # it's a list of points
   if(kmz_element[1, 1] == kmz_element[nrow(kmz_element), 1] &
      kmz_element[1, 2] == kmz_element[nrow(kmz_element), 2]){
     ## it's a polygon
-    return(st_polygon(list(as.matrix(kmz_element))) + shift )
+    return(sf::st_polygon(list(as.matrix(kmz_element))) + shift )
     
   }
   else {
     ## it's a polygonal line
-    return(st_linestring(kmz_element, dim = "XY") + shift)
+    return(sf::st_linestring(kmz_element, dim = "XY") + shift)
   }
 }
 
