@@ -139,7 +139,6 @@ app_server <- function(input, output, session) {
       
       ani_names <- paste(choose_ani(), collapse = ", ")
       
-      
       min_datetime <- lubridate::with_tz(lubridate::ymd_hms(paste(choose_dates()[1], min_time()), tz="UTC", quiet = TRUE), tz="UTC")
       max_datetime <- lubridate::with_tz(lubridate::ymd_hms(paste(choose_dates()[2], max_time()), tz="UTC", quiet = TRUE), tz="UTC")
       
@@ -207,21 +206,21 @@ app_server <- function(input, output, session) {
           }
           else {
             if(any(meta$ani_id  %in% choose_ani()) ){
-              current_df <- get_data_from_meta(meta, min_datetime, max_datetime)
+              current_df <- get_data_from_meta(meta, min_datetime, max_datetime) %>% 
+                dplyr::filter(Animal %in% choose_ani())
             }
           }
         }
        
         # add LocationID column to the restricted data set
         current_df <- current_df %>% 
-          dplyr::mutate(LocationID = 1:dplyr::n())
+          dplyr::mutate(LocationID = 1:dplyr::n()) %>% 
+          dplyr::filter(Animal %in% choose_ani())
         
-        
-                
         # enqueue to cache
         updated_cache <- cache()
         updated_cache[[cache_name]] <- list(df = current_df, ani = choose_ani(), date1 = min_datetime, date2 = max_datetime)
-        
+      
         # dequeue if there are more than 5 dfs 
         if(length(updated_cache) > 5) {
           updated_cache <- updated_cache[-1]
@@ -416,8 +415,12 @@ app_server <- function(input, output, session) {
     if (uploaded() || water_uploaded() || grepl("(processed)", choose_recent()) || is.null(last_drawn()) || (!is.null(selected_locations()) & is.null(last_locations())) || (!is.null(selected_locations()) & !identical(last_locations(), selected_locations()) & !identical(last_drawn()$ani, current_anilist))  
          || (!any(current_anilist$ani %in% last_drawn()$ani)) || (identical(last_drawn()$ani, current_anilist$ani) & identical(last_locations(), selected_locations()) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2))) {
       
-      # TODO: Fix bug where demo data remains if filtered before uploading 
-      if(!is.null(last_drawn())) {
+      if(!any(current_anilist$ani %in% unique(demo$Animal))) {
+        for(ani in unique(demo$Animal)) {
+          proxy %>% clearGroup(ani)
+        }
+      }
+      else if(!is.null(last_drawn())) {
         for(ani in last_drawn()$ani) {
           proxy %>% clearGroup(ani)
         }
@@ -430,7 +433,7 @@ app_server <- function(input, output, session) {
             proxy %>% 
               addCircleMarkers(
                 data = df_point,
-                group = "fencing",
+                group = "geographic feature",
                 radius = 4,
                 stroke = FALSE,
                 weight = 3,
@@ -447,11 +450,11 @@ app_server <- function(input, output, session) {
           else if(kmz_element[1, 1] == kmz_element[nrow(kmz_element), 1] &
                   kmz_element[1, 2] == kmz_element[nrow(kmz_element), 2]) {
             proxy %>% 
-              addPolygons(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "fencing")
+              addPolygons(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "geographic feature")
           }
           else {
             proxy %>% 
-              addPolylines(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "fencing")
+              addPolylines(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "geographic feature")
           }
         }
       }
@@ -481,16 +484,16 @@ app_server <- function(input, output, session) {
         if(length(polygon_indices) > 0 || length(line_indices) > 0) {
           if(length(polygon_indices) > 0) {
             proxy %>% 
-              addPolygons(data = water_geoms[[polygon_indices]], group = "water", color = "blue")
+              addPolygons(data = water_geoms[[polygon_indices]], group = "water source", color = "blue")
           }
           if(length(line_indices) > 0) {
             proxy %>% 
-              addPolylines(data = water_geoms[[line_indices]], group = "water", color = "blue")
+              addPolylines(data = water_geoms[[line_indices]], group = "water source", color = "blue")
           }
           
           proxy %>% 
             addAwesomeMarkers(data = water_geoms[c(polygon_indices, line_indices)] %>% sf::st_centroid(),
-                              group = "water",
+                              group = "water source",
                               icon = awesomeIcons(
                                 icon =  as.character(my_icons[names(water_geoms)[c(polygon_indices, line_indices)]]),
                                 iconColor = 'black',
@@ -500,7 +503,7 @@ app_server <- function(input, output, session) {
         if(length(pt_indices) > 0) {
           proxy %>% 
             addAwesomeMarkers(data = water_geoms[pt_indices],
-                              group = "water",
+                              group = "water source",
                               icon = awesomeIcons(
                                 icon =  as.character(my_icons[names(water_geoms)[pt_indices]]),
                                 iconColor = 'black',
@@ -588,7 +591,7 @@ app_server <- function(input, output, session) {
           proxy %>% 
             addCircleMarkers(
               data = df_point,
-              group = "fencing",
+              group = "geographic feature",
               radius = 4,
               stroke = FALSE,
               weight = 3,
@@ -605,16 +608,17 @@ app_server <- function(input, output, session) {
         else if(kmz_element[1, 1] == kmz_element[nrow(kmz_element), 1] &
                 kmz_element[1, 2] == kmz_element[nrow(kmz_element), 2]) {
           proxy %>% 
-            addPolygons(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "fencing")
+            addPolygons(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "geographic feature")
         }
         else {
           proxy %>% 
-            addPolylines(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "fencing")
+            addPolylines(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "geographic feature")
         }
       }
       fence_uploaded(FALSE)
     }
     else if(!identical(last_drawn()$ani, current_anilist$ani)){
+  
       # remove old points
       for(ani in setdiff(last_drawn()$ani, current_anilist$ani)) {
         proxy %>% clearGroup(ani)
@@ -715,16 +719,16 @@ app_server <- function(input, output, session) {
     } # if new points
     # add heatmap and layer control 
     if(length(kmz_coords()) > 0  & length(water_geoms()) > 0) {
-      overlay <- c(unique(pts$Animal), "fencing", "water", "heat map")
+      overlay <- c(unique(pts$Animal), "geographic feature", "water source", "heat map")
     }
     else if(length(kmz_coords()) > 0) {
-      overlay <- c(unique(pts$Animal), "fencing", "heat map")
+      overlay <- c(unique(pts$Animal), "geographic feature", "heat map")
     }
     else if(length(water_geoms()) > 0) {
-      overlay <- c(unique(pts$Animal), "water", "heat map")
+      overlay <- c(unique(pts$Animal), "water source", "heat map")
     }
     else {
-      overlay <- c(unique(pts$Animal), "heatmap")
+      overlay <- c(unique(pts$Animal), "heat map")
     }
   
     proxy %>% 
