@@ -4,7 +4,8 @@ if(getRversion() >= '2.5.1') {
   globalVariables(c('demo_info', 'demo_unfiltered', 'demo_filtered', 'demo_meta', 'demo',
                     'ani_id', 'Animal', 'Date', 'site', 'LocationID', 'tags', 'DateTime',
                     'Elevation', 'TimeDiffMins', 'Rate', 'Longitude', 'Latitude', 'LongBin',
-                    'LatBin', 'Duration', 'stopApp', 'Speed', 'Slope', 'Aspect'))
+                    'LatBin', 'Duration', 'stopApp', 'Speed', 'Slope', 'Aspect',
+                    'lat', 'lon', 'closest_water'))
 }
 
 #'
@@ -20,7 +21,7 @@ if(getRversion() >= '2.5.1') {
 #'@import dplyr
 #'@import leaflet
 #'@import leaflet.extras
-#'@export
+#'@noRd
 #'
 app_server <- function(input, output, session) {
   # initialize list of datasets
@@ -427,152 +428,17 @@ app_server <- function(input, output, session) {
       }
       
       if(length(kmz_coords()) > 0) {
-        for(kmz_element in kmz_coords()) {
-          if(!is.matrix(kmz_element)) {
-            df_point <- data.frame(lng = kmz_element[1], lat = kmz_element[2])
-            proxy %>% 
-              addCircleMarkers(
-                data = df_point,
-                group = "geographic feature",
-                radius = 4,
-                stroke = FALSE,
-                weight = 3,
-                opacity = .8,
-                fillOpacity = 1,
-                color = "black",
-                fillColor = "black",
-                popup = ~ paste(
-                  paste("Lat/Lon:", paste(kmz_element[2], kmz_element[1], sep =
-                                            ", "))
-                )
-              ) 
-          }
-          else if(kmz_element[1, 1] == kmz_element[nrow(kmz_element), 1] &
-                  kmz_element[1, 2] == kmz_element[nrow(kmz_element), 2]) {
-            proxy %>% 
-              addPolygons(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "geographic feature")
-          }
-          else {
-            proxy %>% 
-              addPolylines(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "geographic feature")
-          }
-        }
+        plot_geographic_features(proxy, kmz_coords())
       }
       
       if(length(water_geoms) > 0) {
-        my_icons <- custom_icon_list[1:length(names(water_geoms))]
-        names(my_icons) <- names(water_geoms)
-        
-        pt_indices <- c()
-        line_indices <- c()
-        polygon_indices <- c()
-        
-        for(i in 1:length(water_geoms)) {
-          if(typeof(water_geoms[[i]]) == "double") {
-            if(length(dim(water_geoms[[i]]) > 1)) {
-              line_indices <- c(line_indices, i)
-            }
-            else {
-              pt_indices <- c(pt_indices, i)
-            }
-          }
-          else if(typeof(water_geoms[[i]]) == "list") {
-            polygon_indices <- c(polygon_indices, i)
-          }
-        }
-        
-        if(length(polygon_indices) > 0 || length(line_indices) > 0) {
-          if(length(polygon_indices) > 0) {
-            proxy %>% 
-              addPolygons(data = water_geoms[[polygon_indices]], group = "water source", color = "blue")
-          }
-          if(length(line_indices) > 0) {
-            proxy %>% 
-              addPolylines(data = water_geoms[[line_indices]], group = "water source", color = "blue")
-          }
-          
-          proxy %>% 
-            addAwesomeMarkers(data = water_geoms[c(polygon_indices, line_indices)] %>% sf::st_centroid(),
-                              group = "water source",
-                              icon = awesomeIcons(
-                                icon =  as.character(my_icons[names(water_geoms)[c(polygon_indices, line_indices)]]),
-                                iconColor = 'black',
-                                markerColor = 'blue',
-                                squareMarker = TRUE))
-        }
-        if(length(pt_indices) > 0) {
-          proxy %>% 
-            addAwesomeMarkers(data = water_geoms[pt_indices],
-                              group = "water source",
-                              icon = awesomeIcons(
-                                icon =  as.character(my_icons[names(water_geoms)[pt_indices]]),
-                                iconColor = 'black',
-                                markerColor = 'blue',
-                                squareMarker = TRUE
-                              ))
-        }
-        
-        water_dists <- dist_points_to_water(points = data.frame(lat = pts$Latitude, lon = pts$Longitude), 
-                                            water = water_geoms)
-   
-        pt_markers <- water_dists %>%
-          select(lat, lon, closest_water) %>%
-          mutate(closest_water = as.factor(closest_water),
-                 water_label = factor(closest_water, labels = my_icons[levels(closest_water)]))
-       
-        pts$closest_water <- pt_markers$closest_water
-        pts$water_label <- pt_markers$water_label
-        
-        for(ani in unique(pts$Animal)) {
-          proxy %>% 
-            addAwesomeMarkers(data = pts %>% subset(Animal == ani),
-                              icon = awesomeIcons(icon =  ~water_label,
-                                                  markerColor = ~color_label),
-                              group = ani,
-                              popup = ~ paste(
-                                paste("<h4>", paste("Animal ID:", ani), "</h4>"),
-                                paste("Date/Time:", pts$DateTime),
-                                paste("Elevation:", pts$Elevation),
-                                paste("Slope:", pts$Slope),
-                                paste("Aspect:", pts$Aspect),
-                                paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
-                                                          ", ")),
-                                paste("Closest Water:", pts$closest_water),
-                                paste("LocationID:", pts$LocationID),
-                                
-                                sep = "<br/>"
-                              ),
-                              clusterOptions = markerClusterOptions()) 
-        } # end plotting for loop
-        
+        plot_water_sources(proxy, pts, water_geoms, custom_icon_list)
         if(water_uploaded()) {
           water_uploaded(FALSE)
         }
-        
       } # if water closing bracket
       else {
-        for(ani in unique(pts$Animal)) {
-          proxy %>% 
-            addAwesomeMarkers(data = pts %>% subset(Animal == ani),
-                              icon = awesomeIcons(icon = "map-marker",
-                                                  markerColor = ~color_label),
-                              group = ani,
-                              popup = ~ paste(
-                                paste("<h4>", paste("Animal ID:", ani), "</h4>"),
-                                paste("Date/Time:", pts$DateTime),
-                                paste("Elevation:", pts$Elevation),
-                                paste("Slope:", pts$Slope),
-                                paste("Aspect:", pts$Aspect),
-                                paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
-                                                          ", ")),
-                                paste("Closest Water:", pts$closest_water),
-                                paste("LocationID:", pts$LocationID),
-                                
-                                sep = "<br/>"
-                              ),
-                              clusterOptions = markerClusterOptions()) 
-        } # end plotting for loop
-        
+        plot_animal_points(proxy, pts)
       } # else no water closing bracket
  
       if(!is.null(selected_locations())) {
@@ -585,36 +451,7 @@ app_server <- function(input, output, session) {
       }
     } # if closing bracket
     else if(fence_uploaded()) {
-      for(kmz_element in kmz_coords()) {
-        if(!is.matrix(kmz_element)) {
-          df_point <- data.frame(lng = kmz_element[1], lat = kmz_element[2])
-          proxy %>% 
-            addCircleMarkers(
-              data = df_point,
-              group = "geographic feature",
-              radius = 4,
-              stroke = FALSE,
-              weight = 3,
-              opacity = .8,
-              fillOpacity = 1,
-              color = "black",
-              fillColor = "black",
-              popup = ~ paste(
-                paste("Lat/Lon:", paste(kmz_element[2], kmz_element[1], sep =
-                                          ", "))
-              )
-            ) 
-        }
-        else if(kmz_element[1, 1] == kmz_element[nrow(kmz_element), 1] &
-                kmz_element[1, 2] == kmz_element[nrow(kmz_element), 2]) {
-          proxy %>% 
-            addPolygons(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "geographic feature")
-        }
-        else {
-          proxy %>% 
-            addPolylines(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "geographic feature")
-        }
-      }
+      plot_geographic_features(proxy, kmz_coords())
       fence_uploaded(FALSE)
     }
     else if(!identical(last_drawn()$ani, current_anilist$ani)){
@@ -625,95 +462,14 @@ app_server <- function(input, output, session) {
       }
       
       if(length(kmz_coords()) > 0) {
-        for(kmz_element in kmz_coords()) {
-          if(!is.matrix(kmz_element)) {
-            df_point <- data.frame(lng = kmz_element[1], lat = kmz_element[2])
-            proxy %>% 
-              addCircleMarkers(
-                data = df_point,
-                group = "fencing",
-                radius = 4,
-                stroke = FALSE,
-                weight = 3,
-                opacity = .8,
-                fillOpacity = 1,
-                color = "black",
-                fillColor = "black",
-                popup = ~ paste(
-                  paste("Lat/Lon:", paste(kmz_element[2], kmz_element[1], sep =
-                                            ", "))
-                )
-              ) 
-          }
-          else if(kmz_element[1, 1] == kmz_element[nrow(kmz_element), 1] &
-                  kmz_element[1, 2] == kmz_element[nrow(kmz_element), 2]) {
-            proxy %>% 
-              addPolygons(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "fencing")
-          }
-          else {
-            proxy %>% 
-              addPolylines(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "fencing")
-          }
-        }
+        plot_geographic_features(proxy, kmz_coords())
       }
       
       if(length(water_geoms) > 0) {
-        water_dists <- dist_points_to_water(points = data.frame(lat = pts$Latitude, lon = pts$Longitude), 
-                                            water = water_geoms)
-       
-        pt_markers <- water_dists %>%
-          select(lat, lon, closest_water) %>%
-          mutate(closest_water = as.factor(closest_water),
-                 water_label = factor(closest_water, labels = my_icons[levels(closest_water)]))
-        
-        pts$closest_water <- pt_markers$closest_water
-        pts$water_label <- pt_markers$water_label
-        
-        for(ani in unique(pts$Animal)) {
-          proxy %>% 
-            addAwesomeMarkers(data = pts %>% subset(Animal == ani),
-                              icon = awesomeIcons(icon =  ~water_label,
-                                                  markerColor = ~color_label),
-                              group = ani,
-                              popup = ~ paste(
-                                paste("<h4>", paste("Animal ID:", ani), "</h4>"),
-                                paste("Date/Time:", pts$DateTime),
-                                paste("Elevation:", pts$Elevation),
-                                paste("Slope:", pts$Slope),
-                                paste("Aspect:", pts$Aspect),
-                                paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
-                                                          ", ")),
-                                paste("Closest Water:", pts$closest_water),
-                                paste("LocationID:", pts$LocationID),
-                                
-                                sep = "<br/>"
-                              ),
-                              clusterOptions = markerClusterOptions()) 
-        } # end plotting for loop
-        
+        plot_water_sources(proxy, pts, water_geoms, custom_icon_list)
       } # if water closing bracket
       else {
-        for(ani in unique(pts$Animal)) {
-          proxy %>% 
-            addAwesomeMarkers(data = pts %>% subset(Animal == ani),
-                              icon = awesomeIcons(icon =  "map-marker",
-                                                  markerColor = ~color_label),
-                              group = ani,
-                              popup = ~ paste(
-                                paste("<h4>", paste("Animal ID:", ani), "</h4>"),
-                                paste("Date/Time:", pts$DateTime),
-                                paste("Elevation:", pts$Elevation),
-                                paste("Slope:", pts$Slope),
-                                paste("Aspect:", pts$Aspect),
-                                paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
-                                                          ", ")),
-                                paste("Closest Water:", pts$closest_water),
-                                paste("LocationID:", pts$LocationID),
-                                
-                                sep = "<br/>"
-                              ),
-                              clusterOptions = markerClusterOptions()) 
-        } # end plotting for loop
+        plot_animal_points(proxy, pts)
       } # else no water closing bracket
 
     } # if new points

@@ -5,7 +5,7 @@
 #'
 #'
 #'@return ui function for use in a 'shiny' app
-#'@export
+#'@noRd
 #'
 
 app_ui <- function(){

@@ -2,7 +2,8 @@ if(getRversion() >= '2.5.1') {
   globalVariables(c('ggplot2', 'Altitude', '..density..', 'DateMMDDYY', 'Status',
                     'QualFix', 'LatDir', 'LonDir', 'LatitudeFix', 'LatDirFix',
                     'LongitudeFix', 'LonDirFix', 'MagVar', 'MagVarDir', 'y', 'x',
-                    'lat_rad', 'tilex', 'tiley', 'elevation', 'slope', 'aspect', '.'))
+                    'lat_rad', 'tilex', 'tiley', 'elevation', 'slope', 'aspect', '.',
+                    'index', 'distance', 'water_object', 'min_dist'))
 }
 
 #'
@@ -231,6 +232,7 @@ read_columbus <- function(filename){
 #'@param x lat or long coords in degrees
 #'@param direction direction of lat/long
 #'@return converted x
+#'@noRd
 #'
 deg_to_dec <- function(x, direction){
   xparts <- strsplit(as.character(x), "\\.")[[1]]
@@ -250,6 +252,7 @@ deg_to_dec <- function(x, direction){
 #'@param lat2 latitude of ending point
 #'@param lon2 longitude of ending point
 #'@return bearing computed from given coordinates
+#'@noRd
 #'
 calc_bearing <- function(lat1, lon1, lat2, lon2){
   lat1 <- lat1*(pi/180)
@@ -267,6 +270,7 @@ calc_bearing <- function(lat1, lon1, lat2, lon2){
 #'
 #'@param filename location of the GPS dataset
 #'@return list containing the dataset as a df and the format
+#'@noRd
 #'
 read_gps <- function(filename){
   
@@ -375,8 +379,8 @@ kmz_to_sf <- function(kmz_element, shift = c(0,0)){
 dist_points_to_water <- function(points, xlim = c(0,25), ylim = c(0,25), water){
   
   if (length(points) == 1){
-    points_data <- data.frame( lat = runif(points, xlim[1], xlim[2]),
-                               lon = runif(points, ylim[1], ylim[2]))
+    points_data <- data.frame( lat = stats::runif(points, xlim[1], xlim[2]),
+                               lon = stats::runif(points, ylim[1], ylim[2]))
     
   }
   else{

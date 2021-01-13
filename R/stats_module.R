@@ -3,6 +3,7 @@
 #'
 #'@param id chosen ID of UI output
 #'@return 'shiny' uiOutput object for label
+#'@noRd
 #'
 statsLabelOutput <- function(id) {
   ns <- NS(id)
@@ -21,6 +22,7 @@ statsLabelOutput <- function(id) {
 #'@param col_name column name to compute summary statistics
 #'@param text text of summary statistics label
 #'@return 'shiny' renderUI object for label
+#'@noRd
 #'
 statsLabel <- function(input, output, session, selected_cols, selected_stats, col_name, text) {
   output$label <- renderUI({
@@ -35,6 +37,7 @@ statsLabel <- function(input, output, session, selected_cols, selected_stats, co
 #'
 #'@param id chosen ID of UI output
 #'@return 'shiny' uiOutput object for table
+#'@noRd
 #'
 statsOutput <- function(id) {
   ns <- NS(id)
@@ -53,6 +56,7 @@ statsOutput <- function(id) {
 #'@param col column to compute summary statistics
 #'@param dat animal data frame containing col
 #'@return 'shiny' renderTable object for table
+#'@noRd
 #'
 stats <- function(input, output, session, selected_cols, selected_stats, col_name, col, dat) {
   generate_table <- reactive({
