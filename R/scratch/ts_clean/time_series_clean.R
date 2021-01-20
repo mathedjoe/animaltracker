@@ -194,7 +194,7 @@ col_out_scale <-  c("#1a9641", "#fdae61", "#d7191c")
 ## IMPLEMENT Density Based Clustering via the DBSCAN algorithm / package
 # https://cran.r-project.org/web/packages/dbscan/vignettes/dbscan.pdf
 
-install.packages("dbscan")
+#install.packages("dbscan")
 library("dbscan")
 
 cluster_analyze <- function(data, animal, date, knn_k = 5, knn_eps = .001, verbose = TRUE){
@@ -236,20 +236,59 @@ ex_clusters <- cluster_analyze(df, sampling_combos$Animal[28], sampling_combos$D
 ex_clusters_car <- cluster_analyze(df, sampling_combos$Animal[2], sampling_combos$Date[2], 
                                    knn_eps = car_eps*.48)
 
+## Optimizing epsilon for DBSCAN algorithm
+
+optimize_eps <- function(data, animal, date, knn_k = 5) {
+  df <- data %>% 
+    filter(Date == date, Animal == animal) %>%
+    arrange(Index) %>% 
+    select(Longitude, Latitude) 
+  
+  index <- 1:nrow(df) 
+  knn_dists <- sort(kNNdist(df, k = knn_k)) # sort nearest neighbor distances in ascending order
+  #kNNdistplot(df, knn_k)
+  dists_spline <- smooth.spline(x = index, y = knn_dists, df = 20) # interpolate data indices and kNN distances
+  #plot(dists_spline, type = "l")
+  curvature <- predict(dists_spline, x = index, deriv = 2) # get second derivative of interpolating spline
+  #plot(curvature, type = "l")
+  return(knn_dists[which.max(curvature$y)]) # return the kNN distance at the index of the maximum second derivative
+}
+
+# Get overview of data by Animal and Date
+df_summary <- df %>% 
+  dplyr::group_by(Animal, Date) %>% 
+  dplyr::summarise(n = n())
+
+eps_estimates <- c()
+
+# Get epsilon estimates via Monte Carlo simulation
+for(i in 1:100) {
+  sample_i <- df_summary[sample(nrow(df_summary), 30), ]
+  eps_estimate <- lapply( 1:nrow(sample_i), 
+                           function(j){
+                             optimize_eps(df, sample_i$Animal[j], sample_i$Date[j])
+                           } 
+  )
+  eps_estimates <- c(eps_estimates, median(unlist(eps_estimate)))
+  print(paste(i, "Monte Carlo iterations of 100 complete" ))
+}
+
+hist(eps_estimates)
+eps_final <- median(eps_estimates)
 
 ## get cluster analysis plots for all the animal / date examples in the sampling combos data
 
 my_dbscans <- lapply( 1:nrow(sampling_combos), 
                       function(i){
                         cluster_analyze(df, sampling_combos$Animal[i], sampling_combos$Date[i], 
-                                        knn_eps = cow_eps, verbose = FALSE)$plot
+                                        knn_eps = eps_final, verbose = FALSE)$plot
                       } 
 )
 
-my_dbscans[[28]]
+my_dbscans[[2]]
 
 ## save cluster analysis plots to a file
-pdf("R/scratch/ts_clean/cluster_analysis_DW.pdf",onefile = TRUE)
+pdf("R/scratch/ts_clean/cluster_analysis_DW_MC.pdf",onefile = TRUE)
 for(i in 1:length(my_dbscans)){
   print(my_dbscans[[i]])
 }
