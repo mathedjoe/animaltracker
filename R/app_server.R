@@ -209,6 +209,22 @@ app_server <- function(input, output, session) {
   
   ######################################
   ## DYNAMIC USER INTERFACE
+  # Filter options
+  output$max_rate <- renderUI({
+    numericInput("selected_max_rate", "Max movement rate (m/min):", value = 84, min = 1, max = 1000, step = 1)
+  })
+  
+  output$max_course <- renderUI({
+    numericInput("selected_max_course", "Max distance (m):", value = 100, min = 1, max = 1000, step = 1)
+  })
+
+  output$max_dist <- renderUI({
+    numericInput("selected_max_dist", "Max geographic distance (m):", value = 840, min = 1, max = 2000, step = 1)
+  })
+
+  output$max_time <- renderUI({
+    numericInput("selected_max_dist", "Max time (min):", value = 3600, min = 1, max = 15000, step = 1)
+  })
   
   # select lat/long bounds
   

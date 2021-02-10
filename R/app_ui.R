@@ -47,7 +47,11 @@ app_ui <- function(){
                           h4("3. Data Processing"),
                           shinyBS::bsCollapse(id = "uploadOptions", open = "Elevation Options",
                                      shinyBS::bsCollapsePanel("Cleaning Options",
-                                                     checkboxInput("filterBox", label = "Filter bad data points", value = TRUE)
+                                                     checkboxInput("filterBox", label = "Filter bad data points", value = TRUE),
+                                                     uiOutput("max_rate"),
+                                                     uiOutput("max_course"),
+                                                     uiOutput("max_dist"),
+                                                     uiOutput("max_time")
                                      ),
                                      shinyBS::bsCollapsePanel("Elevation Options",
                                                      reactiveRangeOutput("lat_bounds"),
