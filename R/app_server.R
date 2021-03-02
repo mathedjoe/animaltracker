@@ -23,6 +23,7 @@ if(getRversion() >= '2.5.1') {
 #'@export
 #'
 app_server <- function(input, output, session) {
+
   # initialize list of datasets
   meta <- reactiveVal(demo_meta)
   uploaded <- reactiveVal(FALSE)
@@ -33,7 +34,8 @@ app_server <- function(input, output, session) {
     if(is.null(input$zipInput)) {
       return(demo_info)
     }
-    dat_info <- store_batch_list(input$zipInput)
+    dat_info <- store_batch_list(input$zipInput, max_rate = input$max_rate, max_course = input$max_course,
+                                 max_dist = input$max_dist, max_time = input$max_time)
     meta(dat_info$meta)
     uploaded(TRUE)
     return(dat_info)
@@ -46,7 +48,9 @@ app_server <- function(input, output, session) {
       return(demo_unfiltered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), filters = FALSE))
+      return(clean_batch_df(raw_dat(), filters = FALSE, max_rate = input$max_rate, 
+                            max_course = input$max_course, max_dist = input$max_dist,
+                            max_time = input$max_time))
     }
   })
   
@@ -55,7 +59,9 @@ app_server <- function(input, output, session) {
       return(demo_filtered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), filters = TRUE))
+      return(clean_batch_df(raw_dat(), filters = TRUE, max_rate = input$max_rate, 
+                            max_course = input$max_course, max_dist = input$max_dist,
+                            max_time = input$max_time))
     }
   })
   
@@ -66,21 +72,25 @@ app_server <- function(input, output, session) {
         meta(clean_store_batch(raw_dat(), filters = input$filterBox, zoom = input$selected_zoom,
                                input$slopeBox, input$aspectBox, 
                                lat_bounds()[1], lat_bounds()[2],
-                               long_bounds()[1], long_bounds()[2]))
+                               long_bounds()[1], long_bounds()[2], 
+                               max_rate = input$max_rate, max_course = input$max_course, 
+                               max_dist = input$max_dist, max_time = input$max_time))
       }
       else {
         processingInitiatedAll(TRUE)
         meta(clean_store_batch(raw_dat(), input$filterBox, zoom = input$selected_zoom,
                                input$slopeBox, input$aspectBox, 
                                raw_dat()$min_lat, raw_dat()$max_lat,
-                               raw_dat()$min_long, raw_dat()$max_long))
+                               raw_dat()$min_long, raw_dat()$max_long,
+                               max_rate = input$max_rate, max_course = input$max_course, 
+                               max_dist = input$max_dist, max_time = input$max_time))
       }
   })
   
   observeEvent(input$processSelectedButton, {
     processingInitiated(TRUE)
   })
-  
+
   ######################################
   ## DYNAMIC DATA
   
@@ -141,7 +151,9 @@ app_server <- function(input, output, session) {
             if(nrow(current_df) == 0) {
               return(cache()[[choose_recent()]]$df)
             }
-            current_df <- clean_location_data(current_df, dtype = "", prep = FALSE, filters = input$filterBox) 
+            current_df <- clean_location_data(current_df, dtype = "", prep = FALSE, filters = input$filterBox, zoom,
+                                              maxrate = input$max_rate, maxcourse = input$max_course,
+                                              maxdist = input$max_dist, maxtime = input$max_time) 
           
             
             status_message <- modalDialog(
@@ -211,19 +223,19 @@ app_server <- function(input, output, session) {
   ## DYNAMIC USER INTERFACE
   # Filter options
   output$max_rate <- renderUI({
-    numericInput("selected_max_rate", "Max movement rate (m/min):", value = 84, min = 1, max = 1000, step = 1)
+    numericInput("max_rate", "Max movement rate (m/min):", value = 84, min = 1, max = 1000, step = 1)
   })
   
   output$max_course <- renderUI({
-    numericInput("selected_max_course", "Max distance (m):", value = 100, min = 1, max = 1000, step = 1)
+    numericInput("max_course", "Max distance (m):", value = 100, min = 1, max = 1000, step = 1)
   })
 
   output$max_dist <- renderUI({
-    numericInput("selected_max_dist", "Max geographic distance (m):", value = 840, min = 1, max = 2000, step = 1)
+    numericInput("max_dist", "Max geographic distance (m):", value = 840, min = 1, max = 2000, step = 1)
   })
 
   output$max_time <- renderUI({
-    numericInput("selected_max_dist", "Max time (min):", value = 3600, min = 1, max = 15000, step = 1)
+    numericInput("max_time", "Max time (min):", value = 3600, min = 1, max = 15000, step = 1)
   })
   
   # select lat/long bounds
