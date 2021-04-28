@@ -15,7 +15,7 @@ if(getRversion() >= '2.5.1') {
 #'Generate metadata for a directory of animal data files
 #'
 #'@param data_dir directory of animal data files
-#'@return list of data info as a list of animal IDs and GPS units
+#'@return list of data info as a list of animal IDs and GPS units/ka
 #'@examples
 #'# Get metadata for demo directory
 #'
@@ -313,3 +313,45 @@ dev_add_to_gitignore <- function(data_dir) {
   close(fileConn)
 }
 
+kalmann <- function(df, min_longitude=-117, max_longitude=-116, min_latitude=43, max_latitude=44, max_timestep=300) {
+  df <- df %>%
+    mutate(DateTime = paste(Date, Time),
+           DateTime = as.POSIXct(DateTime),
+           isOutlier = Longitude < min_longitude | Longitude > max_longitude | Latitude < max_latitude | Latitude > max_latitude
+    ) %>%
+  arrange(DateTime)
+
+  ## convert the irregular measurement data to a time series (equally spaced measurements)
+  ##  - for each date in the sample, build a sequence of equally spaced times at
+  ##  - use one second intervals
+  ##  - this will make a MUCH larger data set, with many NA values for missing measurements
+  date_time_seq <- lapply( unique( cattle_df$Date[!cattle_df$isOutlier] ),
+                         function(this_date){
+                           df_day <- cattle_df %>%
+                             filter(Date == this_date, !isOutlier)
+                           # make an equally-spaced sequence of date-times for this date
+                           seq.POSIXt(min(df_day$DateTime),
+                                      max(df_day$DateTime), by = 'sec')
+                         }
+  ) %>% Reduce(c, .)
+
+  ## create time series object with 3 columns: DateTime, Longitude, Latitude
+  cattle_ts <- data.frame(DateTime = date_time_seq) %>%
+  left_join(cattle_df, by = "DateTime") %>%
+  mutate(Longitude = ifelse(isOutlier, NA, Longitude),
+         Latitude = ifelse(isOutlier, NA, Latitude)) %>%
+  select(DateTime, Longitude, Latitude) %>%
+  ts_df() # uses library tsbox
+
+  ## fill in missing data using kalman smoothing
+  # do not attempt to fill-in more than maxgap measurements (e.g., 5 minutes)
+  cattle_ts_smoothed <- na_kalman(cattle_ts,
+                                model = "StructTS", smooth = TRUE, type = "trend",
+                                maxgap = max_timestep) %>%
+  rename(Latitude_Clean = Latitude, Longitude_Clean = Longitude) %>%
+  filter(!is.na(Latitude_Clean), !is.na(Longitude_Clean)) %>%
+  left_join(cattle_df %>% filter(!isOutlier), by = "DateTime") %>%
+  mutate(Date = as.factor(as.character(as.Date(DateTime))) )
+  
+  return(cattle_ts_smoothed)
+}
