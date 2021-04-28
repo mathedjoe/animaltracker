@@ -2,7 +2,7 @@ if(getRversion() >= '2.5.1') {
   globalVariables(c('demo_comparison', 'RateSignal', 'cumDistSignal', 'Dropped.x',
                     'Dropped.y', 'VAR', 'Source', 'Signal', 'Flag', 'Rate.y',
                     'Course.y', 'Distance.y', 'cumDist.x', 'cumDistLower',
-                    'cumDistUpper', 'RateLower', 'RateUpper'))
+                    'cumDistUpper', 'RateLower', 'RateUpper', 'DistanceFlag'))
 }
 #'
 #'Run the 'shiny' validation app

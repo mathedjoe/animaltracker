@@ -76,7 +76,7 @@ library(devtools)
 #### animaltracker
 Install and load animaltracker by running the following:
 ```
-install_github(“mathedjoe/animaltracker”)
+install_github("mathedjoe/animaltracker")
 library(animaltracker) 
 ```
 #### Core Shiny App

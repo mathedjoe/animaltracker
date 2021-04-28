@@ -16,7 +16,6 @@ run_shiny_animaltracker <- function( browser = TRUE, showcase=FALSE) {
   requireNamespace("sp")
   requireNamespace("raster")
   requireNamespace("shinyjs")
-  requireNamespace("V8")
   requireNamespace("shinyBS")
   
   options(shiny.maxRequestSize=30*1024^2) 

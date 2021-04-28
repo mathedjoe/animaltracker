@@ -2,12 +2,13 @@
 if(getRversion() >= '2.5.1') {
   globalVariables(c('dplyr', 'tibble', 'forecast',
                     'Time', 'Altitude', 'Distance', 'TimeDiff', 'Course',
-                    'CourseDiff', 'DistGeo', 'RateFlag', 'CourseFlag', 'DistanceFlag',
+                    'CourseDiff', 'DistGeo', 'RateFlag', 'CourseFlag', 'DistFlag',
                     'TotalFlags', 'TimeFlag', 'DuplicateDateFlag', 'RMCRecord',
                     'ChecksumRMC', 'GGARecord', 'AltitudeM', 'HeightM', 'DGPSUpdate',
                     'ChecksumGGA', 'DateTimeChar', 'nSatellites', 'GroundSpeed',
                     'TrackAngle', 'hDilution', 'Height', 'Status', 'LatitudeFix',
-                    'LongitudeFix', 'MagVar', 'Satelite'))
+                    'LongitudeFix', 'MagVar', 'Satelite', 'MegaRateFlag',  'Keep',
+                    '.', 'DistFlag'))
 }
 
 #'
