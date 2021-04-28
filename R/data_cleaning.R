@@ -313,7 +313,7 @@ dev_add_to_gitignore <- function(data_dir) {
   close(fileConn)
 }
 
-kalmann <- function(df, min_longitude=-117, max_longitude=-116, min_latitude=43, max_latitude=44, max_timestep=300) {
+kalman <- function(df, min_longitude=-117, max_longitude=-116, min_latitude=43, max_latitude=44, max_timestep=300) {
   df <- df %>%
     mutate(DateTime = paste(Date, Time),
            DateTime = as.POSIXct(DateTime),
