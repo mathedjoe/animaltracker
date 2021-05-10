@@ -313,6 +313,7 @@ dev_add_to_gitignore <- function(data_dir) {
   close(fileConn)
 }
 
+# Implements kalman filter for filtering
 kalman <- function(df, min_longitude=-117, max_longitude=-116, min_latitude=43, max_latitude=44, max_timestep=300) {
   df <- df %>%
     mutate(DateTime = paste(Date, Time),
