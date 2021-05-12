@@ -2,7 +2,7 @@
 
 if(getRversion() >= '2.5.1') {
   globalVariables(c('demo_info', 'demo_unfiltered', 'demo_filtered', 'demo_meta', 'demo',
-                    'ani_id', 'Animal', 'Date', 'site', 'LocationID', 'tags', 'js', 'DateTime',
+                    'ani_id', 'Animal', 'Date', 'site', 'LocationID', 'tags', 'DateTime',
                     'Elevation', 'TimeDiffMins', 'Rate', 'Longitude', 'Latitude', 'LongBin',
                     'LatBin', 'Duration', 'stopApp', 'Speed', 'Slope', 'Aspect'))
 }
@@ -23,16 +23,19 @@ if(getRversion() >= '2.5.1') {
 #'@export
 #'
 app_server <- function(input, output, session) {
+
   # initialize list of datasets
   meta <- reactiveVal(demo_meta)
   uploaded <- reactiveVal(FALSE)
   processingInitiated <- reactiveVal(FALSE)
+  processingInitiatedAll <- reactiveVal(FALSE)
   
   raw_dat <- reactive({
     if(is.null(input$zipInput)) {
       return(demo_info)
     }
-    dat_info <- store_batch_list(input$zipInput)
+    dat_info <- store_batch_list(input$zipInput, max_rate = input$max_rate, max_course = input$max_course,
+                                 max_dist = input$max_dist, max_time = input$max_time)
     meta(dat_info$meta)
     uploaded(TRUE)
     return(dat_info)
@@ -45,7 +48,9 @@ app_server <- function(input, output, session) {
       return(demo_unfiltered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), filters = FALSE))
+      return(clean_batch_df(raw_dat(), filters = FALSE, max_rate = input$max_rate, 
+                            max_course = input$max_course, max_dist = input$max_dist,
+                            max_time = input$max_time))
     }
   })
   
@@ -54,40 +59,49 @@ app_server <- function(input, output, session) {
       return(demo_filtered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), filters = TRUE))
+      return(clean_batch_df(raw_dat(), filters = TRUE, max_rate = input$max_rate, 
+                            max_course = input$max_course, max_dist = input$max_dist,
+                            max_time = input$max_time))
     }
   })
   
   
   observeEvent(input$processButton, {
-    if(!identical(raw_dat(), demo_info)) {
       if(!is.null(lat_bounds()) && !is.null(long_bounds())) {
-        meta(clean_store_batch(raw_dat(), filters = TRUE, zoom = input$selected_zoom,
+        processingInitiatedAll(TRUE)
+        meta(clean_store_batch(raw_dat(), kalman=input$kalman_enable,
+                               kalman_max_timestep=input$kalman_max_timestep,
+                               filters = input$filterBox,
+                               zoom = input$selected_zoom,
                                input$slopeBox, input$aspectBox, 
                                lat_bounds()[1], lat_bounds()[2],
-                               long_bounds()[1], long_bounds()[2]))
+                               long_bounds()[1], long_bounds()[2], 
+                               max_rate = input$max_rate, max_course = input$max_course, 
+                               max_dist = input$max_dist, max_time = input$max_time))
       }
       else {
-        meta(clean_store_batch(raw_dat(), input$filterBox, zoom = input$selected_zoom,
+        processingInitiatedAll(TRUE)
+        meta(clean_store_batch(raw_dat(), kalman=input$kalman_enable,
+                               kalman_max_timestep=input$kalman_max_timestep,
+                               input$filterBox,
+                               zoom = input$selected_zoom,
                                input$slopeBox, input$aspectBox, 
                                raw_dat()$min_lat, raw_dat()$max_lat,
-                               raw_dat()$min_long, raw_dat()$max_long))
+                               raw_dat()$min_long, raw_dat()$max_long,
+                               max_rate = input$max_rate, max_course = input$max_course, 
+                               max_dist = input$max_dist, max_time = input$max_time))
       }
-    }
   })
   
   observeEvent(input$processSelectedButton, {
-    if(!identical(raw_dat(), demo_info)) {
-      processingInitiated(TRUE)
-    }
+    processingInitiated(TRUE)
   })
-  
+
   ######################################
   ## DYNAMIC DATA
   
   # last data set accessed
   cache <- reactiveVal(list())
-  
   
   # main dynamic data set
   dat_main <- reactive({
@@ -116,7 +130,7 @@ app_server <- function(input, output, session) {
       
       cache_name <- paste0(ani_names,", ",min_datetime,"-",max_datetime)
   
-      if( processingInitiated() || (uploaded() || !(cache_name %in% names(cache())))) {
+      if( processingInitiatedAll() || processingInitiated() || (uploaded() || !(cache_name %in% names(cache())))) {
         # if no user provided data, use demo data
         if(is.null(input$zipInput)) {
           current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id,
@@ -143,7 +157,13 @@ app_server <- function(input, output, session) {
             if(nrow(current_df) == 0) {
               return(cache()[[choose_recent()]]$df)
             }
-            current_df <- clean_location_data(current_df, dtype = "", prep = FALSE, filters = input$filterBox) 
+            current_df <- clean_location_data(current_df, dtype = "", prep = FALSE, filters = input$filterBox,
+                                              maxrate = input$max_rate, maxcourse = input$max_course,
+                                              maxdist = input$max_dist, maxtime = input$max_time,
+					      kalman=input$kalman_enable,  
+                                              kalman_max_timestep=input$kalman_max_timestep,
+                                              kalman_min_lat=lat_bounds()[1], kalman_max_lat=lat_bounds()[2],
+                                              kalman_min_lon=long_bounds()[1], kalman_max_lon=long_bounds()[2], zoom) 
           
             
             status_message <- modalDialog(
@@ -164,6 +184,17 @@ app_server <- function(input, output, session) {
             })
            
             removeModal()  
+          }
+          else if(processingInitiatedAll()) {
+            processingInitiatedAll(FALSE)
+            meta <- meta()
+            ani_names <- paste(meta$ani_id, collapse = ", ")
+            
+            min_datetime <- min(meta$min_date)
+            max_datetime <- max(meta$max_date)
+            
+            cache_name <- paste(paste0(ani_names,", ",min_datetime,"-",max_datetime), "(processed)")
+            current_df <- get_data_from_meta(meta, min_datetime, max_datetime)
           }
           else {
             if(any(meta$ani_id  %in% choose_ani()) ){
@@ -200,6 +231,22 @@ app_server <- function(input, output, session) {
   
   ######################################
   ## DYNAMIC USER INTERFACE
+  # Filter options
+  output$max_rate <- renderUI({
+    numericInput("max_rate", "Max movement rate (m/min):", value = 84, min = 1, max = 1000, step = 1)
+  })
+  
+  output$max_course <- renderUI({
+    numericInput("max_course", "Max distance (m):", value = 100, min = 1, max = 1000, step = 1)
+  })
+
+  output$max_dist <- renderUI({
+    numericInput("max_dist", "Max geographic distance (m):", value = 840, min = 1, max = 2000, step = 1)
+  })
+
+  output$max_time <- renderUI({
+    numericInput("max_time", "Max time (min):", value = 3600, min = 1, max = 15000, step = 1)
+  })
   
   # select lat/long bounds
   
@@ -212,6 +259,13 @@ app_server <- function(input, output, session) {
   output$zoom <- renderUI({
     req(input$mainmap_zoom)
     numericInput("selected_zoom", "Zoom:", value = input$mainmap_zoom, min = 1, max = 14, step = 1)
+  })
+  
+  
+  # Configuration for the Kalman algorithm -- it uses lat/long from the elevation options
+  
+  output$kalman_max_timestep <- renderUI({
+    numericInput("kalman_max_timestep", "Maximum Kalman timestep", value = 300, min = 0, max = 10000, step = 1)
   })
   
   # select data sites
@@ -361,6 +415,47 @@ app_server <- function(input, output, session) {
       colorFactor(scales::hue_pal()(length(current_anilist$ani)), current_anilist$ani)
     
     proxy <- leafletProxy("mainmap", session)
+
+    # Add fencing
+    
+    if(!is.null(input$kmzInput)) {
+      unlink(file.path("temp"), recursive=TRUE)
+      
+      kmz_coords <- maptools::getKMLcoordinates(kmlfile = utils::unzip(zipfile = input$kmzInput$datapath, 
+                                                      exdir = "temp"),
+                                      ignoreAltitude = TRUE)
+      for(kmz_element in kmz_coords) {
+        if(!is.matrix(kmz_element)) {
+          df_point <- data.frame(lng = kmz_element[1], lat = kmz_element[2])
+          proxy %>% 
+            addCircleMarkers(
+              data = df_point,
+              group = "fencing",
+              radius = 4,
+              stroke = FALSE,
+              weight = 3,
+              opacity = .8,
+              fillOpacity = 1,
+              color = "black",
+              fillColor = "black",
+              popup = ~ paste(
+                paste("Lat/Lon:", paste(kmz_element[2], kmz_element[1], sep =
+                                          ", "))
+              )
+            ) 
+        }
+        else if(kmz_element[1, 1] == kmz_element[nrow(kmz_element), 1] &
+                kmz_element[1, 2] == kmz_element[nrow(kmz_element), 2]) {
+          proxy %>% 
+            addPolygons(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "fencing")
+        }
+        else {
+          proxy %>% 
+            addPolylines(data = as.data.frame(kmz_element), lng = ~V1, lat = ~V2, group = "fencing")
+        }
+      }
+      unlink(file.path("temp"), recursive=TRUE)
+    }
     
     if (grepl("(processed)", choose_recent()) || is.null(last_drawn()) || (!is.null(selected_locations()) & is.null(last_locations())) || (!is.null(selected_locations()) & !identical(last_locations(), selected_locations()) & !identical(last_drawn()$ani, current_anilist))  
          || (!any(current_anilist$ani %in% last_drawn()$ani)) || (identical(last_drawn()$ani, current_anilist$ani) & identical(last_locations(), selected_locations()) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2))) {

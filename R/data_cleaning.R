@@ -1,20 +1,21 @@
 
 if(getRversion() >= '2.5.1') {
-  globalVariables(c('dplyr', 'tibble', 'forecast',
+  globalVariables(c('dplyr', 'tibble', 'forecast', 'tsbox', 'imputeTS', 'tidyverse',
                     'Time', 'Altitude', 'Distance', 'TimeDiff', 'Course',
-                    'CourseDiff', 'DistGeo', 'RateFlag', 'CourseFlag', 'DistanceFlag',
+                    'CourseDiff', 'DistGeo', 'RateFlag', 'CourseFlag', 'DistFlag',
                     'TotalFlags', 'TimeFlag', 'DuplicateDateFlag', 'RMCRecord',
                     'ChecksumRMC', 'GGARecord', 'AltitudeM', 'HeightM', 'DGPSUpdate',
                     'ChecksumGGA', 'DateTimeChar', 'nSatellites', 'GroundSpeed',
                     'TrackAngle', 'hDilution', 'Height', 'Status', 'LatitudeFix',
-                    'LongitudeFix', 'MagVar', 'Satelite'))
+                    'LongitudeFix', 'MagVar', 'Satelite', 'MegaRateFlag',  'Keep',
+                    '.', 'DistFlag'))
 }
 
 #'
 #'Generate metadata for a directory of animal data files
 #'
 #'@param data_dir directory of animal data files
-#'@return list of data info as a list of animal IDs and GPS units
+#'@return list of data info as a list of animal IDs and GPS units/ka
 #'@examples
 #'# Get metadata for demo directory
 #'
@@ -81,7 +82,8 @@ get_file_meta <- function(data_dir){
 clean_location_data <- function(df, dtype, 
                                 prep = TRUE, filters = TRUE, 
                                 aniid = NA, gpsid = NA, 
-                                maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=60*60, tz_in = "UTC", tz_out = "UTC"){
+                                maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=60*60, tz_in = "UTC", tz_out = "UTC",
+                                kalman = FALSE, kalman_min_lat=43, kalman_max_lat=44, kalman_min_lon=-117, kalman_max_lon=-116, kalman_max_timestep=300) {
   if(prep) {
     # make sure quantitative columns are read in properly
     df <- df %>% 
@@ -193,6 +195,14 @@ clean_location_data <- function(df, dtype,
         tibble::add_column(DuplicateDateFlag = 1*duplicated(df$DateTime)) %>%
         dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistFlag + TimeFlag + DuplicateDateFlag)
     }
+  
+  # After all other processing has been done, apply new filters
+  if(kalman) {
+    df <- kalman(df, min_longitude=kalman_min_lon, max_longitude=kalman_max_lon,
+                 min_latitude=kalman_min_lat, max_latitude=kalman_max_lat,
+                 max_timestep=kalman_max_timestep)
+  }
+  
   return(as.data.frame(df))
 }
 
@@ -312,3 +322,48 @@ dev_add_to_gitignore <- function(data_dir) {
   close(fileConn)
 }
 
+# Implements Kalman filter for filtering
+kalman <- function(cattle_df, min_longitude=-117, max_longitude=-116, min_latitude=43, max_latitude=44, max_timestep=300) {
+  ## read sample data
+  ## - label outliers using a 'window' on longitudes and latitudes
+  cattle_df <- cattle_df %>%
+    mutate(DateTime = paste(Date, Time),
+           DateTime = as.POSIXct(DateTime),
+           isOutlier = Longitude < min_longitude | Longitude > max_longitude | Latitude < min_latitude | Latitude > max_latitude
+    ) %>%
+    arrange(DateTime)
+
+  ## convert the irregular measurement data to a time series (equally spaced measurements)
+  ##  - for each date in the sample, build a sequence of equally spaced times at
+  ##  - use one second intervals
+  ##  - this will make a MUCH larger data set, with many NA values for missing measurements
+  date_time_seq <- lapply( unique( cattle_df$Date[!cattle_df$isOutlier] ),
+                           function(this_date){
+                             df_day <- cattle_df %>%
+                               filter(Date == this_date, !isOutlier)
+                             # make an equally-spaced sequence of date-times for this date
+                             seq.POSIXt(min(df_day$DateTime),
+                                        max(df_day$DateTime), by = 'sec')
+                           }
+  )  %>% Reduce(c, .)
+  
+  ## create time series object with 3 columns: DateTime, Longitude, Latitude
+  cattle_ts <- data.frame(DateTime = date_time_seq) %>%
+    left_join(cattle_df, by = "DateTime") %>%
+    mutate(Longitude = ifelse(isOutlier, NA, Longitude),
+           Latitude = ifelse(isOutlier, NA, Latitude)) %>%
+    select(DateTime, Longitude, Latitude) %>%
+    tsbox::ts_df() # uses library tsbox
+  
+  ## fill in missing data using kalman smoothing
+  # do not attempt to fill-in more than maxgap measurements (e.g., 5 minutes)
+  cattle_ts_smoothed <- imputeTS::na_kalman(cattle_ts,
+                                            model = "StructTS", smooth = TRUE, type = "trend",
+                                            maxgap = 60*5) %>%
+    rename(Latitude_Clean = Latitude, Longitude_Clean = Longitude) %>%
+    filter(!is.na(Latitude_Clean), !is.na(Longitude_Clean)) %>%
+    left_join(cattle_df %>% filter(!isOutlier), by = "DateTime") %>%
+    mutate(Date = as.factor(as.character(as.Date(DateTime))) )
+
+  return(cattle_ts_smoothed)
+}

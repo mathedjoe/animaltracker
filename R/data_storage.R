@@ -6,9 +6,13 @@ if(getRversion() >= '2.5.1') {
 #'Generates basic metadata about a directory of animal data files and stores the files as data frames as a list with the meta
 #'
 #'@param data_dir location of animal data files, in list format
+#'@param max_rate maximum rate of travel (meters/minute) between consecutive points
+#'@param max_course maximum distance (meters) between consecutive points
+#'@param max_dist maximum geographic distance (meters) between consecutive points
+#'@param max_time maximum time (minutes) between consecutive points
 #'@return a list of animal data frames with information about the data
 #'
-store_batch_list <- function(data_dir) {
+store_batch_list <- function(data_dir, max_rate, max_dist, max_course, max_time) {
   # unpack documents in the .zip file to a temp folder
   dir_name <- gsub(".zip", "", data_dir$name)
   
@@ -70,8 +74,12 @@ store_batch_list <- function(data_dir) {
     if(i > 1 ){
       maxminsll <- update_maxminlatlong(maxminsll, df, dtype)
     }
-    df <- clean_location_data(df, dtype, filters = FALSE, aniid = ani_ids[i], gpsid = gps_units[i])
-    df_clean <- clean_location_data(df, dtype, filters = TRUE, aniid = ani_ids[i], gpsid = gps_units[i])
+    df <- clean_location_data(df, dtype, filters = FALSE, aniid = ani_ids[i], gpsid = gps_units[i],
+                              maxrate = max_rate, maxdist = max_dist, maxcourse = max_course,
+                              maxtime = max_time)
+    df_clean <- clean_location_data(df, dtype, filters = TRUE, aniid = ani_ids[i], gpsid = gps_units[i],
+                                    maxrate = max_rate, maxdist = max_dist, maxcourse = max_course,
+                                    maxtime = max_time)
     current_meta <- get_meta(df_clean, i, dtype, file_names[i], site_names[i], ani_ids[i], "temp.rds")
     meta_df <- save_meta(meta_df, current_meta) 
     data_sets[[i]] <- df
@@ -98,9 +106,14 @@ store_batch_list <- function(data_dir) {
 #'@param filters filter bad data points, defaults to true
 #'@param tz_in input time zone, defaults to UTC
 #'@param tz_out output time zone, defaults to UTC
+#'@param maxrate maximum rate of travel (meters/minute) between consecutive points
+#'@param maxcourse maximum distance (meters) between consecutive points
+#'@param maxdist maximum geographic distance (meters) between consecutive points
+#'@param maxtime maximum time (minutes) between consecutive points
 #'@return clean df with all animal data files from the directory
 #'
-clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "UTC") {
+clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "UTC", max_rate, max_course,
+                            max_dist, max_time) {
   data_sets <- list()
   withProgress(message = paste0("Preparing raw data", ifelse(filters, " (filtered)", " (unfiltered)")), detail = paste0("0/",length(data_info$data), " files prepped"), value = 0, {
     
@@ -116,7 +129,8 @@ clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "U
       df_out <- clean_location_data(df, dtype, filters,
                                    aniid = aniid, 
                                    gpsid = gpsid, 
-                                   maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = tz_in, tz_out = tz_out)
+                                   maxrate = max_rate, max_course = max_course, 
+                                   max_dist = max_dist, max_time=max_time, tz_in = tz_in, tz_out = tz_out)
     }
     else {
       df_out <- df
@@ -144,18 +158,23 @@ clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "U
 #'@param max_long maximum longitude for filtering, defaults to max in data_info
 #'@param tz_in input time zone, defaults to UTC
 #'@param tz_out output time zone, defaults to UTC
+#'@param maxrate maximum rate of travel (meters/minute) between consecutive points
+#'@param maxcourse maximum distance (meters) between consecutive points
+#'@param maxdist maximum geographic distance (meters) between consecutive points
+#'@param maxtime maximum time (minutes) between consecutive points
 #'@return df of metadata for animal file directory
 #'
 clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = TRUE, get_aspect = TRUE, 
                               min_lat = data_info$min_lat, max_lat = data_info$max_lat, min_long = data_info$min_long, max_long = data_info$max_long, 
-                              tz_in = "UTC", tz_out = "UTC") {
+                              tz_in = "UTC", tz_out = "UTC", kalman = FALSE, kalman_max_timestep=300, max_rate, max_course, max_dist, max_time) {
   #initialize empty meta
   meta_df <- data.frame(matrix(ncol = 9, nrow = 0))
   meta_cols <- c("file_id", "file_name", "site", "ani_id", "min_date", "max_date", "min_lat", "max_lat", "storage")
   colnames(meta_df) <- meta_cols
  
   num_saved_rds <- 0
-
+  
+  
   withProgress(message = "Processing data", detail = paste0("0/",length(data_info$data), " files processed"), value = 0, {
 
   data_sets <- list()
@@ -167,7 +186,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
     df <- data_info$data[[i]]
     dtype <- data_info$meta$dtype[i]
     
-    if(dtype == "igotu") {
+    if(dtype == "igotu" & data_info$meta$storage[1] != "demo_nov19.rds") {
       df <- df[!duplicated(as.list(df))] # discard any columns that are duplicates of index
       colnames(df)[1] <- "Index"
       suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
@@ -179,11 +198,14 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
     gpsid <- data_info$gps[i]
     
     # clean df
+    
     df_out<- clean_location_data(df, dtype, filters,
-                             aniid = aniid, 
-                             gpsid = gpsid, 
-                             maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=100, tz_in = tz_in, tz_out = tz_out)
-   
+                             aniid = aniid,
+                             gpsid = gpsid,
+                             maxrate = max_rate, maxcourse = max_course, maxdist = max_dist, maxtime = max_time,
+                             tz_in = tz_in, tz_out = tz_out,
+                             kalman=kalman, kalman_min_lat=min_lat, kalman_max_lat=max_lat, kalman_min_lon=min_long, kalman_max_lon=max_long, kalman_max_timestep=kalman_max_timestep)
+    
     # add cleaned df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df_out
     all_data_sets <- all_data_sets %>% rbind(df_out)
@@ -207,7 +229,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
     showModal(status_message)
     
     if(nrow(elev_data_sets) == 0) {
-      incProgress(0, detail = "Appending elevation at zoom = ", zoom, " for invalid bounds. Defaulting to all data.")
+      incProgress(0, detail = paste0("Appending elevation at zoom = ", zoom, " for invalid bounds. Defaulting to all data."))
       withCallingHandlers({
         shinyjs::html("console", "")
         elev_data_sets <- lookup_elevation_aws(all_data_sets, zoom = zoom, get_slope = get_slope, get_aspect = get_aspect)

@@ -4,7 +4,9 @@
 \name{demo_info}
 \alias{demo_info}
 \title{Raw demo animal GPS data from cows with information}
-\format{A list with 10 elements}
+\format{
+A list with 10 elements
+}
 \usage{
 demo_info
 }

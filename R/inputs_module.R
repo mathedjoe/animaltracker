@@ -224,10 +224,10 @@ time <- function(input, output, session, type, meta, selected_ani) {
     meta <- meta()
     
     if(type == "min") {
-      textInput(ns("selected_time"), "Min Time", value = strftime(min(meta$min_date), format="%H:%M:%S", tz="UTC"), placeholder = "HH:MM:SS")
+      textInput(ns("selected_time"), "Min Time (HH:MM:SS)", value = strftime(min(meta$min_date), format="%H:%M:%S", tz="UTC"), placeholder = "HH:MM:SS")
     }
     else if(type == "max") {
-      textInput(ns("selected_time"), "Max Time", value = strftime(max(meta$max_date), format="%H:%M:%S", tz="UTC"), placeholder = "HH:MM:SS")
+      textInput(ns("selected_time"), "Max Time (HH:MM:SS)", value = strftime(max(meta$max_date), format="%H:%M:%S", tz="UTC"), placeholder = "HH:MM:SS")
     }
   })
   

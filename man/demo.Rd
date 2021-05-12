@@ -4,7 +4,9 @@
 \name{demo}
 \alias{demo}
 \title{Demo animal GPS data from cows}
-\format{A data frame with 2171 rows and 29 variables}
+\format{
+A data frame with 2171 rows and 29 variables
+}
 \usage{
 demo
 }
