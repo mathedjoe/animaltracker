@@ -69,7 +69,10 @@ app_server <- function(input, output, session) {
   observeEvent(input$processButton, {
       if(!is.null(lat_bounds()) && !is.null(long_bounds())) {
         processingInitiatedAll(TRUE)
-        meta(clean_store_batch(raw_dat(), filters = input$filterBox, zoom = input$selected_zoom,
+        meta(clean_store_batch(raw_dat(), kalman=input$kalman_enable,
+                               kalman_max_timestep=input$kalman_max_timestep,
+                               filters = input$filterBox,
+                               zoom = input$selected_zoom,
                                input$slopeBox, input$aspectBox, 
                                lat_bounds()[1], lat_bounds()[2],
                                long_bounds()[1], long_bounds()[2], 
@@ -78,7 +81,10 @@ app_server <- function(input, output, session) {
       }
       else {
         processingInitiatedAll(TRUE)
-        meta(clean_store_batch(raw_dat(), input$filterBox, zoom = input$selected_zoom,
+        meta(clean_store_batch(raw_dat(), kalman=input$kalman_enable,
+                               kalman_max_timestep=input$kalman_max_timestep,
+                               input$filterBox,
+                               zoom = input$selected_zoom,
                                input$slopeBox, input$aspectBox, 
                                raw_dat()$min_lat, raw_dat()$max_lat,
                                raw_dat()$min_long, raw_dat()$max_long,
@@ -151,9 +157,13 @@ app_server <- function(input, output, session) {
             if(nrow(current_df) == 0) {
               return(cache()[[choose_recent()]]$df)
             }
-            current_df <- clean_location_data(current_df, dtype = "", prep = FALSE, filters = input$filterBox, zoom,
+            current_df <- clean_location_data(current_df, dtype = "", prep = FALSE, filters = input$filterBox,
                                               maxrate = input$max_rate, maxcourse = input$max_course,
-                                              maxdist = input$max_dist, maxtime = input$max_time) 
+                                              maxdist = input$max_dist, maxtime = input$max_time,
+					      kalman=input$kalman_enable,  
+                                              kalman_max_timestep=input$kalman_max_timestep,
+                                              kalman_min_lat=lat_bounds()[1], kalman_max_lat=lat_bounds()[2],
+                                              kalman_min_lon=long_bounds()[1], kalman_max_lon=long_bounds()[2], zoom) 
           
             
             status_message <- modalDialog(
@@ -249,6 +259,13 @@ app_server <- function(input, output, session) {
   output$zoom <- renderUI({
     req(input$mainmap_zoom)
     numericInput("selected_zoom", "Zoom:", value = input$mainmap_zoom, min = 1, max = 14, step = 1)
+  })
+  
+  
+  # Configuration for the Kalman algorithm -- it uses lat/long from the elevation options
+  
+  output$kalman_max_timestep <- renderUI({
+    numericInput("kalman_max_timestep", "Maximum Kalman timestep", value = 300, min = 0, max = 10000, step = 1)
   })
   
   # select data sites
