@@ -148,7 +148,7 @@ clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "U
 #'
 clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = TRUE, get_aspect = TRUE, 
                               min_lat = data_info$min_lat, max_lat = data_info$max_lat, min_long = data_info$min_long, max_long = data_info$max_long, 
-                              tz_in = "UTC", tz_out = "UTC") {
+                              tz_in = "UTC", tz_out = "UTC", kalman = FALSE, kalman_max_timestep=300) {
   #initialize empty meta
   meta_df <- data.frame(matrix(ncol = 9, nrow = 0))
   meta_cols <- c("file_id", "file_name", "site", "ani_id", "min_date", "max_date", "min_lat", "max_lat", "storage")
@@ -184,7 +184,8 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
     df_out<- clean_location_data(df, dtype, filters,
                              aniid = aniid, 
                              gpsid = gpsid, 
-                             maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=60*60, tz_in = tz_in, tz_out = tz_out)
+                             maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=60*60, tz_in = tz_in, tz_out = tz_out,
+                             kalman=kalman, kalman_min_lat=min_lat, kalman_max_lat=max_lat, kalman_min_lon=min_long, kalman_max_lon=max_long, kalman_max_timestep=kalman_max_timestep)
     
     # add cleaned df to the list of data
     data_sets[[paste0("ani",aniid)]] <- df_out

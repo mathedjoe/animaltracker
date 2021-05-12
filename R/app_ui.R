@@ -47,7 +47,11 @@ app_ui <- function(){
                           h4("3. Data Processing"),
                           shinyBS::bsCollapse(id = "uploadOptions", open = "Elevation Options",
                                      shinyBS::bsCollapsePanel("Cleaning Options",
-                                                     checkboxInput("filterBox", label = "Filter bad data points", value = TRUE)
+                                                     checkboxInput("filterBox", label = "Filter bad data points", value = TRUE),
+                                                     checkboxInput("kalman_enable", label = "Cluster data with Kalman filtering", value = FALSE),
+                                                     shinyBS::bsCollapsePanel("Kalman Configuration Options",
+                                                       uiOutput("kalman_max_timestep")
+                                                     )
                                      ),
                                      shinyBS::bsCollapsePanel("Elevation Options",
                                                      reactiveRangeOutput("lat_bounds"),
