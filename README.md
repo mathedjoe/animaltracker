@@ -12,7 +12,7 @@ Please refer to the [PDF manual](https://github.com/mathedjoe/animaltracker/blob
 
 The Animal Tracker app ships with demo data included. Or, conveniently upload your own .csv or .txt animal data files in a zip folder. There is an option for the app to filter bad data points after files are uploaded. You can configure the filtration parameters and optionally cluster with a Kalman clustering algorithm.
 
-![image](https://user-images.githubusercontent.com/37714689/70205135-543d2480-16e0-11ea-9ed5-c9df1f390b39.png)
+![image](https://user-images.githubusercontent.com/5386960/118291424-723db580-b48c-11eb-9a31-00193f303aca.png)
 
 By default, the elevation lookup is bounded by the maximum/minimum latitude and longitude determined from parsing the uploaded data, but the bounds can be modified manually. These bounds also impact the Kalman clustering from the filtration menu. Similarly, the zoom level defaults to the current map zoom, but can also be changed manually to values from 1-14. Click on the checkboxes to include slope and aspect with elevation.
 
