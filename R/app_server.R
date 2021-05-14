@@ -415,22 +415,21 @@ app_server <- function(input, output, session) {
    
     if (uploaded() || water_uploaded() || grepl("(processed)", choose_recent()) || is.null(last_drawn()) || (!is.null(selected_locations()) & is.null(last_locations())) || (!is.null(selected_locations()) & !identical(last_locations(), selected_locations()) & !identical(last_drawn()$ani, current_anilist))  
          || (!any(current_anilist$ani %in% last_drawn()$ani)) || (identical(last_drawn()$ani, current_anilist$ani) & identical(last_locations(), selected_locations()) & (last_drawn()$date1 != current_anilist$date1 || last_drawn()$date2 != current_anilist$date2))) {
-      
-      if(!any(current_anilist$ani %in% unique(demo$Animal))) {
-        for(ani in unique(demo$Animal)) {
-          proxy %>% clearGroup(ani)
-        }
-      }
-      else if(!is.null(last_drawn())) {
+     
+    
+      if(!is.null(last_drawn())) { # if previously drawn points exist remove them
+        print("removing old points")
         for(ani in last_drawn()$ani) {
           proxy %>% clearGroup(ani)
         }
       }
       
+      # if fencing exists plot it
       if(length(kmz_coords()) > 0) {
         plot_geographic_features(proxy, kmz_coords())
       }
       
+      # if water exists plot it
       if(length(water_geoms) > 0) {
         plot_water_sources(proxy, pts, water_geoms, custom_icon_list)
         if(water_uploaded()) {
@@ -438,6 +437,7 @@ app_server <- function(input, output, session) {
         }
       } # if water closing bracket
       else {
+        # plot animal points without water
         plot_animal_points(proxy, pts)
       } # else no water closing bracket
  
@@ -629,6 +629,7 @@ app_server <- function(input, output, session) {
     }
     #Only add new layers for bounded locations
     # transform into a spatial polygon
+    
     drawn_polygon <- sp::Polygon(
                         do.call(rbind,
                                 lapply(input$mainmap_draw_new_feature$geometry$coordinates[[1]],
@@ -652,7 +653,6 @@ app_server <- function(input, output, session) {
       locs_out <-locs_out[ which(!is.na(selected_locs)) ] 
       
     }
-
     locs_out
     
   })
