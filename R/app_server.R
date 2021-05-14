@@ -98,8 +98,13 @@ app_server <- function(input, output, session) {
   })
   
   observeEvent(input$generateGif, {
+    #.gif generation for the time-series animation
     output$animatedPlot <- renderImage({
+      
+      # Store in temporary file
       outfile <- tempfile(fileext='.gif')
+      
+      # Get time-series graph bounded by the mean Lat/Long
       animate_df <- clean_filtered() %>% select (Date, Time, Latitude, Longitude)
       DateandTimeString = paste(animate_df$Date, animate_df$Time)
       
@@ -112,18 +117,22 @@ app_server <- function(input, output, session) {
       lon_bot_bound = floor(mean_lon)
       lon_top_bound = ceiling(mean_lon)
 
+      # Create the animation with given styling values
       dataGraph <- ggplot(animate_df, aes(y=Latitude,x=Longitude)) + geom_point() +
         gganimate::transition_time(DateandTimeFormat) + ylim(lat_bot_bound,lat_top_bound) +
         xlim(lon_bot_bound,lon_top_bound) + gganimate::ease_aes('linear') + 
         labs(title = "Time: {frame_time}") + 
         gganimate::shadow_wake(wake_length = 0.1, alpha = FALSE)
       
+      # Save the animation to the temp file, render with gifski
       gganimate::anim_save("outfile.gif", gganimate::animate(dataGraph, duration=30,
                                                              fps=10, width=750, height=400, 
                                                              renderer = gganimate::gifski_renderer()))
       
+      # Get the outfile and use it as the return value for the renderImage call
       list(src="outfile.gif", contentType = 'image/gif')}, deleteFile = TRUE)
     
+    # Display the modal, using the outfile as the image source
     showModal(modalDialog(title = "Generating animation...", size="l", imageOutput("animatedPlot")))
   })
 
