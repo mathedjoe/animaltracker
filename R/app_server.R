@@ -96,6 +96,36 @@ app_server <- function(input, output, session) {
   observeEvent(input$processSelectedButton, {
     processingInitiated(TRUE)
   })
+  
+  observeEvent(input$generateGif, {
+    output$animatedPlot <- renderImage({
+      outfile <- tempfile(fileext='.gif')
+      animate_df <- clean_filtered() %>% select (Date, Time, Latitude, Longitude)
+      DateandTimeString = paste(animate_df$Date, animate_df$Time)
+      
+      DateandTimeFormat <- as.POSIXct(DateandTimeString,format="%Y-%m-%d %H:%M:%S",tz=Sys.timezone())
+      
+      mean_lat = mean(animate_df$Latitude)
+      mean_lon = mean(animate_df$Longitude)
+      lat_bot_bound = floor(mean_lat)
+      lat_top_bound = ceiling(mean_lat)
+      lon_bot_bound = floor(mean_lon)
+      lon_top_bound = ceiling(mean_lon)
+
+      dataGraph <- ggplot(animate_df, aes(y=Latitude,x=Longitude)) + geom_point() +
+        gganimate::transition_time(DateandTimeFormat) + ylim(lat_bot_bound,lat_top_bound) +
+        xlim(lon_bot_bound,lon_top_bound) + gganimate::ease_aes('linear') + 
+        labs(title = "Time: {frame_time}") + 
+        gganimate::shadow_wake(wake_length = 0.1, alpha = FALSE)
+      
+      gganimate::anim_save("outfile.gif", gganimate::animate(dataGraph, duration=30,
+                                                             fps=10, width=750, height=400, 
+                                                             renderer = gganimate::gifski_renderer()))
+      
+      list(src="outfile.gif", contentType = 'image/gif')}, deleteFile = TRUE)
+    
+    showModal(modalDialog(title = "Generating animation...", size="l", imageOutput("animatedPlot")))
+  })
 
   ######################################
   ## DYNAMIC DATA

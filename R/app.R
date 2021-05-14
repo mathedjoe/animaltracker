@@ -19,6 +19,8 @@ run_shiny_animaltracker <- function( browser = TRUE, showcase=FALSE) {
   requireNamespace("shinyBS")
   requireNamespace("tsbox") # converting between time series formats
   requireNamespace("imputeTS") # for filling in missing / outlier data
+  requireNamespace("gganimate")
+  requireNamespace("gifski")
   
   options(shiny.maxRequestSize=30*1024^2) 
  
