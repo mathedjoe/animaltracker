@@ -23,6 +23,7 @@ if(getRversion() >= '2.5.1') {
 #'@export
 #'
 app_server <- function(input, output, session) {
+
   # initialize list of datasets
   meta <- reactiveVal(demo_meta)
   uploaded <- reactiveVal(FALSE)
@@ -33,7 +34,8 @@ app_server <- function(input, output, session) {
     if(is.null(input$zipInput)) {
       return(demo_info)
     }
-    dat_info <- store_batch_list(input$zipInput)
+    dat_info <- store_batch_list(input$zipInput, max_rate = input$max_rate, max_course = input$max_course,
+                                 max_dist = input$max_dist, max_time = input$max_time)
     meta(dat_info$meta)
     uploaded(TRUE)
     return(dat_info)
@@ -46,7 +48,9 @@ app_server <- function(input, output, session) {
       return(demo_unfiltered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), filters = FALSE))
+      return(clean_batch_df(raw_dat(), filters = FALSE, max_rate = input$max_rate, 
+                            max_course = input$max_course, max_dist = input$max_dist,
+                            max_time = input$max_time))
     }
   })
   
@@ -55,7 +59,9 @@ app_server <- function(input, output, session) {
       return(demo_filtered)
     }
     if(!identical(raw_dat(), demo_info)) {
-      return(clean_batch_df(raw_dat(), filters = TRUE))
+      return(clean_batch_df(raw_dat(), filters = TRUE, max_rate = input$max_rate, 
+                            max_course = input$max_course, max_dist = input$max_dist,
+                            max_time = input$max_time))
     }
   })
   
@@ -63,17 +69,27 @@ app_server <- function(input, output, session) {
   observeEvent(input$processButton, {
       if(!is.null(lat_bounds()) && !is.null(long_bounds())) {
         processingInitiatedAll(TRUE)
-        meta(clean_store_batch(raw_dat(), filters = input$filterBox, zoom = input$selected_zoom,
+        meta(clean_store_batch(raw_dat(), kalman=input$kalman_enable,
+                               kalman_max_timestep=input$kalman_max_timestep,
+                               filters = input$filterBox,
+                               zoom = input$selected_zoom,
                                input$slopeBox, input$aspectBox, 
                                lat_bounds()[1], lat_bounds()[2],
-                               long_bounds()[1], long_bounds()[2]))
+                               long_bounds()[1], long_bounds()[2], 
+                               max_rate = input$max_rate, max_course = input$max_course, 
+                               max_dist = input$max_dist, max_time = input$max_time))
       }
       else {
         processingInitiatedAll(TRUE)
-        meta(clean_store_batch(raw_dat(), input$filterBox, zoom = input$selected_zoom,
+        meta(clean_store_batch(raw_dat(), kalman=input$kalman_enable,
+                               kalman_max_timestep=input$kalman_max_timestep,
+                               input$filterBox,
+                               zoom = input$selected_zoom,
                                input$slopeBox, input$aspectBox, 
                                raw_dat()$min_lat, raw_dat()$max_lat,
-                               raw_dat()$min_long, raw_dat()$max_long))
+                               raw_dat()$min_long, raw_dat()$max_long,
+                               max_rate = input$max_rate, max_course = input$max_course, 
+                               max_dist = input$max_dist, max_time = input$max_time))
       }
   })
   
@@ -81,6 +97,36 @@ app_server <- function(input, output, session) {
     processingInitiated(TRUE)
   })
   
+  observeEvent(input$generateGif, {
+    output$animatedPlot <- renderImage({
+      outfile <- tempfile(fileext='.gif')
+      animate_df <- clean_filtered() %>% select (Date, Time, Latitude, Longitude)
+      DateandTimeString = paste(animate_df$Date, animate_df$Time)
+      
+      DateandTimeFormat <- as.POSIXct(DateandTimeString,format="%Y-%m-%d %H:%M:%S",tz=Sys.timezone())
+      
+      mean_lat = mean(animate_df$Latitude)
+      mean_lon = mean(animate_df$Longitude)
+      lat_bot_bound = floor(mean_lat)
+      lat_top_bound = ceiling(mean_lat)
+      lon_bot_bound = floor(mean_lon)
+      lon_top_bound = ceiling(mean_lon)
+
+      dataGraph <- ggplot(animate_df, aes(y=Latitude,x=Longitude)) + geom_point() +
+        gganimate::transition_time(DateandTimeFormat) + ylim(lat_bot_bound,lat_top_bound) +
+        xlim(lon_bot_bound,lon_top_bound) + gganimate::ease_aes('linear') + 
+        labs(title = "Time: {frame_time}") + 
+        gganimate::shadow_wake(wake_length = 0.1, alpha = FALSE)
+      
+      gganimate::anim_save("outfile.gif", gganimate::animate(dataGraph, duration=30,
+                                                             fps=10, width=750, height=400, 
+                                                             renderer = gganimate::gifski_renderer()))
+      
+      list(src="outfile.gif", contentType = 'image/gif')}, deleteFile = TRUE)
+    
+    showModal(modalDialog(title = "Generating animation...", size="l", imageOutput("animatedPlot")))
+  })
+
   ######################################
   ## DYNAMIC DATA
   
@@ -141,7 +187,13 @@ app_server <- function(input, output, session) {
             if(nrow(current_df) == 0) {
               return(cache()[[choose_recent()]]$df)
             }
-            current_df <- clean_location_data(current_df, dtype = "", prep = FALSE, filters = input$filterBox) 
+            current_df <- clean_location_data(current_df, dtype = "", prep = FALSE, filters = input$filterBox,
+                                              maxrate = input$max_rate, maxcourse = input$max_course,
+                                              maxdist = input$max_dist, maxtime = input$max_time,
+					      kalman=input$kalman_enable,  
+                                              kalman_max_timestep=input$kalman_max_timestep,
+                                              kalman_min_lat=lat_bounds()[1], kalman_max_lat=lat_bounds()[2],
+                                              kalman_min_lon=long_bounds()[1], kalman_max_lon=long_bounds()[2], zoom) 
           
             
             status_message <- modalDialog(
@@ -209,6 +261,22 @@ app_server <- function(input, output, session) {
   
   ######################################
   ## DYNAMIC USER INTERFACE
+  # Filter options
+  output$max_rate <- renderUI({
+    numericInput("max_rate", "Max movement rate (m/min):", value = 84, min = 1, max = 1000, step = 1)
+  })
+  
+  output$max_course <- renderUI({
+    numericInput("max_course", "Max distance (m):", value = 100, min = 1, max = 1000, step = 1)
+  })
+
+  output$max_dist <- renderUI({
+    numericInput("max_dist", "Max geographic distance (m):", value = 840, min = 1, max = 2000, step = 1)
+  })
+
+  output$max_time <- renderUI({
+    numericInput("max_time", "Max time (min):", value = 3600, min = 1, max = 15000, step = 1)
+  })
   
   # select lat/long bounds
   
@@ -221,6 +289,13 @@ app_server <- function(input, output, session) {
   output$zoom <- renderUI({
     req(input$mainmap_zoom)
     numericInput("selected_zoom", "Zoom:", value = input$mainmap_zoom, min = 1, max = 14, step = 1)
+  })
+  
+  
+  # Configuration for the Kalman algorithm -- it uses lat/long from the elevation options
+  
+  output$kalman_max_timestep <- renderUI({
+    numericInput("kalman_max_timestep", "Maximum Kalman timestep", value = 300, min = 0, max = 10000, step = 1)
   })
   
   # select data sites

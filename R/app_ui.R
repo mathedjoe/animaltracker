@@ -9,7 +9,6 @@
 #'
 
 app_ui <- function(){
-  
   jsCode <- 'shinyjs.removePolygon = function() {
     var event = document.createEvent("Event");
     event.initEvent("click", true, true);
@@ -47,7 +46,18 @@ app_ui <- function(){
                           h4("3. Data Processing"),
                           shinyBS::bsCollapse(id = "uploadOptions", open = "Elevation Options",
                                      shinyBS::bsCollapsePanel("Cleaning Options",
-                                                     checkboxInput("filterBox", label = "Filter bad data points", value = TRUE)
+                                                     checkboxInput("filterBox", label = "Filter bad data points", value = TRUE),
+                                                     shinyBS::bsCollapsePanel("Filter Configuration Options",
+                                                     	uiOutput("max_rate"),
+                                                     	uiOutput("max_course"),
+                                                     	uiOutput("max_dist"),
+                                                     	uiOutput("max_time")
+						     ),
+
+                                                     checkboxInput("kalman_enable", label = "Cluster data with Kalman filtering", value = FALSE),
+                                                     shinyBS::bsCollapsePanel("Kalman Configuration Options",
+                                                       uiOutput("kalman_max_timestep")
+                                                     )
                                      ),
                                      shinyBS::bsCollapsePanel("Elevation Options",
                                                      reactiveRangeOutput("lat_bounds"),
@@ -78,6 +88,9 @@ app_ui <- function(){
                           
                           leafletOutput("mainmap", height = 640) %>% shinycssloaders::withSpinner(),
                           htmlOutput("mapinfo"),
+                          actionButton("generateGif", "Create movement animation"),
+                          br(),
+                          br(),
                           h4("Display Fencing"),
                           fileInput("kmzInput", "Upload kmz file", accept=c(".kmz")),
                           h4("Recent Data"),
