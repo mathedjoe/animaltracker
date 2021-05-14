@@ -9,7 +9,6 @@
 #'
 
 app_ui <- function(){
-  
   jsCode <- 'shinyjs.removePolygon = function() {
     var event = document.createEvent("Event");
     event.initEvent("click", true, true);
@@ -89,6 +88,9 @@ app_ui <- function(){
                           
                           leafletOutput("mainmap", height = 640) %>% shinycssloaders::withSpinner(),
                           htmlOutput("mapinfo"),
+                          actionButton("generateGif", "Create movement animation"),
+                          br(),
+                          br(),
                           h4("Display Fencing"),
                           fileInput("kmzInput", "Upload kmz file", accept=c(".kmz")),
                           h4("Recent Data"),
