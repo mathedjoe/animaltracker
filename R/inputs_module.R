@@ -3,6 +3,7 @@
 #'
 #'@param id chosen ID of UI output
 #'@return 'shiny' uiOutput object for dropdown selection
+#'@noRd
 #'
 staticPickerOutput <- function(id) {
   ns <- NS(id)
@@ -21,6 +22,7 @@ staticPickerOutput <- function(id) {
 #'@param min_selected index of lowest selected value in choices
 #'@param max_selected index of highest selected value in choices
 #'@return 'shiny' renderUI object for dropdown selection
+#'@noRd
 #'
 staticPicker <- function(input, output, session, selected_ani, text, choices, min_selected, max_selected) {
   ns <- session$ns
@@ -40,6 +42,7 @@ staticPicker <- function(input, output, session, selected_ani, text, choices, mi
 #'
 #'@param id chosen ID of UI output
 #'@return 'shiny' uiOutput object for dropdown selection
+#'@noRd
 #'
 reactivePickerOutput <- function(id) {
   ns <- NS(id)
@@ -60,6 +63,7 @@ reactivePickerOutput <- function(id) {
 #'@param multiple logical, whether to allow selecting multiple values
 #'@param options options for shinyWidgets pickerInput
 #'@return 'shiny' renderUI object for dropdown selection
+#'@noRd
 #'
 reactivePicker <- function(input, output, session, type, req_list, text, min_selected = NULL, max_selected = NULL, multiple, options = NULL) {
   ns <- session$ns
@@ -119,6 +123,7 @@ reactivePicker <- function(input, output, session, type, req_list, text, min_sel
 #'
 #'@param id chosen ID of UI output
 #'@return 'shiny' uiOutput for date picker
+#'@noRd
 #'
 datePickerOutput <- function(id) {
   ns <- NS(id)
@@ -134,6 +139,7 @@ datePickerOutput <- function(id) {
 #'@param req_list list of reactive statements required to display picker
 #'@param text title for picker
 #'@return 'shiny' renderUI object for date picker
+#'@noRd
 #'
 datePicker <- function(input, output, session, req_list, text) {
   ns <- session$ns
@@ -160,6 +166,7 @@ datePicker <- function(input, output, session, req_list, text) {
 #'
 #'@param id chosen ID of UI output
 #'@return 'shiny' uiOutput for coordinate range input
+#'@noRd
 #'
 reactiveRangeOutput <- function(id) {
   ns <- NS(id)
@@ -175,6 +182,7 @@ reactiveRangeOutput <- function(id) {
 #'@param type latitude or longitude
 #'@param dat animal data frame 
 #'@return 'shiny' renderUI object for coordinate range input
+#'@noRd
 #'
 reactiveRange <- function(input, output, session, type, dat) {
   ns <- session$ns
@@ -196,6 +204,7 @@ reactiveRange <- function(input, output, session, type, dat) {
 #'
 #'@param id chosen ID of UI output
 #'@return 'shiny' uiOutput for time input
+#'@noRd
 #'
 timeOutput <- function(id) {
   ns <- NS(id)
@@ -212,6 +221,7 @@ timeOutput <- function(id) {
 #'@param meta animal metadata from app, must be non-empty for time input to display
 #'@param selected_ani selected animals from app, must be non-empty for time to display
 #'@return 'shiny' renderUI object for time input 
+#'@noRd
 #'
 time <- function(input, output, session, type, meta, selected_ani) {
   ns <- session$ns

@@ -5,7 +5,7 @@
 #'
 #'
 #'@return ui function for use in a 'shiny' app
-#'@export
+#'@noRd
 #'
 
 app_ui <- function(){
@@ -78,8 +78,10 @@ app_ui <- function(){
                           
                           leafletOutput("mainmap", height = 640) %>% shinycssloaders::withSpinner(),
                           htmlOutput("mapinfo"),
-                          h4("Display Fencing"),
-                          fileInput("kmzInput", "Upload kmz file", accept=c(".kmz")),
+                          h4("Display Geographic Features"),
+                          fileInput("kmzInput", "Upload kmz file to display fences, etc.", accept=c(".kmz")),
+                          h4("Add Water Sources"),
+                          fileInput("waterInput", "Upload kmz file to compute distance to water", accept=c(".kmz")),
                           h4("Recent Data"),
                           reactivePickerOutput("choose_recent"),
                           textOutput("nrow_recent"),

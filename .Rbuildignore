@@ -1,6 +1,5 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-^README\.md$
 ^R/scratch$
 ^animaltracker\.pdf$
 ^test_data$

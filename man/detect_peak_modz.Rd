@@ -21,9 +21,3 @@ df with classifications
 Alternative implementation of the robust peak detection algorithm by van Brakel 2014 
 Classifies data points with modified z-scores greater than max_score as outliers ccording to Iglewicz and Hoaglin 1993
 }
-\examples{
-# Join and reformat unfiltered demo data and filtered demo data
-
-detect_peak_modz(demo_comparison, lag = 5, max_score = 3.5)
-
-}
