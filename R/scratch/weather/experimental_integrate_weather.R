@@ -1,0 +1,67 @@
+library(tidyverse)
+library(animaltracker)
+library(lubridate)
+test_ani <- read.csv("R/scratch/Riggs_March19_79.csv", skipNul = TRUE) %>% 
+  clean_location_data(dtype = "igotu", filters = FALSE, aniid = 79)
+
+
+# use date and location to look up weather
+install.packages("rnoaa")
+library("rnoaa")
+
+dates <- list(min = min(test_ani$Date), max = max(test_ani$Date))
+
+# choose a data set
+# ?isd
+
+# given a location, find the nearest station(s)
+station_closest <- isd_stations_search(lat = median(test_ani$Latitude, na.rm=TRUE), 
+                                    lon = median(test_ani$Longitude, na.rm=TRUE), 
+                                    radius = 1 ) %>% 
+  mutate(begin = as.Date(as.character(begin), format = "%Y%m%d"),
+         end = as.Date(as.character(end), format = "%Y%m%d")) %>%
+  filter(dates$min > begin, dates$max < end) %>%
+  filter(distance == min(distance))
+
+if(nrow(station_closest) == 0){
+  print("the rest of this code won't work")
+}
+# given dates, find the weather data from the station(s)
+data_years <- year(dates$min):year(dates$max)
+
+weather_raw <- lapply(data_years, function(x){
+  isd(station_closest$usaf, station_closest$wban, x)
+}) %>% 
+  bind_rows
+
+weather_df <- weather_raw %>% 
+  select(raw_date = date,  raw_time = time, 
+         wind_direction, wind_speed, 
+         temperature, temperature_dewpoint, 
+         air_pressure ) %>% 
+  mutate(date =  as.Date(as.character(raw_date), format = "%Y%m%d"),
+         datetime = as.POSIXct(paste(raw_date, raw_time), format = "%Y%m%d %H%M", tz = "UTC"),
+         datehr = round_date(datetime, unit = "hour")) %>% 
+  filter(datetime >= min(round_date(test_ani$DateTime-hours(12), unit="hour"), na.rm=TRUE), 
+         datetime <= max(round_date(test_ani$DateTime+hours(12), unit="hour"), na.rm=TRUE),
+         !is.na(datehr),
+         !duplicated(datehr) # note: might be better to group_by(datehr) and aggregate/average
+  )
+
+# build a time series of the weather data (hourly)
+
+date_time_seq <- seq.POSIXt(min(weather_df$datehr), 
+                            max(weather_df$datehr), by = 'hour')
+
+
+## create time series object with 3 columns: DateTime, Longitude, Latitude
+weather_ts <- data.frame(datehr = date_time_seq) %>% 
+  left_join( weather_df, by = "datehr") 
+
+# round the animal data to the nearest hour
+# left_join weather ts to the animal data
+
+test_ani_aug <- test_ani %>% 
+  mutate(datehr = round_date(DateTime, unit= "hour")) %>%
+  left_join(weather_ts)
+
