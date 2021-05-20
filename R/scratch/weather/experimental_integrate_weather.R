@@ -77,19 +77,7 @@ test_ani_aug <- test_ani %>%
 ####################
 # ANALYZE POTENTIAL WEATHER EFFECTS
 
-test_ani_aug %>% 
-  filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo), Keep == 1) %>%
-  group_by(Animal, datehr) %>% 
-  summarize( n = n(),
-             date = first(date),
-             temp = first(temperature),
-             rate = mean(Rate),
-             distance = sum(DistGeo)) %>%
-  ungroup() %>%
-  ggplot(aes(x = datehr, y = rate, group = Animal))+ 
-  geom_line() +
-  geom_smooth()
-
+# rate by hour of the day
 test_ani_aug %>% 
   filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo), Keep == 1) %>%
   mutate(hr = hour(datehr)) %>% 
@@ -103,6 +91,7 @@ test_ani_aug %>%
   geom_line() +
   geom_smooth()
 
+# temperature by hour of the day
 test_ani_aug %>% 
   filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo), Keep == 1) %>%
   mutate(hr = hour(datehr)) %>% 
@@ -116,7 +105,7 @@ test_ani_aug %>%
   geom_line() +
   geom_smooth()
   
-
+# distance, rate, and temperature by hour of the day
 test_ani_aug %>% 
   filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo), Keep == 1) %>%
   mutate(hr = hour(datehr)) %>% 
@@ -132,4 +121,22 @@ test_ani_aug %>%
   geom_line() +
   geom_smooth() +
   facet_grid(rows = vars(variable) , scales = "free" )+
+  theme_minimal() 
+
+# distance, rate, and temperature by month and hour of the day
+test_ani_aug %>% 
+  filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo), Keep == 1) %>%
+  mutate(hr = hour(datehr), mnth = month(date)) %>% 
+  group_by(mnth, hr) %>% 
+  summarize( n = n(),
+             temp = mean(temperature, na.rm=TRUE),
+             rate = mean(Rate, na.rm=TRUE),
+             distance = mean(DistGeo, na.rm=TRUE)) %>%
+  ungroup() %>%
+  pivot_longer(-c(mnth, hr,n), names_to = "variable") %>%
+  mutate(variable = factor(variable)) %>%
+  ggplot(aes(x = hr, y = value))+ 
+  geom_line() +
+  geom_smooth() +
+  facet_grid(rows = vars(variable), cols = vars(mnth) , scales = "free" )+
   theme_minimal() 
