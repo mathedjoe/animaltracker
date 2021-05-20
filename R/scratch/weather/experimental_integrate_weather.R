@@ -124,9 +124,10 @@ test_ani_aug %>%
   theme_minimal() 
 
 # distance, rate, and temperature by month and hour of the day
-test_ani_aug %>% 
-  filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo), Keep == 1) %>%
-  mutate(hr = hour(datehr), mnth = month(date)) %>% 
+data_by_month_hr <- test_ani_aug %>% 
+  filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo), Keep == 1, !is.na(date)) %>%
+  mutate(hr = hour(datehr), 
+         mnth = month(date, label = TRUE, abbr = TRUE)) %>% 
   group_by(mnth, hr) %>% 
   summarize( n = n(),
              temp = mean(temperature, na.rm=TRUE),
@@ -134,9 +135,17 @@ test_ani_aug %>%
              distance = mean(DistGeo, na.rm=TRUE)) %>%
   ungroup() %>%
   pivot_longer(-c(mnth, hr,n), names_to = "variable") %>%
-  mutate(variable = factor(variable)) %>%
+  mutate(variable = factor(variable)) 
+  
+data_by_month_hr %>%
   ggplot(aes(x = hr, y = value))+ 
   geom_line() +
   geom_smooth() +
+  labs(x = "Hour of the Day", 
+       y = "", 
+       title = "Mean Distance, Rate, and Temperature by Month and Time of Day",
+       subtitle = paste("Based on a sample of n =", sum(data_by_month_hr$n[data_by_month_hr$variable == "temp"]), "GPS measurements.")
+       )+
   facet_grid(rows = vars(variable), cols = vars(mnth) , scales = "free" )+
-  theme_minimal() 
+  theme_minimal() +
+  ggsave("R/scratch/weather/sample_GPS_by_Temp_time.png", width = 7.5, height = 5)
