@@ -1,13 +1,13 @@
 library(tidyverse)
 library(animaltracker)
 library(lubridate)
+library(rnoaa)
+
 test_ani <- read.csv("R/scratch/Riggs_March19_79.csv", skipNul = TRUE) %>% 
   clean_location_data(dtype = "igotu", filters = FALSE, aniid = 79)
 
 
 # use date and location to look up weather
-install.packages("rnoaa")
-library("rnoaa")
 
 dates <- list(min = min(test_ani$Date), max = max(test_ani$Date))
 
@@ -41,7 +41,15 @@ weather_df <- weather_raw %>%
          air_pressure ) %>% 
   mutate(date =  as.Date(as.character(raw_date), format = "%Y%m%d"),
          datetime = as.POSIXct(paste(raw_date, raw_time), format = "%Y%m%d %H%M", tz = "UTC"),
-         datehr = round_date(datetime, unit = "hour")) %>% 
+         datehr = round_date(datetime, unit = "hour")
+         ) %>% 
+  mutate_at(vars(wind_direction, wind_speed, temperature, temperature_dewpoint, air_pressure), 
+            function(x){ # convert strings to numeric format, remove NAs (indicated by 9999)
+                xdata <- x
+                xdata[xdata %in% c("999", "9999", "99999", "+9999")] <- NA
+                as.numeric(xdata)
+            }) %>%
+  mutate_at(vars(temperature, temperature_dewpoint, air_pressure), function(x) x/10 ) %>%
   filter(datetime >= min(round_date(test_ani$DateTime-hours(12), unit="hour"), na.rm=TRUE), 
          datetime <= max(round_date(test_ani$DateTime+hours(12), unit="hour"), na.rm=TRUE),
          !is.na(datehr),
@@ -63,5 +71,65 @@ weather_ts <- data.frame(datehr = date_time_seq) %>%
 
 test_ani_aug <- test_ani %>% 
   mutate(datehr = round_date(DateTime, unit= "hour")) %>%
-  left_join(weather_ts)
+  left_join(weather_ts) %>% 
+  mutate(temperature = )
 
+####################
+# ANALYZE POTENTIAL WEATHER EFFECTS
+
+test_ani_aug %>% 
+  filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo), Keep == 1) %>%
+  group_by(Animal, datehr) %>% 
+  summarize( n = n(),
+             date = first(date),
+             temp = first(temperature),
+             rate = mean(Rate),
+             distance = sum(DistGeo)) %>%
+  ungroup() %>%
+  ggplot(aes(x = datehr, y = rate, group = Animal))+ 
+  geom_line() +
+  geom_smooth()
+
+test_ani_aug %>% 
+  filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo), Keep == 1) %>%
+  mutate(hr = hour(datehr)) %>% 
+  group_by(hr) %>% 
+  summarize( n = n(),
+             temp = mean(temperature),
+             rate = mean(Rate),
+             distance = sum(DistGeo)) %>%
+  ungroup() %>%
+  ggplot(aes(x = hr, y = rate))+ 
+  geom_line() +
+  geom_smooth()
+
+test_ani_aug %>% 
+  filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo), Keep == 1) %>%
+  mutate(hr = hour(datehr)) %>% 
+  group_by(hr) %>% 
+  summarize( n = n(),
+             temp = mean(temperature, na.rm=TRUE),
+             rate = mean(Rate, na.rm=TRUE),
+             distance = mean(DistGeo, na.rm=TRUE)) %>%
+  ungroup() %>%
+  ggplot(aes(x = hr, y = temp))+ 
+  geom_line() +
+  geom_smooth()
+  
+
+test_ani_aug %>% 
+  filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo), Keep == 1) %>%
+  mutate(hr = hour(datehr)) %>% 
+  group_by(hr) %>% 
+  summarize( n = n(),
+             temp = mean(temperature, na.rm=TRUE),
+             rate = mean(Rate, na.rm=TRUE),
+             distance = mean(DistGeo, na.rm=TRUE)) %>%
+  ungroup() %>%
+  pivot_longer(-c(hr,n), names_to = "variable") %>%
+  mutate(variable = factor(variable)) %>%
+  ggplot(aes(x = hr, y = value))+ 
+  geom_line() +
+  geom_smooth() +
+  facet_grid(rows = vars(variable) , scales = "free" )+
+  theme_minimal() 
