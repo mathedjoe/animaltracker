@@ -6,7 +6,8 @@ library(rnoaa)
 # test_ani <- read.csv("R/scratch/Riggs_March19_79.csv", skipNul = TRUE) %>% 
 # clean_location_data(dtype = "igotu", filters = FALSE, aniid = 79)
 
-test_ani <- demo
+test_ani <- demo %>% 
+  select(-c(wind_direction, wind_speed, temperature, temperature_dewpoint, air_pressure))
 
 # use date and location to look up weather
 
@@ -27,7 +28,7 @@ station_options <- isd_stations_search(lat = median(test_ani$Latitude, na.rm=TRU
   slice_head(n = 10)
 
 ## MAKE THIS INTERACTIVE, BUT DEFAULT TO CLOSEST (row 1)
-station_choose <- station_options %>% slice(3)
+station_choose <- station_options %>% slice(2)
 
 if(nrow(station_closest) == 0){
   print("the rest of this code won't work")
@@ -84,7 +85,7 @@ test_ani_aug <- test_ani %>%
 
 # rate by hour of the day
 test_ani_aug %>% 
-  filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo), Keep == 1) %>%
+  filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo)) %>%
   mutate(hr = hour(datehr)) %>% 
   group_by(hr) %>% 
   summarize( n = n(),
@@ -98,7 +99,7 @@ test_ani_aug %>%
 
 # temperature by hour of the day
 test_ani_aug %>% 
-  filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo), Keep == 1) %>%
+  filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo)) %>%
   mutate(hr = hour(datehr)) %>% 
   group_by(hr) %>% 
   summarize( n = n(),
@@ -112,7 +113,7 @@ test_ani_aug %>%
 
 # distance, rate, and temperature by hour of the day
 test_ani_aug %>% 
-  filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo), Keep == 1) %>%
+  filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo)) %>%
   mutate(hr = hour(datehr)) %>% 
   group_by(hr) %>% 
   summarize( n = n(),
