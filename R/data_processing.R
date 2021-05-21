@@ -174,7 +174,7 @@ lookup_weather <- function(anidf, selected_vars = c("wind_direction", "wind_spee
     return(anidf)
   }
   # given dates, find the weather data from the station(s)
-  data_years <- lubridate::year(dates$min):lubridate::year(dates$max)
+  data_years <- year(dates$min):year(dates$max)
   
   weather_raw <- data.frame()
   if(is_shiny) {

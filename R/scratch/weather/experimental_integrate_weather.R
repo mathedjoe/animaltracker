@@ -3,10 +3,9 @@ library(animaltracker)
 library(lubridate)
 library(rnoaa)
 
-# test_ani <- read.csv("R/scratch/Riggs_March19_79.csv", skipNul = TRUE) %>% 
-  # clean_location_data(dtype = "igotu", filters = FALSE, aniid = 79)
+test_ani <- read.csv("R/scratch/Riggs_March19_79.csv", skipNul = TRUE) %>% 
+  clean_location_data(dtype = "igotu", filters = FALSE, aniid = 79)
 
-test_ani <- demo
 
 # use date and location to look up weather
 
@@ -18,16 +17,13 @@ dates <- list(min = min(test_ani$Date), max = max(test_ani$Date))
 # ?isd
 
 # given a location, find the nearest station(s)
-station_options <- isd_stations_search(lat = median(test_ani$Latitude, na.rm=TRUE), 
+station_closest <- isd_stations_search(lat = median(test_ani$Latitude, na.rm=TRUE), 
                                     lon = median(test_ani$Longitude, na.rm=TRUE), 
-                                    radius = 10000 ) %>% 
+                                    radius = 200 ) %>% 
   mutate(begin = as.Date(as.character(begin), format = "%Y%m%d"),
          end = as.Date(as.character(end), format = "%Y%m%d")) %>%
   filter(dates$min > begin, dates$max < end) %>%
-  slice_head(n = 10)
-
-## MAKE THIS INTERACTIVE, BUT DEFAULT TO CLOSEST (row 1)
-station_choose <- station_options %>% slice(3)
+  filter(distance == min(distance))
 
 if(nrow(station_closest) == 0){
   print("the rest of this code won't work")
@@ -36,7 +32,7 @@ if(nrow(station_closest) == 0){
 data_years <- year(dates$min):year(dates$max)
 
 weather_raw <- lapply(data_years, function(x){
-  isd(station_choose$usaf, station_choose$wban, x)
+  isd(station_closest$usaf, station_closest$wban, x)
 }) %>% 
   bind_rows
 
@@ -77,7 +73,8 @@ weather_ts <- data.frame(datehr = date_time_seq) %>%
 
 test_ani_aug <- test_ani %>% 
   mutate(datehr = round_date(DateTime, unit= "hour")) %>%
-  left_join(weather_ts) 
+  left_join(weather_ts) %>% 
+  mutate(temperature = )
 
 ####################
 # ANALYZE POTENTIAL WEATHER EFFECTS
