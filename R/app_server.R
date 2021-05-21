@@ -105,7 +105,7 @@ app_server <- function(input, output, session) {
         processingInitiatedAll(TRUE) # set "process all" flag to true
         # get metadata for animal data with filter flag, zoom level, slope flag, aspect flag, and lat/long bounds specified
         meta(clean_store_batch(raw_dat(), filters = input$filterBox, zoom = input$selected_zoom,
-                               input$slopeBox, input$aspectBox, 
+                               input$slopeBox, input$aspectBox, input$selected_weather, input$search_radius,
                                lat_bounds()[1], lat_bounds()[2],
                                long_bounds()[1], long_bounds()[2]))
       }
@@ -114,7 +114,7 @@ app_server <- function(input, output, session) {
         # get metadata for animal data with filter flag, zoom level, slope flag, and aspect flag specified
         # lat/long bounds are determined by min lat/long and max lat/long from animal data
         meta(clean_store_batch(raw_dat(), input$filterBox, zoom = input$selected_zoom,
-                               input$slopeBox, input$aspectBox, 
+                               input$slopeBox, input$aspectBox, input$selected_weather, input$search_radius,
                                raw_dat()$min_lat, raw_dat()$max_lat,
                                raw_dat()$min_long, raw_dat()$max_long))
       }
@@ -133,7 +133,7 @@ app_server <- function(input, output, session) {
   # main dynamic data set
   dat_main <- reactive({
     # if no animal, date, or time selected
-    if(is.null(choose_ani()) || is.null(choose_dates()) || is.null(min_time()) || is.null(max_time())) {
+    if(is.null(choose_ani()) || is.null(choose_dates()) || min_time() == "" || max_time() == "") {
       if(is.null(choose_recent())) { # if no data in cache
         return(demo) # return demo data to prevent crashing
       }
@@ -151,7 +151,7 @@ app_server <- function(input, output, session) {
       }
       
       ani_names <- paste(choose_ani(), collapse = ", ") # convert animal IDs to comma-separated list
-      
+    
       # convert min date and time to year/month/day_hour/minute/second format in UTC
       min_datetime <- lubridate::with_tz(lubridate::ymd_hms(paste(choose_dates()[1], min_time()), tz="UTC", quiet = TRUE), tz="UTC")
       # convert max date and time to year/month/day_hour/minute/second format in UTC
@@ -165,11 +165,79 @@ app_server <- function(input, output, session) {
         # if no user provided data, use demo data
         if(is.null(input$zipInput)) {
           current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id,
-                   DateTime <= max_datetime,
-                   DateTime >= min_datetime) # filter demo data to date range and animals shown on app startup
+                                               Latitude >= lat_bounds()[1], Latitude <= lat_bounds()[2], 
+                                               Longitude >= long_bounds()[1], Longitude <= long_bounds()[2],
+                                               DateTime >= min_datetime, DateTime <= max_datetime) # filter demo data to date range and animals shown on app startup
           if(nrow(current_df) == 0) { # if filter returns empty dataset, default to demo animals shown on app startup
             current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id)
           }
+          if(processingInitiated()) {  # if "process selected" button pushed
+            processingInitiated(FALSE) # turn off "process selected" flag
+            
+            cache_name <- paste(cache_name, "(processed)") # cache label: cache label + (processed)
+            
+            status_message <- modalDialog(
+              pre(id = "console"),
+              title = "Please Wait...",
+              easyClose = TRUE,
+              footer = NULL
+            )
+            
+            # display status message in popup window
+            showModal(status_message)
+            
+            # get elevation for current data
+            withCallingHandlers({
+              shinyjs::html("console", "")
+              current_df <- lookup_elevation_aws(current_df, zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox) 
+            },
+            message = function(m) {
+              shinyjs::html(id = "console", html = m$message)
+            })
+            
+            selected_vars <- c()
+            # get weather data
+            if(length(input$selected_weather) != 0) {
+              if("wind direction" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "wind_direction")
+              }
+              if("wind speed" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "wind_speed")
+              }
+              if("ceiling height" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "ceiling_height")
+              }
+              if("visibility distance" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "visibility_distance")
+              }
+              if("temperature" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "temperature")
+              }
+              if("dewpoint temperature" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "temperature_dewpoint")
+              }
+              if("air pressure" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "air_pressure")
+              }
+              if("precipitation depth" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "AA1_depth")
+              }
+              withCallingHandlers({
+                shinyjs::html("console", "")
+                current_df <- current_df %>% 
+                  lookup_weather(selected_vars, input$search_radius, is_shiny = TRUE)
+              },
+              message = function(m) {
+                shinyjs::html(id = "console", html = m$message)
+              })
+            }
+            removeModal() # remove popup
+          }
+          else if(processingInitiatedAll()) {
+            processingInitiatedAll(FALSE)
+            #cache_name <- paste(cache_name, "(processed)")
+          }
+          
         }
         # if user provided data, get it
         else {
@@ -190,7 +258,7 @@ app_server <- function(input, output, session) {
             }
             
             # clean current data
-            current_df <- clean_location_data(current_df, dtype = "", prep = FALSE, filters = input$filterBox) 
+            #current_df <- clean_location_data(current_df, dtype = "", prep = FALSE, filters = input$filterBox) 
             
             # data processing status message
             status_message <- modalDialog(
@@ -206,12 +274,48 @@ app_server <- function(input, output, session) {
             # get elevation for current data
             withCallingHandlers({
               shinyjs::html("console", "")
-              current_df <- lookup_elevation_aws(current_df, zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox)
+              current_df <- lookup_elevation_aws(current_df, zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox) 
             },
             message = function(m) {
               shinyjs::html(id = "console", html = m$message)
             })
            
+            selected_vars <- c()
+            # get weather data
+            if(length(input$selected_weather) != 0) {
+              if("wind direction" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "wind_direction")
+              }
+              if("wind speed" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "wind_speed")
+              }
+              if("ceiling height" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "ceiling_height")
+              }
+              if("visibility distance" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "visibility_distance")
+              }
+              if("temperature" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "temperature")
+              }
+              if("dewpoint temperature" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "temperature_dewpoint")
+              }
+              if("air pressure" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "air_pressure")
+              }
+              if("precipitation depth" %in% input$selected_weather) {
+                selected_vars <- c(selected_vars, "AA1_depth")
+              }
+              withCallingHandlers({
+                shinyjs::html("console", "")
+                current_df <- current_df %>% 
+                  lookup_weather(selected_vars, input$search_radius, is_shiny = TRUE)
+              },
+              message = function(m) {
+                shinyjs::html(id = "console", html = m$message)
+              })
+            }
             removeModal() # remove popup
           }
           else if(processingInitiatedAll()) { # else if "process all" button pushed
@@ -222,7 +326,7 @@ app_server <- function(input, output, session) {
             min_datetime <- min(meta$min_date) # initialize min date/time to min date in meta
             max_datetime <- max(meta$max_date) # initialize max date/time to max date in meta
             
-            cache_name <- paste(paste0(ani_names,", ",min_datetime,"-",max_datetime), "(processed)")
+            cache_name <- paste(cache_name, "(processed)")
             current_df <- get_data_from_meta(meta, min_datetime, max_datetime) # get unfiltered current data
           }
           else { # else, just filter current data
@@ -454,7 +558,6 @@ app_server <- function(input, output, session) {
      
     
       if(!is.null(last_drawn())) { # if previously drawn points exist remove them
-        print("removing old points")
         for(ani in last_drawn()$ani) {
           proxy %>% clearGroup(ani)
         }

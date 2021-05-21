@@ -9,6 +9,8 @@ test_ani <- read.csv("R/scratch/Riggs_March19_79.csv", skipNul = TRUE) %>%
 
 # use date and location to look up weather
 
+# variable documentation: https://www.ncei.noaa.gov/data/global-hourly/doc/isd-format-document.pdf
+
 dates <- list(min = min(test_ani$Date), max = max(test_ani$Date))
 
 # choose a data set
@@ -17,7 +19,7 @@ dates <- list(min = min(test_ani$Date), max = max(test_ani$Date))
 # given a location, find the nearest station(s)
 station_closest <- isd_stations_search(lat = median(test_ani$Latitude, na.rm=TRUE), 
                                     lon = median(test_ani$Longitude, na.rm=TRUE), 
-                                    radius = 1 ) %>% 
+                                    radius = 200 ) %>% 
   mutate(begin = as.Date(as.character(begin), format = "%Y%m%d"),
          end = as.Date(as.character(end), format = "%Y%m%d")) %>%
   filter(dates$min > begin, dates$max < end) %>%

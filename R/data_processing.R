@@ -147,7 +147,87 @@ lookup_elevation_aws <- function(anidf, zoom = 11, get_slope = TRUE, get_aspect 
   return(df_out)
 }
 
-
+#'Add weather data to animal data from NOAA's Integrated Surface Database (ISD)
+#'
+#'@param anidf animal data frame cleaned by clean_location_data
+#'@param selected_vars vector of desired weather variables, defaults to wind direction, wind speed, temperature, temperature dewpoint, and air pressure
+#'@param search_radius search radius to find closest weather station to lat/long in animal data, defaults to 100km
+#'@param is_shiny whether this function is called from the shiny app, defaults to FALSE
+#'@return original data frame, with selected weather variables appended
+#'@export
+#'
+lookup_weather <- function(anidf, selected_vars = c("wind_direction", "wind_speed", "temperature", "temperature_dewpoint", "air_pressure"), search_radius = 100, is_shiny = FALSE) {
+  dates <- list(min = min(anidf$Date), max = max(anidf$Date))
+  
+  # given a location, find the nearest station(s)
+  station_closest <- rnoaa::isd_stations_search(lat = median(anidf$Latitude, na.rm = TRUE), 
+                                         lon = median(anidf$Longitude, na.rm = TRUE), 
+                                         radius = search_radius) %>% 
+    dplyr::mutate(begin = as.Date(as.character(begin), format = "%Y%m%d"),
+           end = as.Date(as.character(end), format = "%Y%m%d")) %>%
+    dplyr::filter(dates$min > begin, dates$max < end) %>%
+    dplyr::filter(distance == min(distance))
+  
+  if(nrow(station_closest) == 0){
+    message(paste("No weather stations found with a search radius of", search_radius, "km. 
+                  Please try again with a wider radius."))
+    return(anidf)
+  }
+  # given dates, find the weather data from the station(s)
+  data_years <- year(dates$min):year(dates$max)
+  
+  weather_raw <- data.frame()
+  if(is_shiny) {
+    withProgress(message = "Querying weather data from NOAA ISD", value = 0, min = 0, max = length(data_years), {
+      i <- 1
+      for(year in data_years) {
+        message(paste("Now querying weather data for", year))
+        weather_raw <- weather_raw %>% 
+          dplyr::bind_rows(rnoaa::isd(station_closest$usaf, station_closest$wban, year))
+        setProgress(i, detail = paste0(i, "/", length(data_years), " years queried"))
+        i <- i + 1
+      }
+    })
+  }
+  else {
+    for(year in data_years) {
+      message(paste("Now querying weather data for", year))
+      weather_raw <- weather_raw %>% 
+        dplyr::bind_rows(rnoaa::isd(station_closest$usaf, station_closest$wban, year))
+    }
+  }
+  
+  weather_df <- weather_raw %>% 
+    dplyr::select(c("date", "time", selected_vars)) %>% 
+    dplyr::rename(raw_date = date, raw_time = time) %>% 
+    dplyr::mutate(date =  as.Date(as.character(raw_date), format = "%Y%m%d"),
+           datetime = as.POSIXct(paste(raw_date, raw_time), format = "%Y%m%d %H%M", tz = "UTC"),
+           datehr = lubridate::round_date(datetime, unit = "hour")) %>% 
+    dplyr::filter(datetime >= min(lubridate::round_date(anidf$DateTime-hours(12), unit="hour"), na.rm=TRUE), 
+           datetime <= max(lubridate::round_date(anidf$DateTime+hours(12), unit="hour"), na.rm=TRUE),
+           !is.na(datehr),
+           !duplicated(datehr) # note: might be better to group_by(datehr) and aggregate/average
+    )
+  
+  # build a time series of the weather data (hourly)
+  
+  date_time_seq <- seq.POSIXt(min(weather_df$datehr), 
+                              max(weather_df$datehr), by = 'hour')
+  
+  
+  ## create time series object with 3 columns: DateTime, Longitude, Latitude
+  weather_ts <- data.frame(datehr = date_time_seq) %>% 
+    dplyr::left_join( weather_df, by = "datehr") 
+  
+  # round the animal data to the nearest hour
+  # left_join weather ts to the animal data
+  
+  anidf_aug <- anidf %>% 
+    dplyr::mutate(datehr = round_date(DateTime, unit= "hour")) %>%
+    dplyr::left_join(weather_ts)
+  
+  return(anidf_aug)
+}
 #'
 #'Read an archive of altitude mask files and convert the first file into a raster object
 #'

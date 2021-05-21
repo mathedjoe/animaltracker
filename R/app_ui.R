@@ -55,7 +55,20 @@ app_ui <- function(){
                                                      uiOutput("zoom"),
                                                      checkboxInput("slopeBox", label = "Include slope", value = TRUE),
                                                      checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
-                                     )
+                                     ),
+                                     shinyBS::bsCollapsePanel("Weather Options",
+                                                              shinyWidgets::pickerInput("selected_weather",
+                                                                                        label = "Select weather variables",
+                                                                                        choices = c("wind direction", "wind speed", "ceiling height",
+                                                                                                    "visibility distance", "temperature", "dewpoint temperature",
+                                                                                                    "air pressure", "precipitation depth"),
+                                                                                        selected = c("wind direction", "wind speed", "temperature",
+                                                                                                     "dewpoint temperature", "air pressure"),
+                                                                                        multiple = TRUE,
+                                                                                        options = list(`actions-box` = TRUE)
+                                                              ),
+                                                              numericInput("search_radius", label = "Weather station search radius (km)",
+                                                                           value = 100, min = 0))
                           ),
                           actionButton("processButton", "Process All"),
                           actionButton("processSelectedButton", "Process Selected"),

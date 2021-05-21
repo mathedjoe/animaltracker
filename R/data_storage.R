@@ -150,6 +150,7 @@ clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "U
 #'@noRd
 #'
 clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = TRUE, get_aspect = TRUE, 
+                              weather_vars, search_radius,
                               min_lat = data_info$min_lat, max_lat = data_info$max_lat, min_long = data_info$min_long, max_long = data_info$max_long, 
                               tz_in = "UTC", tz_out = "UTC") {
   #initialize empty meta
@@ -195,7 +196,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
   } #cleaning for loop
     
     
-    # print(paste("Now have", nrow(all_data_sets), "rows of clean data."))
+    # Elevation lookup
     
     elev_data_sets <- all_data_sets %>% dplyr::filter(Latitude <= max_lat,
                                                       Latitude >= min_lat,
@@ -233,9 +234,47 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
       })
     }
     
+    # Weather lookup
+    
+    if(length(weather_vars) != 0) {
+      incProgress(0, detail = paste0("Appending weather data..."))
+      selected_vars <- c()
+      if("wind direction" %in% weather_vars) {
+        selected_vars <- c(selected_vars, "wind_direction")
+      }
+      if("wind speed" %in% weather_vars) {
+        selected_vars <- c(selected_vars, "wind_speed")
+      }
+      if("ceiling height" %in% weather_vars) {
+        selected_vars <- c(selected_vars, "ceiling_height")
+      }
+      if("visibility distance" %in% weather_vars) {
+        selected_vars <- c(selected_vars, "visibility_distance")
+      }
+      if("temperature" %in% weather_vars) {
+        selected_vars <- c(selected_vars, "temperature")
+      }
+      if("dewpoint temperature" %in% weather_vars) {
+        selected_vars <- c(selected_vars, "temperature_dewpoint")
+      }
+      if("air pressure" %in% weather_vars) {
+        selected_vars <- c(selected_vars, "air_pressure")
+      }
+      if("precipitation depth" %in% weather_vars) {
+        selected_vars <- c(selected_vars, "AA1_depth")
+      }
+      withCallingHandlers({
+        shinyjs::html("console", "")
+        elev_data_sets <- elev_data_sets %>% 
+          lookup_weather(selected_vars, search_radius, is_shiny = TRUE)
+      },
+      message = function(m) {
+        shinyjs::html(id = "console", html = m$message)
+      })
+    }
+
     removeModal()
     
-
     for(i in 1:length(data_info$data)) {
       
       aniid <- data_info$ani[i]
