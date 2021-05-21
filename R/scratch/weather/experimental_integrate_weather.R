@@ -3,9 +3,10 @@ library(animaltracker)
 library(lubridate)
 library(rnoaa)
 
-test_ani <- read.csv("R/scratch/Riggs_March19_79.csv", skipNul = TRUE) %>% 
-  clean_location_data(dtype = "igotu", filters = FALSE, aniid = 79)
+# test_ani <- read.csv("R/scratch/Riggs_March19_79.csv", skipNul = TRUE) %>% 
+# clean_location_data(dtype = "igotu", filters = FALSE, aniid = 79)
 
+test_ani <- demo
 
 # use date and location to look up weather
 
@@ -17,13 +18,16 @@ dates <- list(min = min(test_ani$Date), max = max(test_ani$Date))
 # ?isd
 
 # given a location, find the nearest station(s)
-station_closest <- isd_stations_search(lat = median(test_ani$Latitude, na.rm=TRUE), 
-                                    lon = median(test_ani$Longitude, na.rm=TRUE), 
-                                    radius = 200 ) %>% 
+station_options <- isd_stations_search(lat = median(test_ani$Latitude, na.rm=TRUE), 
+                                       lon = median(test_ani$Longitude, na.rm=TRUE), 
+                                       radius = 10000 ) %>% 
   mutate(begin = as.Date(as.character(begin), format = "%Y%m%d"),
          end = as.Date(as.character(end), format = "%Y%m%d")) %>%
   filter(dates$min > begin, dates$max < end) %>%
-  filter(distance == min(distance))
+  slice_head(n = 10)
+
+## MAKE THIS INTERACTIVE, BUT DEFAULT TO CLOSEST (row 1)
+station_choose <- station_options %>% slice(3)
 
 if(nrow(station_closest) == 0){
   print("the rest of this code won't work")
@@ -32,7 +36,7 @@ if(nrow(station_closest) == 0){
 data_years <- year(dates$min):year(dates$max)
 
 weather_raw <- lapply(data_years, function(x){
-  isd(station_closest$usaf, station_closest$wban, x)
+  isd(station_choose$usaf, station_choose$wban, x)
 }) %>% 
   bind_rows
 
@@ -44,12 +48,12 @@ weather_df <- weather_raw %>%
   mutate(date =  as.Date(as.character(raw_date), format = "%Y%m%d"),
          datetime = as.POSIXct(paste(raw_date, raw_time), format = "%Y%m%d %H%M", tz = "UTC"),
          datehr = round_date(datetime, unit = "hour")
-         ) %>% 
+  ) %>% 
   mutate_at(vars(wind_direction, wind_speed, temperature, temperature_dewpoint, air_pressure), 
             function(x){ # convert strings to numeric format, remove NAs (indicated by 9999)
-                xdata <- x
-                xdata[xdata %in% c("999", "9999", "99999", "+9999")] <- NA
-                as.numeric(xdata)
+              xdata <- x
+              xdata[xdata %in% c("999", "9999", "99999", "+9999")] <- NA
+              as.numeric(xdata)
             }) %>%
   mutate_at(vars(temperature, temperature_dewpoint, air_pressure), function(x) x/10 ) %>%
   filter(datetime >= min(round_date(test_ani$DateTime-hours(12), unit="hour"), na.rm=TRUE), 
@@ -73,8 +77,7 @@ weather_ts <- data.frame(datehr = date_time_seq) %>%
 
 test_ani_aug <- test_ani %>% 
   mutate(datehr = round_date(DateTime, unit= "hour")) %>%
-  left_join(weather_ts) %>% 
-  mutate(temperature = )
+  left_join(weather_ts) 
 
 ####################
 # ANALYZE POTENTIAL WEATHER EFFECTS
@@ -106,7 +109,7 @@ test_ani_aug %>%
   ggplot(aes(x = hr, y = temp))+ 
   geom_line() +
   geom_smooth()
-  
+
 # distance, rate, and temperature by hour of the day
 test_ani_aug %>% 
   filter(Latitude!=0, Longitude!=0,!is.na(Rate), !is.na(DistGeo), Keep == 1) %>%
@@ -138,7 +141,7 @@ data_by_month_hr <- test_ani_aug %>%
   ungroup() %>%
   pivot_longer(-c(mnth, hr,n), names_to = "variable") %>%
   mutate(variable = factor(variable)) 
-  
+
 data_by_month_hr %>%
   ggplot(aes(x = hr, y = value))+ 
   geom_line() +
@@ -147,7 +150,7 @@ data_by_month_hr %>%
        y = "", 
        title = "Mean Distance, Rate, and Temperature by Month and Time of Day",
        subtitle = paste("Based on a sample of n =", sum(data_by_month_hr$n[data_by_month_hr$variable == "temp"]), "GPS measurements.")
-       )+
+  )+
   facet_grid(rows = vars(variable), cols = vars(mnth) , scales = "free" )+
   theme_minimal() +
   ggsave("R/scratch/weather/sample_GPS_by_Temp_time.png", width = 7.5, height = 5)
