@@ -151,22 +151,32 @@ lookup_elevation_aws <- function(anidf, zoom = 11, get_slope = TRUE, get_aspect 
 #'
 #'@param anidf animal data frame cleaned by clean_location_data
 #'@param selected_vars vector of desired weather variables, defaults to wind direction, wind speed, temperature, temperature dewpoint, and air pressure
+#'@param search whether to search for closest stations
 #'@param search_radius search radius to find closest weather station to lat/long in animal data, defaults to 100km
+#'@param station weather station if search is FALSE
 #'@param is_shiny whether this function is called from the shiny app, defaults to FALSE
 #'@return original data frame, with selected weather variables appended
 #'@export
 #'
-lookup_weather <- function(anidf, selected_vars = c("wind_direction", "wind_speed", "temperature", "temperature_dewpoint", "air_pressure"), search_radius = 100, is_shiny = FALSE) {
+lookup_weather <- function(anidf, selected_vars = c("wind_direction", "wind_speed", "temperature", "temperature_dewpoint", "air_pressure"), 
+                           search = TRUE, search_radius = 100, station = NULL, is_shiny = FALSE) {
   dates <- list(min = min(anidf$Date), max = max(anidf$Date))
   
+  station_closest <- data.frame()
   # given a location, find the nearest station(s)
-  station_closest <- rnoaa::isd_stations_search(lat = median(anidf$Latitude, na.rm = TRUE), 
-                                         lon = median(anidf$Longitude, na.rm = TRUE), 
-                                         radius = search_radius) %>% 
-    dplyr::mutate(begin = as.Date(as.character(begin), format = "%Y%m%d"),
-           end = as.Date(as.character(end), format = "%Y%m%d")) %>%
-    dplyr::filter(dates$min > begin, dates$max < end) %>%
-    dplyr::filter(distance == min(distance))
+  if(search) {
+    station_options <- isd_stations_search(lat = median(anidf$Latitude, na.rm=TRUE), 
+                                           lon = median(anidf$Longitude, na.rm=TRUE), 
+                                           radius = search_radius ) %>% 
+      mutate(begin = as.Date(as.character(begin), format = "%Y%m%d"),
+             end = as.Date(as.character(end), format = "%Y%m%d")) %>%
+      filter(dates$min > begin, dates$max < end)
+    station_closest <- station_options %>% slice(1)
+  }
+  else {
+    station_closest <- station
+  }
+  
   
   if(nrow(station_closest) == 0){
     message(paste("No weather stations found with a search radius of", search_radius, "km. 
@@ -198,12 +208,22 @@ lookup_weather <- function(anidf, selected_vars = c("wind_direction", "wind_spee
   }
   
   weather_df <- weather_raw %>% 
-    dplyr::select(c("date", "time", selected_vars)) %>% 
-    dplyr::rename(raw_date = date, raw_time = time) %>% 
-    dplyr::mutate(date =  as.Date(as.character(raw_date), format = "%Y%m%d"),
+    select(raw_date = date,  raw_time = time, 
+           wind_direction, wind_speed, 
+           temperature, temperature_dewpoint, 
+           air_pressure ) %>% 
+    mutate(date =  as.Date(as.character(raw_date), format = "%Y%m%d"),
            datetime = as.POSIXct(paste(raw_date, raw_time), format = "%Y%m%d %H%M", tz = "UTC"),
-           datehr = lubridate::round_date(datetime, unit = "hour")) %>% 
-    dplyr::filter(datetime >= min(lubridate::round_date(anidf$DateTime-hours(12), unit="hour"), na.rm=TRUE), 
+           datehr = round_date(datetime, unit = "hour")
+    ) %>% 
+    mutate_at(vars(wind_direction, wind_speed, temperature, temperature_dewpoint, air_pressure), 
+              function(x){ # convert strings to numeric format, remove NAs (indicated by 9999)
+                xdata <- x
+                xdata[xdata %in% c("999", "9999", "99999", "+9999")] <- NA
+                as.numeric(xdata)
+              }) %>%
+    mutate_at(vars(temperature, temperature_dewpoint, air_pressure), function(x) x/10 ) %>%
+    filter(datetime >= min(lubridate::round_date(anidf$DateTime-hours(12), unit="hour"), na.rm=TRUE), 
            datetime <= max(lubridate::round_date(anidf$DateTime+hours(12), unit="hour"), na.rm=TRUE),
            !is.na(datehr),
            !duplicated(datehr) # note: might be better to group_by(datehr) and aggregate/average

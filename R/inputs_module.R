@@ -109,6 +109,14 @@ reactivePicker <- function(input, output, session, type, req_list, text, min_sel
       }
     
     }
+    else if(type == "station") {
+      if(is.null(req_list$stations())) {
+        return()
+      }
+      stations <- req_list$stations()
+      choices <- as.list(stations$station_name)
+      selected <- choices[1]
+    }
     shinyWidgets::pickerInput(ns("reactive_picker"), text,
                               choices = choices,
                               selected = selected,

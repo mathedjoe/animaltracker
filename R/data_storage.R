@@ -150,7 +150,7 @@ clean_batch_df <- function(data_info, filters = TRUE, tz_in = "UTC", tz_out = "U
 #'@noRd
 #'
 clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = TRUE, get_aspect = TRUE, 
-                              weather_vars, search_radius,
+                              weather_vars, selected_station,
                               min_lat = data_info$min_lat, max_lat = data_info$max_lat, min_long = data_info$min_long, max_long = data_info$max_long, 
                               tz_in = "UTC", tz_out = "UTC") {
   #initialize empty meta
@@ -266,7 +266,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_slope = 
       withCallingHandlers({
         shinyjs::html("console", "")
         elev_data_sets <- elev_data_sets %>% 
-          lookup_weather(selected_vars, search_radius, is_shiny = TRUE)
+          lookup_weather(selected_vars, search = FALSE, station = selected_station, is_shiny = TRUE)
       },
       message = function(m) {
         shinyjs::html(id = "console", html = m$message)

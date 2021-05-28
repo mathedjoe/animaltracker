@@ -1,6 +1,6 @@
 #' Demo animal GPS data from cows
 #'
-#' @format A data frame with 2171 rows and 29 variables
+#' @format A data frame with 2171 rows and 39 variables
 #' 
 "demo"
 

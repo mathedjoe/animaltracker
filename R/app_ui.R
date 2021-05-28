@@ -57,6 +57,7 @@ app_ui <- function(){
                                                      checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
                                      ),
                                      shinyBS::bsCollapsePanel("Weather Options",
+                                                              reactivePickerOutput("choose_station"),
                                                               shinyWidgets::pickerInput("selected_weather",
                                                                                         label = "Select weather variables",
                                                                                         choices = c("wind direction", "wind speed", "ceiling height",
@@ -66,9 +67,7 @@ app_ui <- function(){
                                                                                                      "dewpoint temperature", "air pressure"),
                                                                                         multiple = TRUE,
                                                                                         options = list(`actions-box` = TRUE)
-                                                              ),
-                                                              numericInput("search_radius", label = "Weather station search radius (km)",
-                                                                           value = 100, min = 0))
+                                                              ))
                           ),
                           actionButton("processButton", "Process All"),
                           actionButton("processSelectedButton", "Process Selected"),

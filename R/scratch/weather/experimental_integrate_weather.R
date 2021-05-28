@@ -7,7 +7,7 @@ library(rnoaa)
 # clean_location_data(dtype = "igotu", filters = FALSE, aniid = 79)
 
 test_ani <- demo %>% 
-  select(-c(wind_direction, wind_speed, temperature, temperature_dewpoint, air_pressure))
+  select(-c(wind_direction, wind_speed, temperature, temperature_dewpoint, air_pressure, datehr, raw_date, raw_time, date, datetime))
 
 # use date and location to look up weather
 
@@ -28,7 +28,7 @@ station_options <- isd_stations_search(lat = median(test_ani$Latitude, na.rm=TRU
   slice_head(n = 10)
 
 ## MAKE THIS INTERACTIVE, BUT DEFAULT TO CLOSEST (row 1)
-station_choose <- station_options %>% slice(2)
+station_choose <- station_options %>% slice(3)
 
 if(nrow(station_closest) == 0){
   print("the rest of this code won't work")
@@ -57,8 +57,8 @@ weather_df <- weather_raw %>%
               as.numeric(xdata)
             }) %>%
   mutate_at(vars(temperature, temperature_dewpoint, air_pressure), function(x) x/10 ) %>%
-  filter(datetime >= min(round_date(test_ani$DateTime-hours(12), unit="hour"), na.rm=TRUE), 
-         datetime <= max(round_date(test_ani$DateTime+hours(12), unit="hour"), na.rm=TRUE),
+  filter(datetime >= min(lubridate::round_date(test_ani$DateTime-hours(12), unit="hour"), na.rm=TRUE), 
+         datetime <= max(lubridate::round_date(test_ani$DateTime+hours(12), unit="hour"), na.rm=TRUE),
          !is.na(datehr),
          !duplicated(datehr) # note: might be better to group_by(datehr) and aggregate/average
   )
@@ -78,7 +78,7 @@ weather_ts <- data.frame(datehr = date_time_seq) %>%
 
 test_ani_aug <- test_ani %>% 
   mutate(datehr = round_date(DateTime, unit= "hour")) %>%
-  left_join(weather_ts) 
+  left_join(weather_ts, by = "datehr") 
 
 ####################
 # ANALYZE POTENTIAL WEATHER EFFECTS

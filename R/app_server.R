@@ -101,11 +101,13 @@ app_server <- function(input, output, session) {
   
   # "process all" button event handler
   observeEvent(input$processButton, {
+    if(!is.null(stations()) && !is.null(choose_station())) {
+      selected_station <- stations() %>% dplyr::filter(station_name == choose_station())
       if(!is.null(lat_bounds()) && !is.null(long_bounds())) { # if latitude and longitude boundaries specified
         processingInitiatedAll(TRUE) # set "process all" flag to true
         # get metadata for animal data with filter flag, zoom level, slope flag, aspect flag, and lat/long bounds specified
         meta(clean_store_batch(raw_dat(), filters = input$filterBox, zoom = input$selected_zoom,
-                               input$slopeBox, input$aspectBox, input$selected_weather, input$search_radius,
+                               input$slopeBox, input$aspectBox, input$selected_weather, selected_station,
                                lat_bounds()[1], lat_bounds()[2],
                                long_bounds()[1], long_bounds()[2]))
       }
@@ -114,10 +116,11 @@ app_server <- function(input, output, session) {
         # get metadata for animal data with filter flag, zoom level, slope flag, and aspect flag specified
         # lat/long bounds are determined by min lat/long and max lat/long from animal data
         meta(clean_store_batch(raw_dat(), input$filterBox, zoom = input$selected_zoom,
-                               input$slopeBox, input$aspectBox, input$selected_weather, input$search_radius,
+                               input$slopeBox, input$aspectBox, input$selected_weather, selected_station,
                                raw_dat()$min_lat, raw_dat()$max_lat,
                                raw_dat()$min_long, raw_dat()$max_long))
       }
+    }
   })
   # "process selected" button event handler
   observeEvent(input$processSelectedButton, {
@@ -129,6 +132,25 @@ app_server <- function(input, output, session) {
   
   # last data set accessed
   cache <- reactiveVal(list())
+  
+  stations <- reactive({
+    if(is.null(lat_bounds()) || is.null(long_bounds()) || is.null(choose_dates()) || min_time() == "" || max_time() == "") {
+      return()
+    }
+    # convert min date and time to year/month/day_hour/minute/second format in UTC
+    min_datetime <- lubridate::with_tz(lubridate::ymd_hms(paste(choose_dates()[1], min_time()), tz="UTC", quiet = TRUE), tz="UTC")
+    # convert max date and time to year/month/day_hour/minute/second format in UTC
+    max_datetime <- lubridate::with_tz(lubridate::ymd_hms(paste(choose_dates()[2], max_time()), tz="UTC", quiet = TRUE), tz="UTC")
+    
+    station_options <- rnoaa::isd_stations_search(lat = median(lat_bounds()[1], lat_bounds()[2]), 
+                                           lon = median(long_bounds()[1], long_bounds()[2]), 
+                                           radius = 10000 ) %>% 
+      mutate(begin = as.Date(as.character(begin), format = "%Y%m%d"),
+             end = as.Date(as.character(end), format = "%Y%m%d")) %>%
+      filter(min_datetime > begin, max_datetime < end) %>%
+      slice_head(n = 10)
+    return(station_options)
+  })
   
   # main dynamic data set
   dat_main <- reactive({
@@ -224,8 +246,9 @@ app_server <- function(input, output, session) {
               }
               withCallingHandlers({
                 shinyjs::html("console", "")
+                selected_station <- stations() %>% dplyr::filter(station_name == choose_station())
                 current_df <- current_df %>% 
-                  lookup_weather(selected_vars, input$search_radius, is_shiny = TRUE)
+                  lookup_weather(selected_vars, search = FALSE, selected_station, is_shiny = TRUE)
               },
               message = function(m) {
                 shinyjs::html(id = "console", html = m$message)
@@ -309,8 +332,9 @@ app_server <- function(input, output, session) {
               }
               withCallingHandlers({
                 shinyjs::html("console", "")
+                selected_station <- stations() %>% dplyr::filter(station_name == choose_station())
                 current_df <- current_df %>% 
-                  lookup_weather(selected_vars, input$search_radius, is_shiny = TRUE)
+                  lookup_weather(selected_vars, search = FALSE, selected_station, is_shiny = TRUE)
               },
               message = function(m) {
                 shinyjs::html(id = "console", html = m$message)
@@ -402,6 +426,11 @@ app_server <- function(input, output, session) {
   
   max_time <- callModule(time, id = "max_time",
                          type = "max", meta = meta, selected_ani = choose_ani)
+  
+  # select weather station
+  choose_station <- callModule(reactivePicker, "choose_station",
+                               type = "station", req_list = list(stations = stations),
+                               text = "Select weather station (sorted by distance)", multiple = FALSE)
   
   # select variables to compute statistics
   choose_cols <- callModule(staticPicker, "choose_cols",
