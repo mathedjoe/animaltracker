@@ -41,20 +41,20 @@ app_ui <- function(){
                           datePickerOutput("choose_dates"),
                           timeOutput("min_time"),
                           timeOutput("max_time"),
-                          
+                          reactiveRangeOutput("lat_bounds"),
+                          reactiveRangeOutput("long_bounds"),
                           hr(),
                           
                           h4("3. Data Processing"),
                           shinyBS::bsCollapse(id = "uploadOptions", open = "General Options",
                                      shinyBS::bsCollapsePanel("General Options",
                                                      checkboxInput("filterBox", label = "Filter bad data points", value = TRUE),
-                                                     checkboxInput("elevBox", label = "Append elevation data"),
-                                                     checkboxInput("weatherBox", label = "Append weather data")
+                                                     checkboxInput("elevBox", label = "Append USGS Elevation data"),
+                                                     checkboxInput("weatherBox", label = "Append NOAA Hourly Weather data")
                                      )),
                                      shinyBS::bsCollapse(id = "elevOptions", 
                                        shinyBS::bsCollapsePanel("Elevation Options",
-                                                       reactiveRangeOutput("lat_bounds"),
-                                                       reactiveRangeOutput("long_bounds"),
+                                                       
                                                        uiOutput("zoom"),
                                                        checkboxInput("slopeBox", label = "Include slope", value = TRUE),
                                                        checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
@@ -71,7 +71,7 @@ app_ui <- function(){
                                                                                                        "dewpoint temperature", "air pressure"),
                                                                                           multiple = TRUE,
                                                                                           options = list(`actions-box` = TRUE)
-                                                                ))
+                                                                )), open = "Weather Options"
                                      ),
           
                           actionButton("processButton", "Process All"),

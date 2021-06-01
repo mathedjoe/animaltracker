@@ -223,8 +223,8 @@ lookup_weather <- function(anidf, selected_vars = c("wind_direction", "wind_spee
                 as.numeric(xdata)
               }) %>%
     mutate_at(vars(temperature, temperature_dewpoint, air_pressure), function(x) x/10 ) %>%
-    filter(datetime >= min(lubridate::round_date(anidf$DateTime-hours(12), unit="hour"), na.rm=TRUE), 
-           datetime <= max(lubridate::round_date(anidf$DateTime+hours(12), unit="hour"), na.rm=TRUE),
+    filter(datetime >= min(lubridate::round_date(anidf$DateTime-lubridate::hours(12), unit="hour"), na.rm=TRUE), 
+           datetime <= max(lubridate::round_date(anidf$DateTime+lubridate::hours(12), unit="hour"), na.rm=TRUE),
            !is.na(datehr),
            !duplicated(datehr) # note: might be better to group_by(datehr) and aggregate/average
     )
