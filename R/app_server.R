@@ -101,30 +101,74 @@ app_server <- function(input, output, session) {
   
   # "process all" button event handler
   observeEvent(input$processButton, {
-    if(!is.null(stations()) && !is.null(choose_station())) {
-      selected_station <- stations() %>% dplyr::filter(station_name == choose_station())
-      if(!is.null(lat_bounds()) && !is.null(long_bounds())) { # if latitude and longitude boundaries specified
-        processingInitiatedAll(TRUE) # set "process all" flag to true
-        # get metadata for animal data with filter flag, zoom level, slope flag, aspect flag, and lat/long bounds specified
+    # with elevation and weather
+    if(input$elevBox && input$weatherBox) {
+      selected_station <- stations() %>% dplyr::filter(station_name == gsub(" *\\(.*", "", choose_station()))
+      # check that lat/long bounds are populated before elevation lookup
+      if(!is.null(lat_bounds()) && !is.null(long_bounds())) {
+        processingInitiatedAll(TRUE)
         meta(clean_store_batch(raw_dat(), filters = input$filterBox, zoom = input$selected_zoom,
-                               input$slopeBox, input$aspectBox, input$selected_weather, selected_station,
+                               get_elev = TRUE, input$slopeBox, input$aspectBox, input$selected_weather, selected_station,
                                lat_bounds()[1], lat_bounds()[2],
                                long_bounds()[1], long_bounds()[2]))
       }
-      else { # if lat/long bounds not specified
-        processingInitiatedAll(TRUE) # set "process all" flag to true
-        # get metadata for animal data with filter flag, zoom level, slope flag, and aspect flag specified
-        # lat/long bounds are determined by min lat/long and max lat/long from animal data
+      else {
+        processingInitiatedAll(TRUE)
         meta(clean_store_batch(raw_dat(), input$filterBox, zoom = input$selected_zoom,
-                               input$slopeBox, input$aspectBox, input$selected_weather, selected_station,
+                               get_elev = TRUE, input$slopeBox, input$aspectBox, input$selected_weather, selected_station,
                                raw_dat()$min_lat, raw_dat()$max_lat,
                                raw_dat()$min_long, raw_dat()$max_long))
       }
+    }
+    # elevation only
+    else if(input$elevBox) {
+      if(!is.null(lat_bounds()) && !is.null(long_bounds())) {
+        processingInitiatedAll(TRUE)
+        meta(clean_store_batch(raw_dat(), filters = input$filterBox, zoom = input$selected_zoom,
+                               get_elev = TRUE, input$slopeBox, input$aspectBox, weather_vars = NULL, selected_station = NULL,
+                               lat_bounds()[1], lat_bounds()[2],
+                               long_bounds()[1], long_bounds()[2]))
+      }
+      else {
+        processingInitiatedAll(TRUE)
+        meta(clean_store_batch(raw_dat(), input$filterBox, zoom = input$selected_zoom,
+                               get_elev = TRUE, input$slopeBox, input$aspectBox, weather_vars = NULL, selected_station = NULL))
+      }
+    }
+    # weather only
+    else if(input$weatherBox) {
+      processingInitiatedAll(TRUE)
+      selected_station <- stations() %>% dplyr::filter(station_name == gsub(" *\\(.*", "", choose_station()))
+      meta(clean_store_batch(raw_dat(), filters = input$filterBox, weather_vars = input$selected_weather, selected_station = selected_station))
+    }
+    # just clean, no extra data
+    else {
+      processingInitiatedAll(TRUE)
+      meta(clean_store_batch(raw_dat(), filters = input$filterBox))
     }
   })
   # "process selected" button event handler
   observeEvent(input$processSelectedButton, {
     processingInitiated(TRUE) # set "process selected" flag to true
+  })
+  
+  # hide/show elevation and weather panels
+  observeEvent(input$elevBox, {
+    if(input$elevBox) {
+      shinyjs::show(id = "elevOptions")
+    }
+    else {
+      shinyjs::hide(id = "elevOptions")
+    }
+  })
+  
+  observeEvent(input$weatherBox, {
+    if(input$weatherBox) {
+      shinyjs::show(id = "weatherOptions")
+    }
+    else {
+      shinyjs::hide(id = "weatherOptions")
+    }
   })
   
   ######################################
@@ -187,39 +231,42 @@ app_server <- function(input, output, session) {
         # if no user provided data, use demo data
         if(is.null(input$zipInput)) {
           current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id,
-                                               Latitude >= lat_bounds()[1], Latitude <= lat_bounds()[2], 
-                                               Longitude >= long_bounds()[1], Longitude <= long_bounds()[2],
-                                               DateTime >= min_datetime, DateTime <= max_datetime) # filter demo data to date range and animals shown on app startup
-          if(nrow(current_df) == 0) { # if filter returns empty dataset, default to demo animals shown on app startup
-            current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id)
-          }
+                                               DateTime >= min_datetime, DateTime <= max_datetime) 
           if(processingInitiated()) {  # if "process selected" button pushed
             processingInitiated(FALSE) # turn off "process selected" flag
             
-            cache_name <- paste(cache_name, "(processed)") # cache label: cache label + (processed)
-            
-            status_message <- modalDialog(
-              pre(id = "console"),
-              title = "Please Wait...",
-              easyClose = TRUE,
-              footer = NULL
-            )
-            
-            # display status message in popup window
-            showModal(status_message)
-            
-            # get elevation for current data
-            withCallingHandlers({
-              shinyjs::html("console", "")
-              current_df <- lookup_elevation_aws(current_df, zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox) 
-            },
-            message = function(m) {
-              shinyjs::html(id = "console", html = m$message)
-            })
+            if(input$elevBox) {
+              current_df <- demo %>% dplyr::filter(Latitude >= lat_bounds()[1], Latitude <= lat_bounds()[2], 
+                                                   Longitude >= long_bounds()[1], Longitude <= long_bounds()[2]) # filter demo data to date range and animals shown on app startup
+              if(nrow(current_df) == 0) { # if filter returns empty dataset, default to demo animals shown on app startup
+                current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id)
+              }
+              
+              cache_name <- paste(cache_name, "(processed)") # cache label: cache label + (processed)
+              
+              status_message <- modalDialog(
+                pre(id = "console"),
+                title = "Please Wait...",
+                easyClose = TRUE,
+                footer = NULL
+              )
+              
+              # display status message in popup window
+              showModal(status_message)
+              
+              # get elevation for current data
+              withCallingHandlers({
+                shinyjs::html("console", "")
+                current_df <- lookup_elevation_aws(current_df, zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox) 
+              },
+              message = function(m) {
+                shinyjs::html(id = "console", html = m$message)
+              })
+            }
             
             selected_vars <- c()
             # get weather data
-            if(length(input$selected_weather) != 0) {
+            if(input$weatherBox && length(input$selected_weather) != 0) {
               if("wind direction" %in% input$selected_weather) {
                 selected_vars <- c(selected_vars, "wind_direction")
               }
@@ -246,9 +293,9 @@ app_server <- function(input, output, session) {
               }
               withCallingHandlers({
                 shinyjs::html("console", "")
-                selected_station <- stations() %>% dplyr::filter(station_name == choose_station())
+                selected_station <- stations() %>% dplyr::filter(station_name == gsub(" *\\(.*", "", choose_station()))
                 current_df <- current_df %>% 
-                  lookup_weather(selected_vars, search = FALSE, selected_station, is_shiny = TRUE)
+                  lookup_weather(selected_vars, search = FALSE, station = selected_station, is_shiny = TRUE)
               },
               message = function(m) {
                 shinyjs::html(id = "console", html = m$message)
@@ -272,9 +319,7 @@ app_server <- function(input, output, session) {
             cache_name <- paste(cache_name, "(processed)") # cache label: cache label + (processed)
             
             current_df <- cache()[[choose_recent()]]$df %>% # filter current data by lat/long and date/time bounds
-              dplyr::filter(Latitude >= lat_bounds()[1], Latitude <= lat_bounds()[2], 
-                            Longitude >= long_bounds()[1], Longitude <= long_bounds()[2],
-                            DateTime >= min_datetime, DateTime <= max_datetime) 
+              dplyr::filter(DateTime >= min_datetime, DateTime <= max_datetime) 
             
             if(nrow(current_df) == 0) { # if empty dataset is returned default to current data
               return(cache()[[choose_recent()]]$df)
@@ -282,30 +327,38 @@ app_server <- function(input, output, session) {
             
             # clean current data
             #current_df <- clean_location_data(current_df, dtype = "", prep = FALSE, filters = input$filterBox) 
-            
-            # data processing status message
-            status_message <- modalDialog(
-              pre(id = "console"),
-              title = "Please Wait...",
-              easyClose = TRUE,
-              footer = NULL
-            )
-            
-            # display status message in popup window
-            showModal(status_message)
-            
-            # get elevation for current data
-            withCallingHandlers({
-              shinyjs::html("console", "")
-              current_df <- lookup_elevation_aws(current_df, zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox) 
-            },
-            message = function(m) {
-              shinyjs::html(id = "console", html = m$message)
-            })
+            if(input$elevBox) {
+              current_df <- current_df %>% 
+                filter(Latitude >= lat_bounds()[1], Latitude <= lat_bounds()[2], 
+                       Longitude >= long_bounds()[1], Longitude <= long_bounds()[2])
+              if(nrow(current_df == 0)) {
+                current_df <- cache()[[choose_recent()]]$df %>% # filter current data by lat/long and date/time bounds
+                  dplyr::filter(DateTime >= min_datetime, DateTime <= max_datetime)
+              }
+              # data processing status message
+              status_message <- modalDialog(
+                pre(id = "console"),
+                title = "Please Wait...",
+                easyClose = TRUE,
+                footer = NULL
+              )
+              
+              # display status message in popup window
+              showModal(status_message)
+              
+              # get elevation for current data
+              withCallingHandlers({
+                shinyjs::html("console", "")
+                current_df <- lookup_elevation_aws(current_df, zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox) 
+              },
+              message = function(m) {
+                shinyjs::html(id = "console", html = m$message)
+              })
+            }
            
             selected_vars <- c()
             # get weather data
-            if(length(input$selected_weather) != 0) {
+            if(input$weatherBox && length(input$selected_weather) != 0) {
               if("wind direction" %in% input$selected_weather) {
                 selected_vars <- c(selected_vars, "wind_direction")
               }
@@ -332,7 +385,7 @@ app_server <- function(input, output, session) {
               }
               withCallingHandlers({
                 shinyjs::html("console", "")
-                selected_station <- stations() %>% dplyr::filter(station_name == choose_station())
+                selected_station <- stations() %>% dplyr::filter(station_name == gsub(" *\\(.*", "", choose_station()))
                 current_df <- current_df %>% 
                   lookup_weather(selected_vars, search = FALSE, selected_station, is_shiny = TRUE)
               },
@@ -430,7 +483,7 @@ app_server <- function(input, output, session) {
   # select weather station
   choose_station <- callModule(reactivePicker, "choose_station",
                                type = "station", req_list = list(stations = stations),
-                               text = "Select weather station (sorted by distance)", multiple = FALSE)
+                               text = "Select weather station (sorted by dist from center of data)", multiple = FALSE)
   
   # select variables to compute statistics
   choose_cols <- callModule(staticPicker, "choose_cols",

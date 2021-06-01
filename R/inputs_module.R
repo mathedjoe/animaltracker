@@ -113,7 +113,8 @@ reactivePicker <- function(input, output, session, type, req_list, text, min_sel
       if(is.null(req_list$stations())) {
         return()
       }
-      stations <- req_list$stations()
+      stations <- req_list$stations() %>% 
+        dplyr::mutate(station_name = paste0(station_name, " (", round(distance, 2), " km)"))
       choices <- as.list(stations$station_name)
       selected <- choices[1]
     }

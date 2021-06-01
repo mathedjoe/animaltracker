@@ -26,7 +26,7 @@ app_ui <- function(){
              ## DATA PANEL
              tabPanel("Data", 
                       sidebarLayout(
-                        sidebarPanel( 
+                        sidebarPanel(
                           h4("1. Upload Data"),
                           helpText("Select a zip folder on your computer containing .csv files. Please upload data from one
                                    area at a time."),
@@ -45,30 +45,35 @@ app_ui <- function(){
                           hr(),
                           
                           h4("3. Data Processing"),
-                          shinyBS::bsCollapse(id = "uploadOptions", open = "Elevation Options",
-                                     shinyBS::bsCollapsePanel("Cleaning Options",
-                                                     checkboxInput("filterBox", label = "Filter bad data points", value = TRUE)
+                          shinyBS::bsCollapse(id = "uploadOptions", open = "General Options",
+                                     shinyBS::bsCollapsePanel("General Options",
+                                                     checkboxInput("filterBox", label = "Filter bad data points", value = TRUE),
+                                                     checkboxInput("elevBox", label = "Append elevation data"),
+                                                     checkboxInput("weatherBox", label = "Append weather data")
+                                     )),
+                                     shinyBS::bsCollapse(id = "elevOptions", 
+                                       shinyBS::bsCollapsePanel("Elevation Options",
+                                                       reactiveRangeOutput("lat_bounds"),
+                                                       reactiveRangeOutput("long_bounds"),
+                                                       uiOutput("zoom"),
+                                                       checkboxInput("slopeBox", label = "Include slope", value = TRUE),
+                                                       checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
+                                     )),
+                                     shinyBS::bsCollapse(id = "weatherOptions", 
+                                       shinyBS::bsCollapsePanel("Weather Options",
+                                                                reactivePickerOutput("choose_station"),
+                                                                shinyWidgets::pickerInput("selected_weather",
+                                                                                          label = "Select weather variables",
+                                                                                          choices = c("wind direction", "wind speed", "ceiling height",
+                                                                                                      "visibility distance", "temperature", "dewpoint temperature",
+                                                                                                      "air pressure", "precipitation depth"),
+                                                                                          selected = c("wind direction", "wind speed", "temperature",
+                                                                                                       "dewpoint temperature", "air pressure"),
+                                                                                          multiple = TRUE,
+                                                                                          options = list(`actions-box` = TRUE)
+                                                                ))
                                      ),
-                                     shinyBS::bsCollapsePanel("Elevation Options",
-                                                     reactiveRangeOutput("lat_bounds"),
-                                                     reactiveRangeOutput("long_bounds"),
-                                                     uiOutput("zoom"),
-                                                     checkboxInput("slopeBox", label = "Include slope", value = TRUE),
-                                                     checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
-                                     ),
-                                     shinyBS::bsCollapsePanel("Weather Options",
-                                                              reactivePickerOutput("choose_station"),
-                                                              shinyWidgets::pickerInput("selected_weather",
-                                                                                        label = "Select weather variables",
-                                                                                        choices = c("wind direction", "wind speed", "ceiling height",
-                                                                                                    "visibility distance", "temperature", "dewpoint temperature",
-                                                                                                    "air pressure", "precipitation depth"),
-                                                                                        selected = c("wind direction", "wind speed", "temperature",
-                                                                                                     "dewpoint temperature", "air pressure"),
-                                                                                        multiple = TRUE,
-                                                                                        options = list(`actions-box` = TRUE)
-                                                              ))
-                          ),
+          
                           actionButton("processButton", "Process All"),
                           actionButton("processSelectedButton", "Process Selected"),
                           

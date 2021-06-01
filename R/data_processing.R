@@ -214,7 +214,7 @@ lookup_weather <- function(anidf, selected_vars = c("wind_direction", "wind_spee
            air_pressure ) %>% 
     mutate(date =  as.Date(as.character(raw_date), format = "%Y%m%d"),
            datetime = as.POSIXct(paste(raw_date, raw_time), format = "%Y%m%d %H%M", tz = "UTC"),
-           datehr = round_date(datetime, unit = "hour")
+           datehr = lubridate::round_date(datetime, unit = "hour")
     ) %>% 
     mutate_at(vars(wind_direction, wind_speed, temperature, temperature_dewpoint, air_pressure), 
               function(x){ # convert strings to numeric format, remove NAs (indicated by 9999)
@@ -243,7 +243,7 @@ lookup_weather <- function(anidf, selected_vars = c("wind_direction", "wind_spee
   # left_join weather ts to the animal data
   
   anidf_aug <- anidf %>% 
-    dplyr::mutate(datehr = round_date(DateTime, unit= "hour")) %>%
+    dplyr::mutate(datehr = lubridate::round_date(DateTime, unit= "hour")) %>%
     dplyr::left_join(weather_ts)
   
   return(anidf_aug)
