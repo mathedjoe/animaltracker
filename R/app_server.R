@@ -1,5 +1,4 @@
 ### Server Function for the App
-
 if(getRversion() >= '2.5.1') {
   globalVariables(c('demo_info', 'demo_unfiltered', 'demo_filtered', 'demo_meta', 'demo',
                     'ani_id', 'Animal', 'Date', 'site', 'LocationID', 'tags', 'DateTime',
@@ -151,6 +150,15 @@ app_server <- function(input, output, session) {
   observeEvent(input$processSelectedButton, {
     processingInitiated(TRUE) # set "process selected" flag to true
   })
+  
+  # close the panel for restricting data on start-up
+  observe({
+    message("ready to do some shinyBS")
+    
+    shinyBS::updateCollapse(session = session, id = "restrictOptions",  close = "restrict_options")
+    
+  })
+    
   
   # hide/show elevation and weather panels
   observeEvent(input$elevBox, {

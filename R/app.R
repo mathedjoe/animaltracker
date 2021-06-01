@@ -17,6 +17,7 @@ run_shiny_animaltracker <- function( browser = TRUE, showcase=FALSE) {
   requireNamespace("raster")
   requireNamespace("shinyjs")
   requireNamespace("shinyBS")
+  library(shinyBS) # for some reason, needs to be loaded at run time for the app?
   
   options(shiny.maxRequestSize=30*1024^2) 
  

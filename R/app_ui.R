@@ -38,11 +38,16 @@ app_ui <- function(){
                           h4("2. Select Data"),
                           reactivePickerOutput("choose_site") %>% shinycssloaders::withSpinner(),
                           reactivePickerOutput("choose_ani"),
-                          datePickerOutput("choose_dates"),
-                          timeOutput("min_time"),
-                          timeOutput("max_time"),
-                          reactiveRangeOutput("lat_bounds"),
-                          reactiveRangeOutput("long_bounds"),
+                          shinyBS::bsCollapse(id = "restrictOptions", 
+                                              shinyBS::bsCollapsePanel("Restrict Date/Time/Location",
+                                                                       datePickerOutput("choose_dates"),
+                                                                       timeOutput("min_time"),
+                                                                       timeOutput("max_time"),
+                                                                       reactiveRangeOutput("lat_bounds"),
+                                                                       reactiveRangeOutput("long_bounds")
+                                                                       , value = "restrict_options"),
+                                              open = "restrict_options"
+                          ),
                           hr(),
                           
                           h4("3. Data Processing"),
