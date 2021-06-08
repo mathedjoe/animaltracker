@@ -287,6 +287,18 @@ app_server <- function(input, output, session) {
     numericInput("max_time", "Max time (min):", value = 3600, min = 1, max = 15000, step = 1)
   })
   
+  output$knn_eps <- renderUI({
+    numericInput("knn_eps", "K-Nearest DBSCAN EPS", value = 0.001, min = 0.0001, max = 1000, step = 0.001)
+  })
+  
+  output$knn_k <- renderUI({
+    numericInput("knn_k", "K-Nearest DBSCAN K", value = 5, min = 1, max = 2000, step = 1)
+  })
+  
+  output$interp <- renderUI({
+    numericInput("interp", "DBSCAN Interpolation Value", value = 20, min = 1, max = 15000, step = 1)
+  })
+  
   # select lat/long bounds
   
   lat_bounds <- callModule(reactiveRange, 

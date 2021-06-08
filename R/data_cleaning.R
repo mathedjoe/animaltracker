@@ -1,6 +1,6 @@
 
 if(getRversion() >= '2.5.1') {
-  globalVariables(c('dplyr', 'tibble', 'forecast', 'tsbox', 'imputeTS', 'tidyverse',
+  globalVariables(c('dbscan', 'dplyr', 'tibble', 'forecast', 'tsbox', 'imputeTS', 'tidyverse',
                     'Time', 'Altitude', 'Distance', 'TimeDiff', 'Course',
                     'CourseDiff', 'DistGeo', 'RateFlag', 'CourseFlag', 'DistFlag',
                     'TotalFlags', 'TimeFlag', 'DuplicateDateFlag', 'RMCRecord',
@@ -203,6 +203,12 @@ clean_location_data <- function(df, dtype,
                  max_timestep=kalman_max_timestep)
   }
   
+  if(!kalman) {
+    df <- kalman(df, min_longitude=kalman_min_lon, max_longitude=kalman_max_lon,
+                 min_latitude=kalman_min_lat, max_latitude=kalman_max_lat,
+                 max_timestep=kalman_max_timestep)
+  }
+  
   return(as.data.frame(df))
 }
 
@@ -367,3 +373,5 @@ kalman <- function(cattle_df, min_longitude=-117, max_longitude=-116, min_latitu
 
   return(cattle_ts_smoothed)
 }
+
+

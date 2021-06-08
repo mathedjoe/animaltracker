@@ -57,7 +57,13 @@ app_ui <- function(){
                                                      checkboxInput("kalman_enable", label = "Cluster data with Kalman filtering", value = FALSE),
                                                      shinyBS::bsCollapsePanel("Kalman Configuration Options",
                                                        uiOutput("kalman_max_timestep")
-                                                     )
+                                                     ),
+						     checkboxInput("dbscan_enable", label = "Cluster data with DBSCAN filtering", value = FALSE),
+						     shinyBS::bsCollapsePanel("DBSCAN Configuration Options",
+						                              uiOutput("knn_eps"),
+						                              uiOutput("knn_k"),
+						                              uiOutput("interp")
+						     )
                                      ),
                                      shinyBS::bsCollapsePanel("Elevation Options",
                                                      reactiveRangeOutput("lat_bounds"),
