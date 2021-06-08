@@ -69,7 +69,11 @@ app_server <- function(input, output, session) {
   observeEvent(input$processButton, {
       if(!is.null(lat_bounds()) && !is.null(long_bounds())) {
         processingInitiatedAll(TRUE)
-        meta(clean_store_batch(raw_dat(), kalman=input$kalman_enable,
+        meta(clean_store_batch(raw_dat(), dbscan_enable=input$dbscan_enable,
+                               dbscan_knn_eps = input$knn_eps,
+                               dbscan_knn_k = input$knn_k,
+                               dbscan_interp = input$interp,
+                               kalman=input$kalman_enable,
                                kalman_max_timestep=input$kalman_max_timestep,
                                filters = input$filterBox,
                                zoom = input$selected_zoom,
@@ -81,7 +85,11 @@ app_server <- function(input, output, session) {
       }
       else {
         processingInitiatedAll(TRUE)
-        meta(clean_store_batch(raw_dat(), kalman=input$kalman_enable,
+        meta(clean_store_batch(raw_dat(), dbscan_enable=input$dbscan_enable, 
+                               dbscan_knn_eps = input$knn_eps,
+                               dbscan_knn_k = input$knn_k,
+                               dbscan_interp = input$interp,
+                               kalman=input$kalman_enable,
                                kalman_max_timestep=input$kalman_max_timestep,
                                input$filterBox,
                                zoom = input$selected_zoom,
@@ -199,7 +207,11 @@ app_server <- function(input, output, session) {
             current_df <- clean_location_data(current_df, dtype = "", prep = FALSE, filters = input$filterBox,
                                               maxrate = input$max_rate, maxcourse = input$max_course,
                                               maxdist = input$max_dist, maxtime = input$max_time,
-					      kalman=input$kalman_enable,  
+                                              dbscan_enable=input$dbscan_enable, 
+                                              dbscan_knn_eps = input$knn_eps,
+                                              dbscan_knn_k = input$knn_k,
+                                              dbscan_interp = input$interp,
+                                              kalman=input$kalman_enable,
                                               kalman_max_timestep=input$kalman_max_timestep,
                                               kalman_min_lat=lat_bounds()[1], kalman_max_lat=lat_bounds()[2],
                                               kalman_min_lon=long_bounds()[1], kalman_max_lon=long_bounds()[2], zoom) 

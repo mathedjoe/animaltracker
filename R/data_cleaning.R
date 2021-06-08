@@ -83,7 +83,8 @@ clean_location_data <- function(df, dtype,
                                 prep = TRUE, filters = TRUE, 
                                 aniid = NA, gpsid = NA, 
                                 maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=60*60, tz_in = "UTC", tz_out = "UTC",
-                                kalman = FALSE, kalman_min_lat=43, kalman_max_lat=44, kalman_min_lon=-117, kalman_max_lon=-116, kalman_max_timestep=300) {
+                                dbscan_enable=FALSE, kalman = FALSE, kalman_min_lat=43, kalman_max_lat=44, kalman_min_lon=-117, kalman_max_lon=-116, kalman_max_timestep=300,
+                                dbscan_knn_eps, dbscan_knn_k, dbscan_interp) {
   if(prep) {
     # make sure quantitative columns are read in properly
     df <- df %>% 
@@ -203,10 +204,9 @@ clean_location_data <- function(df, dtype,
                  max_timestep=kalman_max_timestep)
   }
   
-  if(!kalman) {
-    df <- kalman(df, min_longitude=kalman_min_lon, max_longitude=kalman_max_lon,
-                 min_latitude=kalman_min_lat, max_latitude=kalman_max_lat,
-                 max_timestep=kalman_max_timestep)
+  if(dbscan_enable) {
+    df <- dbscan_api(df, dbscan_knn_eps=dbscan_knn_eps, dbscan_knn_k=dbscan_knn_k,
+                     dbscan_interp=dbscan_interp)
   }
   
   return(as.data.frame(df))
@@ -276,7 +276,7 @@ clean_export_files <- function(data_dir, tz_in = "UTC", tz_out = "UTC", export =
     message(paste("processing ", nstart, "data points for animal #",aniid, "with gps unit #", gpsid, "..."))
     
     ### REMOVE BAD DATA POINTS (as described on pages 26-39 of Word Doc)
-    df<- clean_location_data(df, dtype,
+    df <- clean_location_data(df, dtype,
                              aniid = aniid, 
                              gpsid = gpsid, 
                              maxrate = 84, maxcourse = 100, maxdist = 840, maxtime = 100, tz_in = tz_in, tz_out = tz_out)
@@ -374,4 +374,82 @@ kalman <- function(cattle_df, min_longitude=-117, max_longitude=-116, min_latitu
   return(cattle_ts_smoothed)
 }
 
-
+dbscan_api <- function(df, dbscan_knn_eps, dbscan_knn_k, dbscan_interp) {
+  cluster_analyze <- function(data, animal, date, knn_k = dbscan_knn_k, knn_eps = dbscan_knn_eps) {
+    df <- data %>% 
+      filter(Date == date, Animal == animal) %>%
+      arrange(Index) %>% 
+      select(Longitude, Latitude) 
+    
+    res <- dbscan(df, eps = knn_eps, minPts = knn_k)
+    
+    data_out <- df %>%
+      mutate(cluster = as.factor(ifelse(res$cluster ==0, NA, res$cluster))) 
+    
+    list(data = data_out, plot = plot_out)
+  }
+  
+  # set-up neighbor search radii
+  # about 111 km per degree latitude
+  # cows = 84 m max travel between measurements
+  # cars = 80 mi/h max (= 129 km/h)
+  cow_eps <- 84/(111*1000)
+  
+  car_eps <- 128.75 /(6*111)
+  
+  clusters <- cluster_analyze(df, sampling_combos$Animal[28], sampling_combos$Date[28], knn_eps = cow_eps)
+  
+  clusters_car <- cluster_analyze(df, sampling_combos$Animal[2], sampling_combos$Date[2], 
+                                     knn_eps = car_eps*.48)
+  
+  ## Optimizing epsilon for DBSCAN algorithm
+  
+  optimize_eps <- function(data, animal, date, knn_k = dbscan_knn_k) {
+    df <- data %>% 
+      filter(Date == date, Animal == animal) %>%
+      arrange(Index) %>% 
+      select(Longitude, Latitude) 
+    
+    index <- 1:nrow(df) 
+    knn_dists <- sort(kNNdist(df, k = knn_k)) # sort nearest neighbor distances in ascending order
+    dists_spline <- smooth.spline(x = index, y = knn_dists, df = 20) # interpolate data indices and kNN distances
+    curvature <- predict(dists_spline, x = index, deriv = 2) # get second derivative of interpolating spline
+    return(knn_dists[which.max(curvature$y)]) # return the kNN distance at the index of the maximum second derivative
+  }
+  
+  # Get overview of data by Animal and Date
+  df_summary <- df %>% 
+    dplyr::group_by(Animal, Date) %>% 
+    dplyr::summarise(n = n())
+  
+  return(df_summary)
+  
+  #eps_estimates <- c()
+  
+  # Get epsilon estimates via Monte Carlo simulation
+  #for(i in 1:100) {
+    #sample_i <- df_summary[sample(nrow(df_summary), 30), ]
+    #eps_estimate <- lapply( 1:nrow(sample_i), 
+                            #function(j){
+                              #optimize_eps(df, sample_i$Animal[j], sample_i$Date[j])
+                            #} 
+    #)
+    #eps_estimates <- c(eps_estimates, median(unlist(eps_estimate)))
+  #}
+  
+  #eps_final <- median(eps_estimates)
+  
+  ###########
+  ## try OPTICS algorithm
+  ## helps identify eps value for dbscan
+  #xdf <- df %>% 
+    #filter(Date == "2018-05-24", Animal == "011") %>%
+    #select(Longitude, Latitude)
+  
+ # res <- optics(xdf, minPts = 10)
+  
+  #res2 <- extractDBSCAN(res, eps_cl = .2)
+  
+  #data_out <- xdf %>%
+    #mutate(cluster = as.factor(ifelse(res2$cluster ==0, NA, res2$cluster))) 
+}
