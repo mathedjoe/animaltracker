@@ -14,13 +14,14 @@ library(tidyverse)
 library(caret)
 library(ranger)
 library(vip)
+library(lubridate)
 ```
 
 ## Data Prep
 
 Read in accelerometer data for all cows in November 2017.
 ```{r}
-cow_accel_file <- list.files("R/scratch/accel/rf_2018/", pattern="2017", full.names = TRUE)
+cow_accel_file <- list.files("rf_2018", pattern="All Cows", full.names = TRUE)
 cow_accel_raw <- readxl::read_excel(cow_accel_file)
 head(cow_accel_raw)
 ```

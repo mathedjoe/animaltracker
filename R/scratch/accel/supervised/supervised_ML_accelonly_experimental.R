@@ -181,3 +181,11 @@ cow_accel_raw3 <- readxl::read_excel(cow_accel_file3)
 
 ## TO DO: CLEAN THE TEST DATA SET, COMPARE PREDICTIONS TO OBSERVED USING PARSY model
 # cow_accel3 <- ...
+
+cow_accel2_pred %>% 
+  ggplot(aes(x = norm_accel, group = pred, color = pred )) +
+  geom_density()
+
+cow_accel2_pred %>% 
+  ggplot(aes(x = norm_accel, group = Behavior, color = Behavior )) +
+  geom_density()
