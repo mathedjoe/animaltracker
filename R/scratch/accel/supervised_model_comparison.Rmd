@@ -1,0 +1,195 @@
+---
+title: "Comparison of Supervised Learning Models for Cattle Behavior Prediction"
+author: "Joe Champion and Thea Sukianto"
+date: "6/7/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(caret)
+library(ranger)
+library(vip)
+```
+
+## Data Prep
+
+Read in accelerometer data for all cows in November 2017.
+```{r}
+cow_accel_file <- list.files("R/scratch/accel/rf_2018/", pattern="2017", full.names = TRUE)
+cow_accel_raw <- readxl::read_excel(cow_accel_file)
+head(cow_accel_raw)
+```
+Compute additional physics measures from X, Y, and Z acceleration.
+```{r}
+clean_accel_data <- function(data){
+  # before using, prep the data to format: datetime, X, Y, Z, Behavior
+  data %>% 
+    dplyr::mutate(
+      elapsed = lubridate::seconds(datetime - dplyr::lag(datetime)),
+      elapsed = as.numeric(gsub("S", "", elapsed)),
+      elapsed = replace_na(elapsed, 0),
+      XY.Z = X*Y+Z,  
+      XZ = X*Z,
+      X.Y.Z = X+Y+Z,
+      norm_accel = sqrt(X^2+Y^2+Z^2),
+      tiltX = asin(X/norm_accel),
+      tiltY = asin(Y/norm_accel),
+      tiltZ = acos(Z/norm_accel),
+      pitch = atan(X/(Y^2+Z^2)),
+      roll = atan(Y/(X^2+Z^2)),
+      yaw = atan(Z /(X^2+Y^2)),
+      jerkX = (X-dplyr::lag(X))/elapsed, #meters/sec^3
+      jerkY = (Y -dplyr::lag(Y))/elapsed,
+      jerkZ = (Z-dplyr::lag(Z))/elapsed,
+      tvelX = (cumsum(X) - dplyr::first(X))*elapsed, #meters/sec
+      tvelY = (cumsum(Y) - dplyr::first(Y))*elapsed,
+      tvelZ = (cumsum(Z) - dplyr::first(Z))*elapsed,
+      tdispX = cumsum(tvelX)*elapsed, #meters
+      tdispY = cumsum(tvelY)*elapsed,
+      tdispZ = cumsum(tvelZ)*elapsed
+    ) %>% 
+    mutate(across(starts_with("jerk"), function(x){ replace_na(x,0)}) ) %>% 
+    filter(abs(elapsed) < 60, !is.infinite(jerkX))
+}
+```
+
+Assume the sampling rate is 12 Hz and adjust timestamps from HH:MM:00 accordingly.
+```{r}
+cow_accel <- cow_accel_raw %>% 
+  dplyr::rename(Behavior = Observed) %>% 
+  dplyr::mutate(Behavior = as.factor(Behavior),
+                Time = format(strptime(Time, format="%Y-%m-%d %H:%M:%S"), format="%H:%M:%S"),
+                datetime = as.POSIXct(paste(Date, Time))) %>% 
+  dplyr::group_by(datetime, COWID) %>% 
+  dplyr::mutate(Offset = row_number()-n()-1,
+                datetime = datetime + minutes(1) + seconds(5*Offset)) %>% 
+  dplyr::filter(!duplicated(datetime)) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select(COWID, datetime, Behavior, X, Y, Z)
+
+cow_accel <- cow_accel %>% clean_accel_data()
+```
+Holdout cow IDs 7 and 12 as the test set.
+```{r}
+cow_7 <- cow_accel %>% dplyr::filter(COWID == 7)
+cow_12 <- cow_accel %>% dplyr::filter(COWID == 12)
+cow_accel <- cow_accel %>% dplyr::filter(COWID != 7, COWID != 12)
+```
+Create 5 folds from the training data for cross-validation. 
+```{r}
+train.control <- trainControl(method = "cv", number = 5)
+```
+## Modeling (Sprinkle's variable set)
+```{r}
+cow_accel_sprinkle <- cow_accel %>% 
+  select(X,Y,Z,XY.Z, XZ, Behavior)
+```
+### QDA
+```{r}
+model_qda_sprinkle <- train(Behavior ~ ., 
+                   data = cow_accel_sprinkle, method = "qda",
+                   trControl = train.control)
+print(model_qda_sprinkle)
+```
+
+```{r}
+confusionMatrix(model_qda_sprinkle)
+```
+### Random Forest
+```{r}
+rf_tune_grid_sprinkle <- expand.grid( mtry = seq(1,5),
+                             splitrule = "gini",
+                             min.node.size = seq(1,5,1))
+
+model_rf_sprinkle <- train(Behavior ~., 
+                  data = cow_accel_sprinkle, 
+                  method = "ranger",
+                  trControl = train.control, 
+                  tuneGrid = rf_tune_grid_sprinkle)
+print(model_rf_sprinkle)
+```
+
+```{r}
+confusionMatrix(model_rf_sprinkle)
+```
+
+## Modeling (Expanded variable set)
+```{r}
+cow_accel_expanded <- cow_accel %>% 
+  select(-c(datetime, elapsed, X.Y.Z, XY.Z, XZ, X.Y.Z) )
+```
+
+### QDA
+```{r}
+model_qda_expanded <- train(Behavior ~ ., 
+                            data = cow_accel_expanded, method = "qda",
+                            trControl = train.control)
+print(model_qda_expanded)
+```
+
+```{r}
+confusionMatrix(model_qda_expanded)
+```
+### Random Forest
+```{r}
+rf_tune_grid_expanded <- expand.grid( mtry = seq(1,ncol(cow_accel_expanded)-1),
+                                      splitrule = "gini",
+                                      min.node.size = seq(1,10,1))
+
+model_rf_expanded <- train(Behavior ~., 
+                           data = cow_accel_expanded, 
+                           method = "ranger",
+                           trControl = train.control, 
+                           #tuneGrid = rf_tune_grid_expanded,
+                           importance = "impurity")
+print(model_rf_expanded)
+confusionMatrix(model_rf_expanded)
+```
+## Variable Importance
+```{r}
+vip(model_rf_expanded, geom="point", num_features = 20) + theme_minimal()
+
+vi_rf_expanded <- vi(model_rf_expanded)
+vars_rf_keep <- vi_rf_expanded %>% 
+  filter(Importance >= 20) %>% 
+  pull(Variable)
+```
+### Random Forest
+```{r}
+cow_accel_parsy <- cow_accel %>% 
+  select(all_of(vars_rf_keep), Behavior)
+  
+rf_tune_grid_parsy <- expand.grid( mtry = seq(1,ncol(cow_accel_parsy)-1),
+                                      splitrule = "gini",
+                                      min.node.size = seq(1,10,1))
+
+model_rf_parsy <- train(Behavior ~., 
+                           data = cow_accel_parsy, 
+                           method = "ranger",
+                           trControl = train.control, 
+                           #tuneGrid = rf_tune_grid_parsy,
+                           importance = "impurity")
+save(model_rf_parsy, file="model_rf_parsy.rda", compress="xz")
+print(model_rf_parsy)
+confusionMatrix(model_rf_parsy)
+```
+## Test Performance
+### Cow 7
+```{r}
+cow_7_pred <- cow_7 %>% 
+  modelr::add_predictions(model_rf_parsy)
+
+confusionMatrix(cow_7_pred$pred, cow_7_pred$Behavior)
+```
+### Cow 12
+```{r}
+cow_12_pred <- cow_12 %>% 
+  modelr::add_predictions(model_rf_parsy)
+
+confusionMatrix(cow_12_pred$pred, cow_12_pred$Behavior)
+```
