@@ -1,7 +1,7 @@
 ---
-title: "Comparison of Supervised Learning Models for Cattle Behavior Prediction"
+title: "QDA and XGBoost Comparison for Cattle Behavior Classification"
 author: "Joe Champion and Thea Sukianto"
-date: "6/7/2021"
+date: "6/17/2021"
 output: pdf_document
 ---
 
@@ -11,8 +11,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r message=FALSE}
 library(tidyverse)
+library(xgboost)
 library(caret)
-library(ranger)
 library(vip)
 library(lubridate)
 ```
@@ -25,7 +25,30 @@ cow_accel_file <- list.files("rf_2018", pattern="All Cows", full.names = TRUE)
 cow_accel_raw <- readxl::read_excel(cow_accel_file)
 head(cow_accel_raw)
 ```
-Compute additional physics measures from X, Y, and Z acceleration.
+Compute additional physics measures from X, Y, and Z acceleration, where $t_{i+1}$ and $t_i$ are successive timestamps:
+
+| Column      | Formula |
+| ----------- | ----------- |
+| XY.Z      | $XY+Z$       |
+| XZ   | $X*Z$        |
+| X.Y.Z | $X+Y+Z$ |
+| norm_accel | $\sqrt(X^2+Y^2+Z^2)$ |
+| tiltX | $\arcsin(\frac{X}{\sqrt(X^2+Y^2+Z^2)})$ |
+| tiltY | $\arcsin(\frac{Y}{\sqrt(X^2+Y^2+Z^2)})$ |
+| tiltZ | $\arcsin(\frac{Z}{\sqrt(X^2+Y^2+Z^2)})$ |
+| pitch | $\arctan(\frac{X}{Y^2+Z^2})$ |
+| roll | $\arctan(\frac{Y}{X^2+Z^2})$ |
+| yaw | $\arctan(\frac{Z}{X^2+Y^2})$ |
+| jerkX | $\frac{X_{t_{i+1}}-X_{t_i}}{t_{i+1}-t_i}$ |
+| jerkY | $\frac{Y_{t_{i+1}}-Y_{t_i}}{t_{i+1}-t_i}$ |
+| jerkZ | $\frac{Z_{t_{i+1}}-Z_{t_i}}{t_{i+1}-t_i}$ |
+| tvelX | $({t_{i+1}-t_i})(-X_1 +\displaystyle\sum_{k=1}^iX_k)$ |
+| tvelY | $({t_{i+1}-t_i})(-Y_1 +\displaystyle\sum_{k=1}^iY_k)$ |
+| tvelZ | $({t_{i+1}-t_i})(-Z_1 +\displaystyle\sum_{k=1}^iZ_k)$ |
+| tdispX | $({t_{i+1}-t_i})(\displaystyle\sum_{k=1}^itvelX)$ |
+| tdispY | $({t_{i+1}-t_i})(\displaystyle\sum_{k=1}^itvelY)$ |
+| tdispZ | $({t_{i+1}-t_i})(\displaystyle\sum_{k=1}^itvelZ)$ |
+
 ```{r}
 clean_accel_data <- function(data){
   # before using, prep the data to format: datetime, X, Y, Z, Behavior
@@ -50,12 +73,12 @@ clean_accel_data <- function(data){
       tvelX = (cumsum(X) - dplyr::first(X))*elapsed, #meters/sec
       tvelY = (cumsum(Y) - dplyr::first(Y))*elapsed,
       tvelZ = (cumsum(Z) - dplyr::first(Z))*elapsed,
-      tdispX = cumsum(tvelX)*elapsed, #meters
+      tdispX = cumsum(tvelX)*elapsed, # meters
       tdispY = cumsum(tvelY)*elapsed,
       tdispZ = cumsum(tvelZ)*elapsed
     ) %>% 
-    mutate(across(starts_with("jerk"), function(x){ replace_na(x,0)}) ) %>% 
-    filter(abs(elapsed) < 60, !is.infinite(jerkX))
+    mutate(across(starts_with("jerk"), function(x){ replace_na(x,0)}) ) %>% # replace missing values with 0
+    filter(abs(elapsed) < 60, !is.infinite(jerkX)) # limit dataset to rows with time differences < 60 seconds and finite X jerk
 }
 ```
 
@@ -75,22 +98,38 @@ cow_accel <- cow_accel_raw %>%
 
 cow_accel <- cow_accel %>% clean_accel_data()
 ```
-Holdout cow IDs 7 and 12 as the test set.
+Randomly partition half the data for model training and the other half for testing, ignoring autocorrelated variables
+(those including `elapsed` in the formula).
+
+For all models, the classification task is to predict `Behavior` (levels: G, W, R). 
 ```{r}
-cow_7 <- cow_accel %>% dplyr::filter(COWID == 7)
-cow_12 <- cow_accel %>% dplyr::filter(COWID == 12)
-cow_accel <- cow_accel %>% dplyr::filter(COWID != 7, COWID != 12)
+set.seed(1812)
+
+cow_accel2 <- cow_accel %>% 
+  mutate(rowid = 1:nrow(.)) %>% 
+  dplyr::select(rowid, Behavior, COWID, X, Y, Z, XY.Z, XZ, norm_accel:yaw)
+
+accel_train2 <-  cow_accel2 %>%
+  group_by(COWID) %>% 
+  sample_frac(.5) %>% ungroup() 
+
+accel_test2 <- cow_accel2 %>% 
+  filter(!rowid %in% accel_train2$rowid)
 ```
 Create 5 folds from the training data for cross-validation. 
 ```{r}
 train.control <- trainControl(method = "cv", number = 5)
 ```
-## Modeling (Sprinkle's variable set)
+## Modeling (5-variable set)
+
+Select X, Y, Z, XY.Z, and XZ as predictor variables.
 ```{r}
-cow_accel_sprinkle <- cow_accel %>% 
+cow_accel_sprinkle <- accel_train2 %>% 
   select(X,Y,Z,XY.Z, XZ, Behavior)
 ```
+
 ### QDA
+
 ```{r}
 model_qda_sprinkle <- train(Behavior ~ ., 
                    data = cow_accel_sprinkle, method = "qda",
@@ -101,96 +140,125 @@ print(model_qda_sprinkle)
 ```{r}
 confusionMatrix(model_qda_sprinkle)
 ```
-### Random Forest
-```{r}
-rf_tune_grid_sprinkle <- expand.grid( mtry = seq(1,5),
-                             splitrule = "gini",
-                             min.node.size = seq(1,5,1))
+### XGBoost
 
-model_rf_sprinkle <- train(Behavior ~., 
-                  data = cow_accel_sprinkle, 
-                  method = "ranger",
-                  trControl = train.control, 
-                  tuneGrid = rf_tune_grid_sprinkle)
-print(model_rf_sprinkle)
+XGBoost/eXtreme Gradient Boosting [Chen and Guestrin 2016](https://arxiv.org/pdf/1603.02754.pdf) is an algorithm that builds tree ensemble models that are scalable to large datasets and less prone to overfitting than Random Forest. In gradient boosting, decision trees are added one-by-one to the overall model by minimizing the loss function (i.e. traversing the parameter space in the direction of the loss function's most negative gradient). XGBoost improves on gradient boosting in that it is "sparsity-aware" - it learns the pattern of missing values in the data and 
+finds the optimal "default" branch split for when the predictor is missing. In addition, to reduce overfitting, XGBoost introduces an additional regularization term, shrinkage (preventing individual trees from dominating), and feature subsampling.
+
+```{r, eval = FALSE}
+gboost_sprinkle_train <- train(Behavior ~ ., 
+                           data = accel_train2 %>% 
+                             dplyr::select(-c( COWID, rowid)), method = "xgbTree",
+                           trControl = train.control)
 ```
 
+For the sake of efficiency, load the fitted model. The code used to train the model is listed above.
 ```{r}
-confusionMatrix(model_rf_sprinkle)
+load("supervised/gboost_sprinkle_train2.rda")
+confusionMatrix(gboost_sprinkle_train2)
 ```
 
 ## Modeling (Expanded variable set)
-```{r}
-cow_accel_expanded <- cow_accel %>% 
-  select(-c(datetime, elapsed, X.Y.Z, XY.Z, XZ, X.Y.Z) )
-```
 
 ### QDA
 ```{r}
 model_qda_expanded <- train(Behavior ~ ., 
-                            data = cow_accel_expanded, method = "qda",
+                            data = accel_train2 %>% dplyr::select(-c( COWID, rowid, XY.Z, XZ)), method = "qda",
                             trControl = train.control)
 print(model_qda_expanded)
 ```
-
+Expanding the variable set increases QDA performance on the training data by about 6%.
 ```{r}
 confusionMatrix(model_qda_expanded)
 ```
-### Random Forest
-```{r}
-rf_tune_grid_expanded <- expand.grid( mtry = seq(1,ncol(cow_accel_expanded)-1),
-                                      splitrule = "gini",
-                                      min.node.size = seq(1,10,1))
+### XGBoost
+```{r eval=FALSE}
+gboost_all_train <- train(Behavior ~ ., 
+                           data = accel_train2 %>% 
+                             dplyr::select(-c( COWID, rowid, XY.Z, XZ)), method = "xgbTree",
+                           trControl = train.control)
 
-model_rf_expanded <- train(Behavior ~., 
-                           data = cow_accel_expanded, 
-                           method = "ranger",
-                           trControl = train.control, 
-                           #tuneGrid = rf_tune_grid_expanded,
-                           importance = "impurity")
-print(model_rf_expanded)
-confusionMatrix(model_rf_expanded)
 ```
+Load the fitted model:
+```{r}
+load("supervised/gboost_all_train3.rda")
+confusionMatrix(gboost_all_train3)
+```
+XGBoost performance is improved by around 2% on the training data.
+
 ## Variable Importance
-```{r}
-vip(model_rf_expanded, geom="point", num_features = 20) + theme_minimal()
 
-vi_rf_expanded <- vi(model_rf_expanded)
-vars_rf_keep <- vi_rf_expanded %>% 
-  filter(Importance >= 20) %>% 
-  pull(Variable)
+### XGBoost on 5-variable set
+
+Y acceleration is by far the most influential predictor variable.
+```{r}
+vip(gboost_sprinkle_train2, geom="point") + theme_minimal()
 ```
-### Random Forest
-```{r}
-cow_accel_parsy <- cow_accel %>% 
-  select(all_of(vars_rf_keep), Behavior)
-  
-rf_tune_grid_parsy <- expand.grid( mtry = seq(1,ncol(cow_accel_parsy)-1),
-                                      splitrule = "gini",
-                                      min.node.size = seq(1,10,1))
 
-model_rf_parsy <- train(Behavior ~., 
-                           data = cow_accel_parsy, 
-                           method = "ranger",
-                           trControl = train.control, 
-                           #tuneGrid = rf_tune_grid_parsy,
-                           importance = "impurity")
-save(model_rf_parsy, file="model_rf_parsy.rda", compress="xz")
-print(model_rf_parsy)
-confusionMatrix(model_rf_parsy)
+### XGBoost on expanded variable set
+
+When the time-dependent variables are removed, the top 5 most influential predictor variables are the norm of all acceleration directions, roll, Y acceleration, X acceleration, and Y tilt.
+
+```{r}
+vip(gboost_all_train3, geom="point", num_features = 20) + theme_minimal()
 ```
 ## Test Performance
-### Cow 7
-```{r}
-cow_7_pred <- cow_7 %>% 
-  modelr::add_predictions(model_rf_parsy)
 
-confusionMatrix(cow_7_pred$pred, cow_7_pred$Behavior)
+### QDA on 5-variable set
+
+The performance remains about the same between the training and test datasets.
+```{r}
+accel_sprinkle_test <- accel_test2 %>% modelr::add_predictions(model_qda_sprinkle)
+confusionMatrix(accel_sprinkle_test$pred, accel_sprinkle_test$Behavior) 
 ```
-### Cow 12
+Furthermore, it seems that QDA classifies walking the best.
 ```{r}
-cow_12_pred <- cow_12 %>% 
-  modelr::add_predictions(model_rf_parsy)
+accel_sprinkle_test %>% 
+  ggplot(aes(x = Behavior, fill = pred)) + 
+  geom_bar(position = "stack") 
+```
 
-confusionMatrix(cow_12_pred$pred, cow_12_pred$Behavior)
+### XGBoost on 5-variable set
+
+The accuracy of the XGBoost model decreases by approximately 4% on the test data.
+```{r}
+gboost_sprinkle_test <- accel_test2 %>% modelr::add_predictions(gboost_sprinkle_train2)
+confusionMatrix(gboost_sprinkle_test$pred, gboost_sprinkle_test$Behavior) 
+```
+
+Compared to QDA, the XGBoost classification accuracy is more balanced with no single class having a visibly greater accuracy.
+```{r}
+gboost_sprinkle_test %>% 
+  ggplot(aes(x = Behavior, fill = pred)) + 
+  geom_bar(position = "stack") 
+```
+### QDA on expanded variable set
+
+QDA performance with the expanded predictor variable set also remains about the same between train and test.
+
+```{r}
+accel_expanded_test <- accel_test2 %>% modelr::add_predictions(model_qda_expanded)
+confusionMatrix(accel_expanded_test$pred, accel_expanded_test$Behavior) 
+```
+
+Both grazing and walking are classified well, but the performance on resting is decreased compared to QDA with the 5-variable set.
+```{r}
+accel_expanded_test %>% 
+  ggplot(aes(x = Behavior, fill = pred)) + 
+  geom_bar(position = "stack") 
+```
+### XGBoost on expanded variable set
+
+XGBoost performance only decreases by about 3.5% on the test set.
+
+```{r}
+gboost_expanded_test <- accel_test2 %>% modelr::add_predictions(gboost_all_train3)
+confusionMatrix(gboost_expanded_test$pred, gboost_expanded_test$Behavior) 
+```
+
+Similar to XGBoost performance with the 5-variable set, all three behaviors are classified well.
+```{r}
+gboost_expanded_test %>% 
+  ggplot(aes(x = Behavior, fill = pred)) + 
+  geom_bar(position = "stack") 
 ```
