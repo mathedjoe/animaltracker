@@ -18,6 +18,10 @@ run_shiny_animaltracker <- function( browser = TRUE, showcase=FALSE) {
   requireNamespace("shinyjs")
   requireNamespace("shinyBS")
   library(shinyBS) # for some reason, needs to be loaded at run time for the app?
+  requireNamespace("tsbox") # converting between time series formats
+  requireNamespace("imputeTS") # for filling in missing / outlier data
+  requireNamespace("gganimate")
+  requireNamespace("gifski")
   
   options(shiny.maxRequestSize=30*1024^2) 
  

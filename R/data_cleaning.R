@@ -1,6 +1,6 @@
 
 if(getRversion() >= '2.5.1') {
-  globalVariables(c('dplyr', 'tibble', 'forecast',
+  globalVariables(c('dbscan', 'dplyr', 'tibble', 'forecast', 'tsbox', 'imputeTS', 'tidyverse',
                     'Time', 'Altitude', 'Distance', 'TimeDiff', 'Course',
                     'CourseDiff', 'DistGeo', 'RateFlag', 'CourseFlag', 'DistFlag',
                     'TotalFlags', 'TimeFlag', 'DuplicateDateFlag', 'RMCRecord',
@@ -15,7 +15,7 @@ if(getRversion() >= '2.5.1') {
 #'Generate metadata for a directory of animal data files
 #'
 #'@param data_dir directory of animal data files
-#'@return list of data info as a list of animal IDs and GPS units
+#'@return list of data info as a list of animal IDs and GPS units/ka
 #'@examples
 #'# Get metadata for demo directory
 #'
@@ -82,7 +82,9 @@ get_file_meta <- function(data_dir){
 clean_location_data <- function(df, dtype, 
                                 prep = TRUE, filters = TRUE, 
                                 aniid = NA, gpsid = NA, 
-                                maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=60*60, tz_in = "UTC", tz_out = "UTC"){
+                                maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=60*60, tz_in = "UTC", tz_out = "UTC",
+                                dbscan_enable=FALSE, kalman = FALSE, kalman_min_lat=43, kalman_max_lat=44, kalman_min_lon=-117, kalman_max_lon=-116, kalman_max_timestep=300,
+                                dbscan_knn_eps = 0.001, dbscan_knn_k = 5) {
   if(prep) {
     # make sure quantitative columns are read in properly
     df <- df %>% 
@@ -194,6 +196,18 @@ clean_location_data <- function(df, dtype,
         tibble::add_column(DuplicateDateFlag = 1*duplicated(df$DateTime)) %>%
         dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistFlag + TimeFlag + DuplicateDateFlag)
     }
+  
+  # After all other processing has been done, apply new filters
+  if(kalman) {
+    df <- kalman(df, min_longitude=kalman_min_lon, max_longitude=kalman_max_lon,
+                 min_latitude=kalman_min_lat, max_latitude=kalman_max_lat,
+                 max_timestep=kalman_max_timestep)
+  }
+  
+  if(dbscan_enable) {
+    df <- dbscan_api(df, dbscan_knn_eps=dbscan_knn_eps, dbscan_knn_k=dbscan_knn_k)
+  }
+  
   return(as.data.frame(df))
 }
 
@@ -261,7 +275,7 @@ clean_export_files <- function(data_dir, tz_in = "UTC", tz_out = "UTC", export =
     message(paste("processing ", nstart, "data points for animal #",aniid, "with gps unit #", gpsid, "..."))
     
     ### REMOVE BAD DATA POINTS (as described on pages 26-39 of Word Doc)
-    df<- clean_location_data(df, dtype,
+    df <- clean_location_data(df, dtype,
                              aniid = aniid, 
                              gpsid = gpsid, 
                              maxrate = 84, maxcourse = 100, maxdist = 840, maxtime = 100, tz_in = tz_in, tz_out = tz_out)
@@ -313,3 +327,128 @@ dev_add_to_gitignore <- function(data_dir) {
   close(fileConn)
 }
 
+# Implements Kalman filter for filtering
+kalman <- function(cattle_df, min_longitude=-117, max_longitude=-116, min_latitude=43, max_latitude=44, max_timestep=300) {
+  ## read sample data
+  ## - label outliers using a 'window' on longitudes and latitudes
+  cattle_df <- cattle_df %>%
+    mutate(DateTime = paste(Date, Time),
+           DateTime = as.POSIXct(DateTime),
+           isOutlier = Longitude < min_longitude | Longitude > max_longitude | Latitude < min_latitude | Latitude > max_latitude
+    ) %>%
+    arrange(DateTime)
+
+  ## convert the irregular measurement data to a time series (equally spaced measurements)
+  ##  - for each date in the sample, build a sequence of equally spaced times at
+  ##  - use one second intervals
+  ##  - this will make a MUCH larger data set, with many NA values for missing measurements
+  date_time_seq <- lapply( unique( cattle_df$Date[!cattle_df$isOutlier] ),
+                           function(this_date){
+                             df_day <- cattle_df %>%
+                               filter(Date == this_date, !isOutlier)
+                             # make an equally-spaced sequence of date-times for this date
+                             seq.POSIXt(min(df_day$DateTime),
+                                        max(df_day$DateTime), by = 'sec')
+                           }
+  )  %>% Reduce(c, .)
+  
+  ## create time series object with 3 columns: DateTime, Longitude, Latitude
+  cattle_ts <- data.frame(DateTime = date_time_seq) %>%
+    left_join(cattle_df, by = "DateTime") %>%
+    mutate(Longitude = ifelse(isOutlier, NA, Longitude),
+           Latitude = ifelse(isOutlier, NA, Latitude)) %>%
+    select(DateTime, Longitude, Latitude) %>%
+    tsbox::ts_df() # uses library tsbox
+  
+  ## fill in missing data using kalman smoothing
+  # do not attempt to fill-in more than maxgap measurements (e.g., 5 minutes)
+  cattle_ts_smoothed <- imputeTS::na_kalman(cattle_ts,
+                                            model = "StructTS", smooth = TRUE, type = "trend",
+                                            maxgap = 60*5) %>%
+    rename(Latitude_Clean = Latitude, Longitude_Clean = Longitude) %>%
+    filter(!is.na(Latitude_Clean), !is.na(Longitude_Clean)) %>%
+    left_join(cattle_df %>% filter(!isOutlier), by = "DateTime") %>%
+    mutate(Date = as.factor(as.character(as.Date(DateTime))) )
+
+  return(cattle_ts_smoothed)
+}
+
+dbscan_api <- function(df, dbscan_knn_eps, dbscan_knn_k) {
+  cluster_analyze <- function(data, animal, date, knn_k = dbscan_knn_k, knn_eps = dbscan_knn_eps) {
+    df <- data %>% 
+      filter(Date == date, Animal == animal) %>%
+      arrange(Index) %>% 
+      select(Longitude, Latitude) 
+    
+    res <- dbscan::dbscan(df, eps = knn_eps, minPts = knn_k)
+    
+    data_out <- df %>%
+      mutate(cluster = as.factor(ifelse(res$cluster ==0, NA, res$cluster))) 
+    
+    list(data = data_out, plot = plot_out)
+  }
+  
+  # set-up neighbor search radii
+  # about 111 km per degree latitude
+  # cows = 84 m max travel between measurements
+  # cars = 80 mi/h max (= 129 km/h)
+  cow_eps <- 84/(111*1000)
+  
+  car_eps <- 128.75 /(6*111)
+  
+  clusters <- cluster_analyze(df, sampling_combos$Animal[28], sampling_combos$Date[28], knn_eps = cow_eps)
+  
+  clusters_car <- cluster_analyze(df, sampling_combos$Animal[2], sampling_combos$Date[2], 
+                                     knn_eps = car_eps*.48)
+  
+  ## Optimizing epsilon for DBSCAN algorithm
+  
+  optimize_eps <- function(data, animal, date, knn_k = dbscan_knn_k) {
+    df <- data %>% 
+      filter(Date == date, Animal == animal) %>%
+      arrange(Index) %>% 
+      select(Longitude, Latitude) 
+    
+    index <- 1:nrow(df) 
+    knn_dists <- sort(kNNdist(df, k = knn_k)) # sort nearest neighbor distances in ascending order
+    dists_spline <- smooth.spline(x = index, y = knn_dists, df = 20) # interpolate data indices and kNN distances
+    curvature <- predict(dists_spline, x = index, deriv = 2) # get second derivative of interpolating spline
+    return(knn_dists[which.max(curvature$y)]) # return the kNN distance at the index of the maximum second derivative
+  }
+  
+  # Get overview of data by Animal and Date
+  df_summary <- df %>% 
+    dplyr::group_by(Animal, Date) %>% 
+    dplyr::summarise(n = n())
+  
+  return(df_summary)
+  
+  #eps_estimates <- c()
+  
+  # Get epsilon estimates via Monte Carlo simulation
+  #for(i in 1:100) {
+    #sample_i <- df_summary[sample(nrow(df_summary), 30), ]
+    #eps_estimate <- lapply( 1:nrow(sample_i), 
+                            #function(j){
+                              #optimize_eps(df, sample_i$Animal[j], sample_i$Date[j])
+                            #} 
+    #)
+    #eps_estimates <- c(eps_estimates, median(unlist(eps_estimate)))
+  #}
+  
+  #eps_final <- median(eps_estimates)
+  
+  ###########
+  ## try OPTICS algorithm
+  ## helps identify eps value for dbscan
+  #xdf <- df %>% 
+    #filter(Date == "2018-05-24", Animal == "011") %>%
+    #select(Longitude, Latitude)
+  
+ # res <- optics(xdf, minPts = 10)
+  
+  #res2 <- extractDBSCAN(res, eps_cl = .2)
+  
+  #data_out <- xdf %>%
+    #mutate(cluster = as.factor(ifelse(res2$cluster ==0, NA, res2$cluster))) 
+}

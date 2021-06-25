@@ -9,7 +9,6 @@
 #'
 
 app_ui <- function(){
-  
   jsCode <- 'shinyjs.removePolygon = function() {
     var event = document.createEvent("Event");
     event.initEvent("click", true, true);
@@ -54,9 +53,29 @@ app_ui <- function(){
                           shinyBS::bsCollapse(id = "uploadOptions", open = "General Options",
                                      shinyBS::bsCollapsePanel("General Options",
                                                      checkboxInput("filterBox", label = "Filter bad data points", value = TRUE),
+                                                     checkboxInput("kalman_enable", label = "Cluster data with Kalman filtering", value = FALSE),
+                                                     checkboxInput("dbscan_enable", label = "Cluster data with DBSCAN filtering", value = FALSE),
                                                      checkboxInput("elevBox", label = "Append USGS Elevation data"),
                                                      checkboxInput("weatherBox", label = "Append NOAA Hourly Weather data")
                                      )),
+                                     shinyBS::bsCollapse(id = "filterOptions",
+                                                         shinyBS::bsCollapsePanel("Filter Options",
+                                                                                  uiOutput("max_rate"),
+                                                                                  uiOutput("max_course"),
+                                                                                  uiOutput("max_dist"),
+                                                                                  uiOutput("max_time")
+                                                                                  )),
+                                    
+                                     shinyBS::bsCollapse(id = "kalmanOptions",
+                                                         shinyBS::bsCollapsePanel("Kalman Configuration Options",
+                                                                                  uiOutput("kalman_max_timestep")
+                                                         )),
+                                     shinyBS::bsCollapse(id = "dbscanOptions",
+                                                         shinyBS::bsCollapsePanel("DBSCAN Configuration Options",
+                                                                                  uiOutput("knn_eps"),
+                                                                                  uiOutput("knn_k"),
+                                                                                  uiOutput("interp")
+                                                         )),
                                      shinyBS::bsCollapse(id = "elevOptions", 
                                        shinyBS::bsCollapsePanel("Elevation Options",
                                                        
@@ -77,6 +96,7 @@ app_ui <- function(){
                                                                                           multiple = TRUE,
                                                                                           options = list(`actions-box` = TRUE)
                                                                 )), open = "Weather Options"
+
                                      ),
           
                           actionButton("processButton", "Process All"),
@@ -100,6 +120,9 @@ app_ui <- function(){
                           
                           leafletOutput("mainmap", height = 640) %>% shinycssloaders::withSpinner(),
                           htmlOutput("mapinfo"),
+                          actionButton("generateGif", "Create movement animation"),
+                          br(),
+                          br(),
                           h4("Display Geographic Features"),
                           fileInput("kmzInput", "Upload kmz file to display fences, etc.", accept=c(".kmz")),
                           h4("Add Water Sources"),
@@ -186,7 +209,10 @@ app_ui <- function(){
                                   tags$li("Joe Champion (lead developer), Boise State University,", a("joechampion@boisestate.edu", href='mailto:joechampion@boisestate.edu'), 
                                      HTML(",&nbsp;"), a("website",href = 'https://math.boisestate.edu/jchampion/', target="_blank" )),
                                   tags$li("Thea Sukianto (student assistant), Boise State University,", a("TheophiliaSukian@u.boisestate.edu", href='mailto:TheophiliaSukian@u.boisestate.edu')),
-                                  tags$li("Chithkala Dhulipati (student assistant), Boise State University,", a("chithkaladhulipa@u.boisestate.edu ", href='mailto:chithkaladhulipa@u.boisestate.edu ')),
+                                  tags$li("Chithkala Dhulipati (student assistant), Boise State University,", a("chithkaladhulipa@u.boisestate.edu ", href='mailto:chithkaladhulipa@u.boisestate.edu')),
+                                  tags$li("Joseph Goodwin (student assistant), Oregon State University,", a("jgoodwin9628@gmail.com", href='mailto:jgoodwin9628@gmail.com')),
+                                  tags$li("Sebastian Benjamin (student assistant), Oregon State University,", a("sebastiancbenjamin@gmail.com", href='mailto:sebastiancbenjamin@gmail.com')),
+                                  tags$li("Connor Wilson (student assistant), Oregon State University,", a("connor.wilson48@gmail.com", href='mailto:connor.wilson48@gmail.com')),
                                   tags$li("Dylan Mikesell (researcher), Boise State University,", a("dylanmikesell@boisestate.edu", href='mailto:dylanmikesell@boisestate.edu'))
                                   
                                 )
