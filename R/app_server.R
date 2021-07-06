@@ -291,24 +291,7 @@ app_server <- function(input, output, session) {
   
   observeEvent(input$generateGif, {
     #.gif generation for the time-series animation
-    status_message <- modalDialog(
-      pre(id = "console"),
-      title = "Generating animation...",
-      easyClose = TRUE,
-      footer = NULL
-    )
-    
-    # display status message in popup window
-    showModal(status_message)
-    
-    # get elevation for current data
-    withCallingHandlers({
-      shinyjs::html("console", "")
-      current_df <- lookup_elevation_aws(current_df, zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox) 
-    },
-    message = function(m) {
-      shinyjs::html(id = "console", html = m$message)
-    })
+   
     output$animatedPlot <- renderImage({
       
       # Store in temporary file
