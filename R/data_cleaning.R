@@ -205,7 +205,7 @@ clean_location_data <- function(df, dtype,
   }
   
   if(dbscan_enable) {
-    df <- dbscan_api(df, dbscan_knn_eps=dbscan_knn_eps, dbscan_knn_k=dbscan_knn_k)
+    df <- cluster_analyzei(df, knn_eps=dbscan_knn_eps, knn_k=dbscan_knn_k)
   }
   
   return(as.data.frame(df))
@@ -367,27 +367,28 @@ kalman <- function(cattle_df, min_longitude=-117, max_longitude=-116, min_latitu
                                             maxgap = 60*5) %>%
     rename(Latitude_Clean = Latitude, Longitude_Clean = Longitude) %>%
     filter(!is.na(Latitude_Clean), !is.na(Longitude_Clean)) %>%
-    left_join(cattle_df %>% filter(!isOutlier), by = "DateTime") %>%
-    mutate(Date = as.factor(as.character(as.Date(DateTime))) )
+    left_join(cattle_df %>% filter(!isOutlier), by = "DateTime") #%>%
+    #mutate(Date = as.factor(as.character(as.Date(DateTime))) )
 
   return(cattle_ts_smoothed)
 }
 
-dbscan_api <- function(df, dbscan_knn_eps, dbscan_knn_k) {
-  cluster_analyze <- function(data, animal, date, knn_k = dbscan_knn_k, knn_eps = dbscan_knn_eps) {
-    df <- data %>% 
-      filter(Date == date, Animal == animal) %>%
-      arrange(Index) %>% 
-      select(Longitude, Latitude) 
-    
-    res <- dbscan::dbscan(df, eps = knn_eps, minPts = knn_k)
-    
-    data_out <- df %>%
-      mutate(cluster = as.factor(ifelse(res$cluster ==0, NA, res$cluster))) 
-    
-    list(data = data_out, plot = plot_out)
-  }
+cluster_analyze <- function(data, ani_list = unique(data$Animal), 
+                            min_date = min(data$Date), max_date = max(data$Date), 
+                            knn_k = 5, knn_eps = 0.001) {
+  df_dbscan <- data %>% 
+    dplyr::filter(Date >= min_date, Date <= max_date, Animal %in% ani_list) %>% 
+    dplyr::group_by(Date, Animal) %>% 
+    dplyr::mutate(cluster = dbscan::dbscan(data.frame(Longitude, Latitude),
+                                 eps = knn_eps,
+                                 minPts = knn_k)[["cluster"]],
+                  cluster = as.factor(ifelse(cluster == 0, NA, cluster))) %>% 
+    dplyr::ungroup()
   
+  return(df_dbscan)
+}
+
+dbscan_api <- function(df, dbscan_knn_eps, dbscan_knn_k) {
   # set-up neighbor search radii
   # about 111 km per degree latitude
   # cows = 84 m max travel between measurements

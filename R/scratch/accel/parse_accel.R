@@ -1,10 +1,32 @@
 library(tidyverse)
 library(lubridate)
 library(sp)
-
-accel_raw <- read_csv("R/scratch/accel/DATA-002.CSV", skip = 28) %>% 
+library(zoo)
+  
+# metadata is always 10 lines
+sat_line <- colnames(read_csv("test_data/DATA-001.CSV", skip = 8, n_max = 0)) # jump to the 9th line
+num_sat <- as.numeric(sat_line[length(sat_line)]) # get number of satellites
+# there is always 1 extra metadata line after satellite list
+accel_raw <- read_csv("test_data/DATA-001.CSV", skip = 10 + num_sat + 1) %>% 
   dplyr::rename(Time = ";Time") %>% 
   dplyr::mutate(Time = as.numeric(Time),
                 real_time = strftime(lubridate::as_datetime(Time, tz = "UTC"), "%Y-%m-%d %H:%M:%OS3", tz = "UTC")) %>% 
   dplyr::mutate(dplyr::across(starts_with("A"), function(x) x/2048, .names = "{.col}_g"))
 
+accel_raw %>% filter(!is.na(Lat))
+
+# do linear interpolation on coordinates. rule = 2 means that trailing NAs are filled with the endpoints
+accel_raw$Lat_fill <- zoo::na.approx(accel_raw$Lat, na.rm = FALSE, rule = 2) 
+accel_raw$Lon_fill <- zoo::na.approx(accel_raw$Lon, na.rm = FALSE, rule = 2)
+
+accel_reformat <- accel_raw %>% 
+  dplyr::rename(Longitude = Lon_fill,
+                Latitude = Lat_fill,
+                LonRaw = Lon,
+                LatRaw = Lat,
+                DateTime = real_time) %>% 
+  dplyr::mutate(Time = strftime(DateTime, format="%H:%M:%OS3", tz="UTC"),
+                Date = strftime(DateTime, format="%Y-%m-%d", tz="UTC"),
+                Course = calc_bearing(dplyr::lag(Latitude, 1, default = first(Latitude)), dplyr::lag(Longitude, 1, default = first(Longitude)), Latitude, Longitude),
+                Distance = geosphere::distGeo(cbind(Longitude, Latitude), 
+                                              cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))))

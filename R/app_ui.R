@@ -63,26 +63,26 @@ app_ui <- function(){
                                                                                   uiOutput("max_rate"),
                                                                                   uiOutput("max_course"),
                                                                                   uiOutput("max_dist"),
-                                                                                  uiOutput("max_time")
-                                                                                  )),
+                                                                                  uiOutput("max_clean_time")
+                                                                                  ), open = "Filter Options"),
                                     
                                      shinyBS::bsCollapse(id = "kalmanOptions",
                                                          shinyBS::bsCollapsePanel("Kalman Configuration Options",
                                                                                   uiOutput("kalman_max_timestep")
-                                                         )),
+                                                         ), open = "Kalman Configuration Options"),
                                      shinyBS::bsCollapse(id = "dbscanOptions",
                                                          shinyBS::bsCollapsePanel("DBSCAN Configuration Options",
                                                                                   uiOutput("knn_eps"),
                                                                                   uiOutput("knn_k"),
                                                                                   uiOutput("interp")
-                                                         )),
+                                                         ), open = "DBSCAN Configuration Options"),
                                      shinyBS::bsCollapse(id = "elevOptions", 
                                        shinyBS::bsCollapsePanel("Elevation Options",
                                                        
                                                        uiOutput("zoom"),
                                                        checkboxInput("slopeBox", label = "Include slope", value = TRUE),
                                                        checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
-                                     )),
+                                     ), open = "Elevation Options"),
                                      shinyBS::bsCollapse(id = "weatherOptions", 
                                        shinyBS::bsCollapsePanel("Weather Options",
                                                                 reactivePickerOutput("choose_station"),

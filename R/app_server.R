@@ -39,6 +39,7 @@ app_server <- function(input, output, session) {
     }
     dat_info <- store_batch_list(input$zipInput)
     meta(dat_info$meta)
+    shinyBS::updateCollapse(session = session, id = "restrictOptions",  open = "restrict_options")
     uploaded(TRUE)
     return(dat_info)
   })
@@ -98,7 +99,7 @@ app_server <- function(input, output, session) {
       max_rate <- 84
       max_course <- 100
       max_dist <- 840
-      max_time <- 3600
+      max_clean_time <- 3600
       if(!is.null(input$max_rate)) {
         max_rate <- input$max_rate
       }
@@ -109,11 +110,11 @@ app_server <- function(input, output, session) {
         max_dist <- input$max_dist
       }
       if(!is.null(input$max_time)) {
-        max_time <- input$max_time
+        max_clean_time <- input$max_clean_time
       }
-      return(clean_batch_df(raw_dat(), filters = TRUE, max_rate = input$max_rate, 
-                            max_course = input$max_course, max_dist = input$max_dist,
-                            max_time = input$max_time))
+      return(clean_batch_df(raw_dat(), filters = TRUE, max_rate = max_rate, 
+                            max_course = max_course, max_dist = max_dist,
+                            max_clean_time = max_clean_time))
     }
   })
   
@@ -123,7 +124,7 @@ app_server <- function(input, output, session) {
     max_rate <- 84
     max_course <- 100
     max_dist <- 840
-    max_time <- 3600
+    max_clean_time <- 3600
     if(!is.null(input$max_rate)) {
       max_rate <- input$max_rate
     }
@@ -133,8 +134,8 @@ app_server <- function(input, output, session) {
     if(!is.null(input$max_dist)) {
       max_dist <- input$max_dist
     }
-    if(!is.null(input$max_time)) {
-      max_time <- input$max_time
+    if(!is.null(input$max_clean_time)) {
+      max_clean_time <- input$max_clean_time
     }
     # with elevation and weather
     if(input$elevBox && input$weatherBox) {
@@ -154,12 +155,11 @@ app_server <- function(input, output, session) {
                                weather_vars = input$selected_weather, selected_station = selected_station,
                                min_lat = lat_bounds()[1], max_lat = lat_bounds()[2],
                                min_long = long_bounds()[1], max_long = long_bounds()[2], 
-                               max_rate = input$max_rate, max_course = input$max_course, 
-                               max_dist = input$max_dist, max_time = input$max_time))
+                               max_rate = max_rate, max_course = max_course, 
+                               max_dist = max_dist, max_clean_time = max_clean_time))
       }
       else {
         processingInitiatedAll(TRUE)
-
         meta(clean_store_batch(raw_dat(), dbscan_enable=input$dbscan_enable,
                                dbscan_knn_eps = input$knn_eps,
                                dbscan_knn_k = input$knn_k,
@@ -172,8 +172,8 @@ app_server <- function(input, output, session) {
                                weather_vars = input$selected_weather, selected_station = selected_station,
                                min_lat = lat_bounds()[1], max_lat = lat_bounds()[2],
                                min_long = long_bounds()[1], max_long = long_bounds()[2], 
-                               max_rate = input$max_rate, max_course = input$max_course, 
-                               max_dist = input$max_dist, max_time = input$max_time))
+                               max_rate = max_rate, max_course = max_course, 
+                               max_dist = max_dist, max_clean_time = max_clean_time))
       }
     }
     # elevation only
@@ -192,8 +192,8 @@ app_server <- function(input, output, session) {
                                weather_vars = NULL, selected_station = NULL,
                                min_lat = lat_bounds()[1], max_lat = lat_bounds()[2],
                                min_long = long_bounds()[1], max_long = long_bounds()[2], 
-                               max_rate = input$max_rate, max_course = input$max_course, 
-                               max_dist = input$max_dist, max_time = input$max_time))
+                               max_rate = max_rate, max_course = max_course, 
+                               max_dist = max_dist, max_clean_time = max_clean_time))
       }
       else {
         processingInitiatedAll(TRUE)
@@ -207,8 +207,8 @@ app_server <- function(input, output, session) {
                                get_elev = TRUE,
                                get_slope = input$slopeBox, get_aspect = input$aspectBox, 
                                weather_vars = NULL, selected_station = NULL,
-                               max_rate = input$max_rate, max_course = input$max_course, 
-                               max_dist = input$max_dist, max_time = input$max_time))
+                               max_rate = max_rate, max_course = max_course, 
+                               max_dist = max_dist, max_clean_time = max_clean_time))
       }
     }
     # weather only
@@ -222,13 +222,14 @@ app_server <- function(input, output, session) {
                              kalman_max_timestep=input$kalman_max_timestep,
                              filters = input$filterBox,
                              weather_vars = input$selected_weather, selected_station = selected_station,
-                             max_rate = input$max_rate, max_course = input$max_course, 
-                             max_dist = input$max_dist, max_time = input$max_time))
+                             max_rate = max_rate, max_course = max_course, 
+                             max_dist = max_dist, max_clean_time = max_clean_time))
     }
     # just clean, no extra data
     else {
       processingInitiatedAll(TRUE)
-      meta(clean_store_batch(raw_dat(), filters = input$filterBox))
+      meta(clean_store_batch(raw_dat(), filters = input$filterBox, max_rate = max_rate, max_course = max_course,
+                             max_dist = max_dist, max_clean_time = max_clean_time))
     }
   })
   # "process selected" button event handler
@@ -238,10 +239,7 @@ app_server <- function(input, output, session) {
   
   # close the panel for restricting data on start-up
   observe({
-    message("ready to do some shinyBS")
-    
     shinyBS::updateCollapse(session = session, id = "restrictOptions",  close = "restrict_options")
-    
   })
     
   
@@ -293,6 +291,24 @@ app_server <- function(input, output, session) {
   
   observeEvent(input$generateGif, {
     #.gif generation for the time-series animation
+    status_message <- modalDialog(
+      pre(id = "console"),
+      title = "Generating animation...",
+      easyClose = TRUE,
+      footer = NULL
+    )
+    
+    # display status message in popup window
+    showModal(status_message)
+    
+    # get elevation for current data
+    withCallingHandlers({
+      shinyjs::html("console", "")
+      current_df <- lookup_elevation_aws(current_df, zoom = input$selected_zoom, get_slope = input$slopeBox, get_aspect = input$aspectBox) 
+    },
+    message = function(m) {
+      shinyjs::html(id = "console", html = m$message)
+    })
     output$animatedPlot <- renderImage({
       
       # Store in temporary file
@@ -389,7 +405,7 @@ app_server <- function(input, output, session) {
         max_rate <- 84
         max_course <- 100
         max_dist <- 840
-        max_time <- 3600
+        max_clean_time <- 3600
         if(!is.null(input$max_rate)) {
           max_rate <- input$max_rate
         }
@@ -400,13 +416,14 @@ app_server <- function(input, output, session) {
           max_dist <- input$max_dist
         }
         if(!is.null(input$max_time)) {
-          max_time <- input$max_time
+          max_clean_time <- input$max_clean_time
         }
         # if no user provided data, use demo data
         
         if(is.null(input$zipInput)) {
           current_df <- demo %>% dplyr::filter(Animal %in% meta$ani_id,
                                                DateTime >= min_datetime, DateTime <= max_datetime) 
+        
           if(processingInitiated()) {  # if "process selected" button pushed
             processingInitiated(FALSE) # turn off "process selected" flag
             
@@ -420,14 +437,20 @@ app_server <- function(input, output, session) {
               
               # display status message in popup window
               showModal(status_message)
-              
-              max_timestep <- 300
-              if(!is.null(input$kalman_max_timestep)) {
-                max_timestep <- input$kalman_max_timestep
-              }
-              current_df <- current_df %>% kalman(min_longitude = min(demo$Longitude), max_longitude = max(demo$Longitude),
-                                            min_latitude = min(demo$Latitude), max_latitude = max(demo$Latitude),
-                                            max_timestep = max_timestep)
+              withCallingHandlers({
+                shinyjs::html("console", "")
+                max_timestep <- 300
+                if(!is.null(input$kalman_max_timestep)) {
+                  max_timestep <- input$kalman_max_timestep
+                }
+                current_df <- current_df %>% kalman(min_longitude = min(demo$Longitude), max_longitude = max(demo$Longitude),
+                                                    min_latitude = min(demo$Latitude), max_latitude = max(demo$Latitude),
+                                                    max_timestep = max_timestep)
+              },
+              message = function(m) {
+                shinyjs::html(id = "console", html = m$message)
+              })
+             
             }
             
             if(input$dbscan_enable) {
@@ -441,16 +464,22 @@ app_server <- function(input, output, session) {
               # display status message in popup window
               showModal(status_message)
               
-              knn_eps <- 0.001
-              knn_k <- 5
-              if(!is.null(input$knn_eps)) {
-                knn_eps <- input$knn_eps
-              }
-              if(!is.null(input$knn_k)) {
-                knn_k <- input$knn_k
-              }
-              
-              current_df <- current_df %>% dbscan_api(knn_eps, knn_k)$data
+              withCallingHandlers({
+                shinyjs::html("console", "")
+                knn_eps <- 0.001
+                knn_k <- 5
+                if(!is.null(input$knn_eps)) {
+                  knn_eps <- input$knn_eps
+                }
+                if(!is.null(input$knn_k)) {
+                  knn_k <- input$knn_k
+                }
+                current_df <- current_df %>% cluster_analyze(knn_eps = knn_eps, knn_k = knn_k)
+              },
+              message = function(m) {
+                shinyjs::html(id = "console", html = m$message)
+              })
+             
             }
             
             if(input$elevBox) {
@@ -512,7 +541,6 @@ app_server <- function(input, output, session) {
               withCallingHandlers({
                 shinyjs::html("console", "")
                 selected_station <- stations() %>% dplyr::filter(station_name == gsub(" *\\(.*", "", choose_station()))
-                str(current_df)
                 current_df <- current_df %>% 
                   lookup_weather(selected_vars, search = FALSE, station = selected_station, is_shiny = TRUE)
               },
@@ -524,7 +552,7 @@ app_server <- function(input, output, session) {
           }
           else if(processingInitiatedAll()) {
             processingInitiatedAll(FALSE)
-            #cache_name <- paste(cache_name, "(processed)")
+            cache_name <- paste(cache_name, "(processed)")
           }
           
         }
@@ -560,8 +588,8 @@ app_server <- function(input, output, session) {
               if(!is.null(input$kalman_max_timestep)) {
                 max_timestep <- input$kalman_max_timestep
               }
-              current_df <- current_df %>% kalman(min_longitude = min(demo$Longitude), max_longitude = max(demo$Longitude),
-                                            min_latitude = min(demo$Latitude), max_latitude = max(demo$Latitude),
+              current_df <- current_df %>% kalman(min_longitude = long_bounds()[1], max_longitude = long_bounds()[2],
+                                            min_latitude = lat_bounds()[1], max_latitude = lat_bounds()[2],
                                             max_timestep = max_timestep)
             }
             
@@ -585,7 +613,7 @@ app_server <- function(input, output, session) {
                 knn_k <- input$knn_k
               }
               
-              current_df <- current_df %>% dbscan_api(knn_eps, knn_k)$data
+              current_df <- current_df %>% cluster_analyze(knn_eps = knn_eps, knn_k = knn_k)
             }
             
             # clean current data
@@ -650,7 +678,7 @@ app_server <- function(input, output, session) {
                 shinyjs::html("console", "")
                 selected_station <- stations() %>% dplyr::filter(station_name == gsub(" *\\(.*", "", choose_station()))
                 current_df <- current_df %>% 
-                  lookup_weather(selected_vars, search = FALSE, selected_station, is_shiny = TRUE)
+                  lookup_weather(selected_vars, search = FALSE, station = selected_station, is_shiny = TRUE)
               },
               message = function(m) {
                 shinyjs::html(id = "console", html = m$message)
@@ -729,8 +757,8 @@ app_server <- function(input, output, session) {
     numericInput("max_dist", "Max geographic distance (m):", value = 840, min = 1, max = 2000, step = 1)
   })
 
-  output$max_time <- renderUI({
-    numericInput("max_time", "Max time (min):", value = 3600, min = 1, max = 15000, step = 1)
+  output$max_clean_time <- renderUI({
+    numericInput("max_clean_time", "Max time (min):", value = 3600, min = 1, max = 15000, step = 1)
   })
   
   output$knn_eps <- renderUI({

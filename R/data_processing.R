@@ -51,7 +51,6 @@ lookup_elevation_file <- function(elev, anidf, zoom = 11, get_slope = TRUE, get_
 #'@return original data frame, with Elevation column appended
 #'@export
 lookup_elevation_aws <- function(anidf, zoom = 11, get_slope = TRUE, get_aspect = TRUE) {
-  
   # make a container for computed elevation data
   df_out <- anidf
   
