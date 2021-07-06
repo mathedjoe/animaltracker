@@ -93,7 +93,7 @@ app_server <- function(input, output, session) {
   # clean filtered data for filtered download option
   clean_filtered <- reactive({
     if(is.null(input$zipInput)) { # if demo data selected return it to save processing steps
-      return(demo_filtered)
+      return(demo)
     }
     if(!identical(raw_dat(), demo_info)) {
       max_rate <- 84
@@ -303,17 +303,16 @@ app_server <- function(input, output, session) {
       
       DateandTimeFormat <- as.POSIXct(DateandTimeString,format="%Y-%m-%d %H:%M:%S",tz=Sys.timezone())
       
-      mean_lat = mean(animate_df$Latitude)
-      mean_lon = mean(animate_df$Longitude)
-      lat_bot_bound = floor(mean_lat)
-      lat_top_bound = ceiling(mean_lat)
-      lon_bot_bound = floor(mean_lon)
-      lon_top_bound = ceiling(mean_lon)
+      lat_bot_bound = min(animate_df$Latitude)
+      lat_top_bound = max(animate_df$Latitude)
+      lon_bot_bound = min(animate_df$Longitude)
+      lon_top_bound = max(animate_df$Longitude)
 
       # Create the animation with given styling values
       dataGraph <- ggplot(animate_df, aes(y=Latitude,x=Longitude)) + geom_point() +
-        gganimate::transition_time(DateandTimeFormat) + ylim(lat_bot_bound,lat_top_bound) +
-        xlim(lon_bot_bound,lon_top_bound) + gganimate::ease_aes('linear') + 
+        gganimate::transition_time(DateandTimeFormat) + 
+        xlim(lon_bot_bound,lon_top_bound) + ylim(lat_bot_bound,lat_top_bound) +
+        gganimate::ease_aes('linear') + 
         labs(title = "Time: {frame_time}") + 
         gganimate::shadow_wake(wake_length = 0.1, alpha = FALSE)
       
