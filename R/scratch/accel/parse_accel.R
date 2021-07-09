@@ -43,15 +43,15 @@ behavior_sheets <- readxl::excel_sheets(test_behavior_file)
 
 custom_name_repair <- function(name_text){ifelse(name_text =="", "XX", tolower(gsub("\\ ", "_", name_text)))}
 
-behavior_raw_1sheet <-   readxl::read_excel(test_behavior_file, 
-                                            sheet = behavior_sheets[3],
-                                            range = readxl::cell_cols(c(1:31)),
-                                            col_types = "text", 
-                                            .name_repair = custom_name_repair) %>% 
-  dplyr::select(-XX) %>% 
-  type.convert() 
-
-behavior_raw_1sheet 
+# behavior_raw_1sheet <-   readxl::read_excel(test_behavior_file, 
+#                                             sheet = behavior_sheets[3],
+#                                             range = readxl::cell_cols(c(1:31)),
+#                                             col_types = "text", 
+#                                             .name_repair = custom_name_repair) %>% 
+#   dplyr::select(-XX) %>% 
+#   type.convert() 
+# 
+# behavior_raw_1sheet 
 
 behavior_raw <- lapply(behavior_sheets, function(sheet_name){
   readxl::read_excel(test_behavior_file, 
@@ -66,25 +66,37 @@ behavior_raw <- lapply(behavior_sheets, function(sheet_name){
   dplyr::bind_rows() %>% 
   type_convert()
 
-
-behavior_long <- behavior_raw %>% 
-  pivot_longer(drinking:walking, names_to = "behavior") %>% 
-  filter(!is.na(value)) %>% 
-  select(-value) %>% 
-  pivot_longer(contains("elapsed"), values_to = "time_elapsed") %>% 
-  select(-name)
-
 # Sprinkle's conversion formula from meeting notes: unix/86500 - 0.25 + 25569 = excel
-behavior_reformat <- behavior_long %>% 
-  dplyr::select(-contains("bites")) %>% 
-  dplyr::mutate(timestamp = lubridate::as_datetime((timestamp + 0.25 - 25569)*86400)) %>% 
-  dplyr::rename(DateTime = timestamp) %>% 
-  dplyr::mutate(Date = format(strptime(DateTime, format="%Y-%m-%d %H:%M:%S"), format="%Y-%m-%d"),
-                Time = format(strptime(DateTime, format="%Y-%m-%d %H:%M:%S"), format="%H:%M:%S")) %>%
-  dplyr::arrange(cowid) %>% 
-  dplyr::group_by(DateTime, cowid, behavior) %>% 
-  dplyr::mutate(time_elapsed = (row_number()-1)*(100/n()/100)) %>%
-  dplyr::ungroup()
+reformat_behavior<- function(data_raw, tz = "Etc/GMT-6", h ){
+  data_raw %>% 
+    tidyr::pivot_longer(drinking:walking, names_to = "behavior") %>% 
+    dplyr::filter(!is.na(value)) %>% 
+    dplyr::select(-value) %>% 
+    tidyr::pivot_longer(contains("elapsed"), values_to = "time_elapsed") %>% 
+    dplyr::select(-name, 
+                  -contains("bites")) %>%
+    dplyr::rename(DateTime = timestamp) %>% 
+    dplyr::mutate(
+      DateTime = lubridate::as_datetime((DateTime - 25569)*86400),
+      DateTime = lubridate::force_tz(DateTime, tz),
+      Date = format(strptime(DateTime, format="%Y-%m-%d %H:%M:%S"), format="%Y-%m-%d"),
+      Time = format(strptime(DateTime, format="%Y-%m-%d %H:%M:%S"), format="%H:%M:%S")
+    ) 
+}
+
+# %>%
+#   dplyr::arrange(cowid) %>% 
+#   dplyr::group_by(DateTime, cowid, behavior) %>% 
+#   dplyr::mutate(time_elapsed = (row_number()-1)*(1/n())) %>%
+#   dplyr::ungroup()
+
+behavior_formatted <- reformat_behavior(behavior_raw)
+
+
+testdf <- behavior_formatted %>% 
+  group_by(cowid) %>%
+  arrange(DateTime) %>%
+  mutate(behavior_switch = behavior != dplyr::lag(behavior) )
 
 data_18 <- read_accel("test_data/test_accel/DATA-018.CSV")
 data_17 <- read_accel("test_data/test_accel/DATA-017.CSV")
