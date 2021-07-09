@@ -5,33 +5,37 @@ library(zoo)
   
 ### READ INTEGRATED ACCEL/GPS DATA FROM STANDARDIZED FORMAT
 # metadata is always 10 lines
-sat_line <- colnames(read_csv("test_data/test_accel/DATA-001.CSV", skip = 8, n_max = 0)) # jump to the 9th line
-num_sat <- as.numeric(sat_line[length(sat_line)]) # get number of satellites
-# there is always 1 extra metadata line after satellite list
-accel_raw <- read_csv("test_data/test_accel/DATA-001.CSV", skip = 10 + num_sat + 1) %>% 
-  dplyr::rename(Time = ";Time") %>% 
-  dplyr::mutate(Time = as.numeric(Time),
-                real_time = strftime(lubridate::as_datetime(Time, tz = "UTC"), "%Y-%m-%d %H:%M:%OS3", tz = "UTC")) %>% 
-  dplyr::mutate(dplyr::across(starts_with("A"), function(x) x/2048, .names = "{.col}_g"))
 
-accel_raw %>% filter(!is.na(Lat))
+read_accel <- function(filename) {
+  sat_line <- colnames(read_csv(filename, skip = 8, n_max = 0)) # jump to the 9th line
+  num_sat <- as.numeric(sat_line[length(sat_line)]) # get number of satellites
+  # there is always 1 extra metadata line after satellite list
+  accel_raw <- read_csv(filename, skip = 10 + num_sat + 1) %>% 
+    dplyr::rename(Time = ";Time") %>% 
+    dplyr::mutate(Time = as.numeric(Time),
+                  real_time = strftime(lubridate::as_datetime(Time, tz = "UTC"), "%Y-%m-%d %H:%M:%OS3", tz = "UTC")) %>% 
+    dplyr::mutate(dplyr::across(starts_with("A"), function(x) x/2048, .names = "{.col}_g"))
+  
+  accel_raw %>% filter(!is.na(Lat))
+  
+  # do linear interpolation on coordinates. rule = 2 means that trailing NAs are filled with the endpoints
+  accel_raw$Lat_fill <- zoo::na.approx(accel_raw$Lat, na.rm = FALSE, rule = 2) 
+  accel_raw$Lon_fill <- zoo::na.approx(accel_raw$Lon, na.rm = FALSE, rule = 2)
+  
+  accel_reformat <- accel_raw %>% 
+    dplyr::rename(Longitude = Lon_fill,
+                  Latitude = Lat_fill,
+                  LonRaw = Lon,
+                  LatRaw = Lat,
+                  DateTime = real_time) %>% 
+    dplyr::mutate(Time = strftime(DateTime, format="%H:%M:%OS3", tz="UTC"),
+                  Date = strftime(DateTime, format="%Y-%m-%d", tz="UTC"),
+                  Course = calc_bearing(dplyr::lag(Latitude, 1, default = first(Latitude)), dplyr::lag(Longitude, 1, default = first(Longitude)), Latitude, Longitude),
+                  Distance = geosphere::distGeo(cbind(Longitude, Latitude), 
+                                                cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))))
 
-# do linear interpolation on coordinates. rule = 2 means that trailing NAs are filled with the endpoints
-accel_raw$Lat_fill <- zoo::na.approx(accel_raw$Lat, na.rm = FALSE, rule = 2) 
-accel_raw$Lon_fill <- zoo::na.approx(accel_raw$Lon, na.rm = FALSE, rule = 2)
-
-accel_reformat <- accel_raw %>% 
-  dplyr::rename(Longitude = Lon_fill,
-                Latitude = Lat_fill,
-                LonRaw = Lon,
-                LatRaw = Lat,
-                DateTime = real_time) %>% 
-  dplyr::mutate(Time = strftime(DateTime, format="%H:%M:%OS3", tz="UTC"),
-                Date = strftime(DateTime, format="%Y-%m-%d", tz="UTC"),
-                Course = calc_bearing(dplyr::lag(Latitude, 1, default = first(Latitude)), dplyr::lag(Longitude, 1, default = first(Longitude)), Latitude, Longitude),
-                Distance = geosphere::distGeo(cbind(Longitude, Latitude), 
-                                              cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))))
-
+return(accel_reformat)
+}
 ### READ TIMESTAMPED BEHAVIOR DATA FROM XLSM SPREADSHEET
 test_behavior_file <- list.files("test_data/test_accel", pattern = ".xlsm", full.names=TRUE)[1]
 
@@ -69,5 +73,24 @@ behavior_long <- behavior_raw %>%
   select(-value) %>% 
   pivot_longer(contains("elapsed"), values_to = "time_elapsed") %>% 
   select(-name)
+
+# Sprinkle's conversion formula from meeting notes: unix/86500 - 0.25 + 25569 = excel
+behavior_reformat <- behavior_long %>% 
+  dplyr::select(-contains("bites")) %>% 
+  dplyr::mutate(timestamp = lubridate::as_datetime((timestamp + 0.25 - 25569)*86400)) %>% 
+  dplyr::rename(DateTime = timestamp) %>% 
+  dplyr::mutate(Date = format(strptime(DateTime, format="%Y-%m-%d %H:%M:%S"), format="%Y-%m-%d"),
+                Time = format(strptime(DateTime, format="%Y-%m-%d %H:%M:%S"), format="%H:%M:%S")) %>%
+  dplyr::arrange(cowid) %>% 
+  dplyr::group_by(DateTime, cowid, behavior) %>% 
+  dplyr::mutate(time_elapsed = (row_number()-1)*(100/n()/100)) %>%
+  dplyr::ungroup()
+
+data_18 <- read_accel("test_data/test_accel/DATA-018.CSV")
+data_17 <- read_accel("test_data/test_accel/DATA-017.CSV")
+data_0519 <- dplyr::bind_rows(data_17, data_18)
+
+behavior_reformat <- behavior_reformat %>% 
+  dplyr::mutate(DateTime_estimate = as_datetime(DateTime + seconds(time_elapsed)))
 
 

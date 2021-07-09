@@ -5,4 +5,5 @@
 .Rhistory
 .RData
 test_data/
+test_accel/
 R/scratch/accel/gulf_coast_docs/

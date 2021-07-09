@@ -291,7 +291,7 @@ app_server <- function(input, output, session) {
   
   observeEvent(input$generateGif, {
     #.gif generation for the time-series animation
-   
+    showModal(modalDialog(title = "testing"))
     output$animatedPlot <- renderImage({
       
       # Store in temporary file
