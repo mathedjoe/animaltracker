@@ -2,6 +2,7 @@ library(tidyverse)
 library(lubridate)
 library(sp)
 library(zoo)
+library(data.table)
   
 ### READ INTEGRATED ACCEL/GPS DATA FROM STANDARDIZED FORMAT
 # metadata is always 10 lines
@@ -81,8 +82,22 @@ reformat_behavior<- function(data_raw, tz = "Etc/GMT-6", h ){
       DateTime = lubridate::force_tz(DateTime, tz),
       Date = format(strptime(DateTime, format="%Y-%m-%d %H:%M:%S"), format="%Y-%m-%d"),
       Time = format(strptime(DateTime, format="%Y-%m-%d %H:%M:%S"), format="%H:%M:%S")
-    ) 
+    ) %>% 
+    dplyr::arrange(cowid, DateTime) %>% 
+    dplyr::group_by(cowid, DateTime) %>% 
+    dplyr::mutate(timediff_hs = 1/n()) %>% # sampling rate is n times per second, doesn't work for first row in each group but we don't need that value
+    dplyr::ungroup() %>% 
+    dplyr::group_by(cowid) %>% 
+    dplyr::mutate(behavior_id = data.table::rleid(behavior)) %>%  # assign row ids based on behavior streaks
+    dplyr::ungroup() %>% 
+    dplyr::group_by(cowid, behavior_id) %>% 
+    dplyr::mutate(behavior_timediff = ifelse(DateTime != dplyr::lag(DateTime), as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="secs")), timediff_hs),
+                  behavior_timediff = ifelse(is.na(behavior_timediff), 0, behavior_timediff),
+                  behavior_time = cumsum(behavior_timediff)) %>% 
+    dplyr::ungroup()
 }
+
+
 
 # %>%
 #   dplyr::arrange(cowid) %>% 
