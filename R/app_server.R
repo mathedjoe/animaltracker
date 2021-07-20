@@ -289,45 +289,6 @@ app_server <- function(input, output, session) {
     }
   })
   
-  observeEvent(input$generateGif, {
-    #.gif generation for the time-series animation
-    showModal(modalDialog(title = "testing"))
-    output$animatedPlot <- renderImage({
-      
-      # Store in temporary file
-      outfile <- tempfile(fileext='.gif')
-      
-      # Get time-series graph bounded by the mean Lat/Long
-      animate_df <- clean_filtered() %>% select (Date, Time, Latitude, Longitude)
-      DateandTimeString = paste(animate_df$Date, animate_df$Time)
-      
-      DateandTimeFormat <- as.POSIXct(DateandTimeString,format="%Y-%m-%d %H:%M:%S",tz=Sys.timezone())
-      
-      lat_bot_bound = min(animate_df$Latitude)
-      lat_top_bound = max(animate_df$Latitude)
-      lon_bot_bound = min(animate_df$Longitude)
-      lon_top_bound = max(animate_df$Longitude)
-
-      # Create the animation with given styling values
-      dataGraph <- ggplot(animate_df, aes(y=Latitude,x=Longitude)) + geom_point() +
-        gganimate::transition_time(DateandTimeFormat) + 
-        xlim(lon_bot_bound,lon_top_bound) + ylim(lat_bot_bound,lat_top_bound) +
-        gganimate::ease_aes('linear') + 
-        labs(title = "Time: {frame_time}") + 
-        gganimate::shadow_wake(wake_length = 0.1, alpha = FALSE)
-      
-      # Save the animation to the temp file, render with gifski
-      gganimate::anim_save("outfile.gif", gganimate::animate(dataGraph, duration=30,
-                                                             fps=10, width=750, height=400, 
-                                                             renderer = gganimate::gifski_renderer()))
-      
-      # Get the outfile and use it as the return value for the renderImage call
-      list(src="outfile.gif", contentType = 'image/gif')}, deleteFile = TRUE)
-    
-    # Display the modal, using the outfile as the image source
-    showModal(modalDialog(title = "Generating animation...", size="l", imageOutput("animatedPlot")))
-  })
-
   ######################################
   ## DYNAMIC DATA
   
@@ -1047,6 +1008,59 @@ app_server <- function(input, output, session) {
   ######################################
   # DYNAMIC PLOTS PANEL
   ######################################
+  
+  observeEvent(input$generateGif, {
+    status_message <- modalDialog(
+      pre(id = "console"),
+      title = "Generating animation...",
+      easyClose = TRUE,
+      footer = NULL
+    )
+    
+    showModal(status_message)
+    #.gif generation for the time-series animation
+    output$animatedPlot <- renderImage({
+      
+      # Store in temporary file
+      outfile <- tempfile(fileext='.gif')
+      
+      # Get time-series graph bounded by the mean Lat/Long
+      animate_df <- clean_filtered() %>% select (Date, Time, Latitude, Longitude)
+      DateandTimeString = paste(animate_df$Date, animate_df$Time)
+      
+      DateandTimeFormat <- as.POSIXct(DateandTimeString,format="%Y-%m-%d %H:%M:%S",tz=Sys.timezone())
+      
+      lat_bot_bound = min(animate_df$Latitude)
+      lat_top_bound = max(animate_df$Latitude)
+      lon_bot_bound = min(animate_df$Longitude)
+      lon_top_bound = max(animate_df$Longitude)
+      
+      withCallingHandlers({
+        shinyjs::html("console", "")
+        # Create the animation with given styling values
+        dataGraph <- ggplot(animate_df, aes(y=Latitude,x=Longitude)) + geom_point() +
+          gganimate::transition_time(DateandTimeFormat) + 
+          xlim(lon_bot_bound,lon_top_bound) + ylim(lat_bot_bound,lat_top_bound) +
+          gganimate::ease_aes('linear') + 
+          labs(title = "Time: {frame_time}") + 
+          gganimate::shadow_wake(wake_length = 0.1, alpha = FALSE)
+      },
+      message = function(m) {
+        shinyjs::html(id = "console", html = m$message, add = TRUE)
+      })
+      
+      # Save the animation to the temp file, render with gifski
+      gganimate::anim_save("outfile.gif", gganimate::animate(dataGraph, duration=30,
+                                                             fps=10, width=750, height=400, 
+                                                             renderer = gganimate::gifski_renderer()))
+      
+      # Get the outfile and use it as the return value for the renderImage call
+      list(src="outfile.gif", contentType = 'image/gif')}, deleteFile = TRUE)
+    
+    # Display the modal, using the outfile as the image source
+    # showModal(modalDialog(title = "Generating animation...", size="l", imageOutput("animatedPlot")))
+  })
+  
   
   # Elevation Line Plot
   output$plot_elevation_line <- callModule(reactivePlot, id = "plot_elevation_line", plot_type = "line", dat = dat)
