@@ -96,7 +96,7 @@ reactivePicker <- function(input, output, session, type, req_list, text, min_sel
     else if(type == "recent") {
       if(is.null(req_list$selected_ani()) || is.null(req_list$cache()) || 
          is.null(req_list$dates()) || is.null(req_list$min_time()) ||
-         is.null(req_list$max_time())) {
+         is.null(req_list$max_time()) || !req_list$valid_times()) {
         
         return()
       }
