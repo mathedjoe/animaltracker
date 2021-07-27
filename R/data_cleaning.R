@@ -327,6 +327,15 @@ dev_add_to_gitignore <- function(data_dir) {
   close(fileConn)
 }
 
+is_valid_time <- function(txt){
+  if( grepl("\\d\\d:\\d\\d:\\d\\d", txt) ) {
+    hms <- strsplit(txt, ":") %>% unlist %>% as.numeric
+    return( hms[1] < 24  && hms[2] < 60 && hms[3] < 60 )
+  }
+  return(FALSE)
+}
+
+
 # Implements Kalman filter for filtering
 kalman <- function(cattle_df, min_longitude=-117, max_longitude=-116, min_latitude=43, max_latitude=44, max_timestep=300) {
   ## read sample data

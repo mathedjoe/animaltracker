@@ -2,7 +2,7 @@ library(tidyverse)
 library(lubridate)
 library(sp)
 library(zoo)
-library(data.table)
+# library(data.table)
   
 ### READ INTEGRATED ACCEL/GPS DATA FROM STANDARDIZED FORMAT
 # metadata is always 10 lines
@@ -68,33 +68,37 @@ behavior_raw <- lapply(behavior_sheets, function(sheet_name){
   type_convert()
 
 # Sprinkle's conversion formula from meeting notes: unix/86500 - 0.25 + 25569 = excel
-reformat_behavior<- function(data_raw, tz = "Etc/GMT-6", h ){
+reformat_behavior<- function(data_raw, tz = "Etc/GMT-6", timeout = 300){
   data_raw %>% 
+    select(-contains("elapsed"), -contains("bites")) %>%
     tidyr::pivot_longer(drinking:walking, names_to = "behavior") %>% 
     dplyr::filter(!is.na(value)) %>% 
-    dplyr::select(-value) %>% 
-    tidyr::pivot_longer(contains("elapsed"), values_to = "time_elapsed") %>% 
-    dplyr::select(-name, 
-                  -contains("bites")) %>%
-    dplyr::rename(DateTime = timestamp) %>% 
+    dplyr::select(-value) %>%
+    dplyr::rename(DateTime = timestamp) %>%
     dplyr::mutate(
       DateTime = lubridate::as_datetime((DateTime - 25569)*86400),
       DateTime = lubridate::force_tz(DateTime, tz),
       Date = format(strptime(DateTime, format="%Y-%m-%d %H:%M:%S"), format="%Y-%m-%d"),
       Time = format(strptime(DateTime, format="%Y-%m-%d %H:%M:%S"), format="%H:%M:%S")
-    ) %>% 
-    dplyr::arrange(cowid, DateTime) %>% 
-    dplyr::group_by(cowid, DateTime) %>% 
-    dplyr::mutate(timediff_hs = 1/n()) %>% # sampling rate is n times per second, doesn't work for first row in each group but we don't need that value
-    dplyr::ungroup() %>% 
-    dplyr::group_by(cowid) %>% 
-    dplyr::mutate(behavior_id = data.table::rleid(behavior)) %>%  # assign row ids based on behavior streaks
-    dplyr::ungroup() %>% 
-    dplyr::group_by(cowid, behavior_id) %>% 
-    dplyr::mutate(behavior_timediff = ifelse(DateTime != dplyr::lag(DateTime), as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="secs")), timediff_hs),
-                  behavior_timediff = ifelse(is.na(behavior_timediff), 0, behavior_timediff),
-                  behavior_time = cumsum(behavior_timediff)) %>% 
-    dplyr::ungroup()
+    ) %>%
+    dplyr::arrange(DateTime) %>%
+    dplyr::group_by(cowid, DateTime) %>%
+    dplyr::mutate(timediff_hs = 1/(n()) ) %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by(cowid) %>%
+    dplyr::mutate(
+                  timediff = ifelse(DateTime != dplyr::lag(DateTime),
+                                      as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="secs")),
+                                      timediff_hs),
+                  timediff = ifelse(is.na(timediff), 0, timediff),
+                  behavior_id = (behavior != lag(behavior, 1, default = "") | timediff > timeout ),
+                  behavior_id = cumsum(behavior_id)) %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by(cowid, behavior_id) %>%
+    dplyr::mutate(
+      behavior_time = cumsum(timediff ) - first(timediff) + first(timediff_hs) ) %>%
+    dplyr::ungroup() %>%
+    dplyr::arrange(cowid, DateTime)
 }
 
 
@@ -108,10 +112,17 @@ reformat_behavior<- function(data_raw, tz = "Etc/GMT-6", h ){
 behavior_formatted <- reformat_behavior(behavior_raw)
 
 
-testdf <- behavior_formatted %>% 
-  group_by(cowid) %>%
-  arrange(DateTime) %>%
-  mutate(behavior_switch = behavior != dplyr::lag(behavior) )
+# testdf <- behavior_formatted %>% 
+#   group_by(cowid) %>%
+#   arrange(DateTime) %>%
+#   mutate(behavior_switch = behavior != dplyr::lag(behavior) )
+
+# list of unique behaviors, with start_time and time_elapsed
+behavior_formatted %>% 
+  group_by(cowid, behavior_id, behavior) %>% 
+  summarize(
+    start_time = first(DateTime),
+    time_elapsed = last(behavior_time)  )
 
 data_18 <- read_accel("test_data/test_accel/DATA-018.CSV")
 data_17 <- read_accel("test_data/test_accel/DATA-017.CSV")

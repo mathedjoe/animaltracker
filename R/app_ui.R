@@ -120,7 +120,6 @@ app_ui <- function(){
                           
                           leafletOutput("mainmap", height = 640) %>% shinycssloaders::withSpinner(),
                           htmlOutput("mapinfo"),
-                          actionButton("generateGif", "Create movement animation"),
                           br(),
                           br(),
                           h4("Display Geographic Features"),
@@ -139,11 +138,12 @@ app_ui <- function(){
              
              ## PLOTS PANEL
              tabPanel("Plots",
+                      actionButton("generateGif", "Create movement animation"),
+                      imageOutput("animatedPlot"),
                       reactivePlotOutput("plot_elevation_line"),
                       reactivePlotOutput("plot_samplerate_hist"),
                       reactivePlotOutput("plot_rate_violin"),
                       reactivePlotOutput("plot_time_heatmap")
-                        
                          
              ),# end plots panel
              ## ANALYSIS PANEL
