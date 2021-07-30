@@ -7,6 +7,304 @@ if(getRversion() >= '2.5.1') {
 }
 
 #'
+#'Reads a GPS dataset of unknown format at location filename 
+#'
+#'@param filename location of the GPS dataset
+#'@return data frame
+#'@noRd
+#'
+read_prep_onefile <- function(filename){
+  
+  # determine data format using the first line of the file
+  firstline <- readLines(filename, 1, skipNul = TRUE)
+  data_type <- dplyr::case_when( grepl("^\\$GPRMC", firstline) ~ "columbus",
+                                 grepl("^#Format", firstline) ~ "intgag",
+                                 grepl("MSVs_QCN", firstline) ~ "igotu",
+                                 TRUE ~ "unknown")
+  
+  # use appropriate read/prep function to preprocess the data
+  if(data_type == "columbus"){
+    df_prepped <- read_prep_columbus(filename)
+  }
+  if(data_type == "intgag"){
+    df_prepped <- read_prep_intgag(filename)
+  }
+  if(data_type == "igotu"){
+    df_prepped <- read_prep_igotu(filename)
+  }
+  if(data_type == "unknown"){
+    df_prepped <- NULL
+  }
+  
+  df_formatted <- data_to_commonformat(df_prepped)
+  
+  return(list(df = df_formatted, dtype = data_type))
+}
+
+#'
+#'Read and process a Columbus P-1 data file containing NMEA records into a data frame
+#'
+#'@param filename path of Columbus P-1 data file
+#'@return NMEA records in RMC and GGA formats as a data frame
+#'@export
+#'@examples
+#'
+#'read_prep_columbus(system.file("extdata", "demo_columbus.TXT", package = "animaltracker"))
+read_prep_columbus <- function(filename){
+  
+  gps_raw <- readLines(filename)
+  
+  # parse nmea records, two lines at a time
+  nmea_rmc <- grepl("^\\$GPRMC", gps_raw)
+  nmea_gga <- grepl("^\\$GPGGA", gps_raw)
+  
+  #RMC via specs https://www.gpsinformation.org/dale/nmea.htm#RMC
+  gps_rmc <- utils::read.table(text = gps_raw[nmea_rmc], sep = ",", fill = TRUE, as.is = TRUE)
+  
+  names(gps_rmc) <- c("RMCRecord", "Time", "Status", 
+                      "Latitude", "LatDir","Longitude", "LonDir", 
+                      "GroundSpeed", "TrackAngle","DateMMDDYY", 
+                      "MagVar", "MagVarDir", "ChecksumRMC")
+  
+  #GGA via specs at https://www.gpsinformation.org/dale/nmea.htm#GGA
+  gps_gga <- utils::read.table(text = gps_raw[nmea_gga], sep = ",", fill = TRUE, as.is = TRUE)
+  
+  names(gps_gga) <- c("GGARecord", "TimeFix", 
+                      "LatitudeFix", "LatDirFix", "LongitudeFix", "LonDirFix",
+                      "QualFix", "nSatellites", "hDilution", "Altitude", "AltitudeM", "Height", "HeightM",
+                      "DGPSUpdate", "ChecksumGGA")
+  
+
+  df <- bind_cols(gps_rmc, gps_gga) %>% 
+    dplyr::mutate(
+      DateTimeChar = paste(DateMMDDYY, Time),
+      Status = suppressWarnings(forcats::fct_recode(Status, Active ="A", Void="V")),
+      QualFix = suppressWarnings(forcats::fct_recode(as.character(QualFix), 
+                                    Invalid = '0', GPSFix = '1', DGPSFix = '2', PPSFix = '3',
+                                    RealTimeKine = '4', FloatRTK = '5', EstDeadReck = '6', ManInpMode = '7', SimMode ='8'
+      )) 
+    ) %>% 
+    dplyr::rowwise() %>% 
+    dplyr::mutate(
+      Latitude = deg_to_dec(Latitude, LatDir),
+      Longitude = deg_to_dec(Longitude, LonDir),
+      LatitudeFix = deg_to_dec(LatitudeFix, LatDirFix),
+      LongitudeFix = deg_to_dec(LongitudeFix, LonDirFix),
+      MagVar = deg_to_dec(MagVar, MagVarDir)
+    ) %>% 
+    dplyr::ungroup()
+  
+
+    df <- df %>%
+      # exclude unneeded information
+      dplyr::select(-any_of(c( "RMCRecord", "ChecksumRMC", "GGARecord", 
+                               "AltitudeM", "HeightM", "DGPSUpdate", "ChecksumGGA") ) ) %>%
+      dplyr::mutate( 
+        DateTime = as.POSIXct(DateTimeChar, format = "%d%m%y %H%M%OS", tz = "UTC"),
+        Course = calc_bearing(dplyr::lag(Latitude, 1, default = first(Latitude)), dplyr::lag(Longitude, 1, default = first(Longitude)), Latitude, Longitude),
+        Distance = geosphere::distGeo(cbind(Longitude, Latitude), 
+                                      cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) )))
+      ) %>%
+      dplyr::select(
+        any_of(c("DateTime", "Latitude", "Longitude", "Altitude", "nSatellites", "GroundSpeed", 
+        "TrackAngle", "hDilution", "Height", "Status", "LatitudeFix", "LongitudeFix", "MagVar", 
+        "Course", "Distance"))
+      ) 
+  return(df)
+}
+# df_test_columbus <- read_prep_onefile("R/scratch/common_formatting/sample_columbus.txt")$df
+
+#'
+#'Read and process a Integrated Gyroscope / Accelerometer / GPS data file 
+#'
+#'@param filename path the integrated data file
+#'@return prepped data frame
+#'@export
+#'@examples
+#'
+#'read_prep_intgag(system.file("extdata", "demo_intgag.txt", package = "animaltracker"))
+
+read_prep_intgag <- function(filename){
+  
+  # read the data set, starting with the list of fields in line 3
+  df <- read.csv(filename, skipNul = TRUE, skip = 2)
+  
+  # rename variables to the common name convention
+  df <- df %>% 
+    dplyr::rename(Latitude = lat, 
+                  Longitude = lon, 
+                  nSatellites = satellites, 
+                  hDilution = HDOP, 
+                  AccX = acc_x, 
+                  AccY = acc_y, 
+                  AccZ = acc_z, 
+                  GyrX = gyr_x,
+                  GyrY = gyr_y, 
+                  GyrZ = gyr_z, 
+                  TempC = temp_degC,
+                  BattV = batt_voltage) %>% 
+    dplyr::filter(!is.na(millis), !duplicated(millis))
+  
+  # gps variables
+  vars_gps <- c("Latitude", "Longitude", "nSatellites", "hDilution")
+  
+  # realign the gps rows using fix_millis (runtime of GPS) and millis (runtime of gyro/accel)
+  # custom function for this purpose
+  realign_gps_to_main <- function( df, ... ){
+    
+    # get gps records to remap  
+    df_remap <- df %>% 
+      dplyr::filter(!is.na(fix_millis), !duplicated(millis) ) %>% 
+      dplyr::select(fix_millis, all_of(vars_gps) )
+    
+    # find closest main device records
+    closest_main_millis <- sapply( seq(nrow(df_remap)), function(i, ...){
+      which_main <- which.min(abs(df$millis - df_remap$fix_millis[i]) )
+      df$millis[which_main]
+    })
+    
+    # move the remapped gps data to the closest main data
+    df[df$millis %in% closest_main_millis, names(df_remap)] <- df_remap
+    df[!is.na(df$fix_millis) &  !df$millis %in% closest_main_millis, names(df_remap)] <- NA
+    df
+  }
+  
+  df <- realign_gps_to_main(df)
+  
+  # recover date/time by aligning gps dates with device runtime data
+  if(any(!is.na(df$fix_millis - df$millis)) ){
+    
+    # get closest match between gps fix (date/time) and device measurement (runtime)
+    dcali <- which.min(abs(df$fix_millis - df$millis))[1] 
+    
+    # convert to a calibration date
+    date_cali <- paste0(df$year[dcali], "-", df$month[dcali], "-", df$date[dcali],
+                        " ", df$hour[dcali], ":", df$min[dcali], ":", df$sec[dcali])
+    date_cali <- as.POSIXct(date_cali, format = "%Y-%m-%d %H:%M:%OS", tz = "UTC")
+    
+    # use calibration date to estimate dates corresponding to shifted runtimes
+    df <- df %>% 
+      dplyr::mutate(
+        secs_shifted = (millis - fix_millis[dcali])/1000,
+        DateTime = date_cali + secs_shifted,
+        TimeElapsed = as.numeric(DateTime),
+        TimeElapsed = round(TimeElapsed - first(TimeElapsed),3) # millisecond precision
+      )
+  }
+  
+  # "fill" missing GPS data with nearest recorded values
+  df <- df %>% 
+    dplyr::mutate(
+      newGPS = 1* (!is.na(Latitude) & !is.na(Longitude) ), # mark new GPS records
+      across(.cols = all_of(vars_gps), .fns = fill_na_downup) # fill missing DOWN then UP
+    )
+  
+  # select variables to export
+  df %>%
+    dplyr::select(
+      DateTime, TimeElapsed, newGPS, 
+      any_of(vars_gps),
+      AccX:BattV
+    ) 
+}
+# df_test_intgag <- read_prep_onefile("R/scratch/common_formatting/sample_intgag.txt")$df
+
+#'
+#'Read and process an iGotU data file containing GPS data
+#'
+#'@param filename path of the data file (csv format)
+#'@return prepped data set as a data frame and data type
+#'@export
+#'@examples
+#'
+#'read_prep_igotu(system.file("extdata", "demo_igotu.csv", package = "animaltracker"))
+read_prep_igotu <- function(filename){
+  
+  # read the data set
+  df_raw <- read.csv(filename, skipNul = TRUE, stringsAsFactors = FALSE)
+  df <- df_raw[!duplicated(as.list(df_raw))] # discard any columns that are duplicates of index
+  colnames(df)[1] <- "Index"
+  suppressWarnings(  df <-  df[!is.na(as.numeric(df$Index)), ] ) # discard any rows with text in the first column duplicate header rows
+  df <- utils::type.convert(df)
+  
+  
+  # process data to common formats
+  df <- df %>% 
+    dplyr::mutate( 
+      DateTime = as.POSIXct(paste(Date,Time), format = "%Y/%m/%d %H:%M:%S", tz = "UTC"),
+      nSatellites = nchar(as.character(Satelite)) - nchar(gsub("X", "", as.character(Satelite)))
+    ) 
+    
+
+  # select variables for export
+  df %>% 
+    dplyr::select(any_of(c("Index","DateTime", 
+                  "Latitude",  "Longitude", "Altitude", "Speed", 
+                 "Course", "Distance", "EHPE", "nSatellites") ) )
+}
+# example use
+# df_test_igotu <- read_prep_onefile("R/scratch/common_formatting/sample_igotu.csv")$df
+
+
+# PREPROCESS PREPPED DATA TO A STANDARD (COMMON) FORMAT
+data_to_commonformat <- function(data_prepped, aniid = "aniX", gpsid = "gpsX"){
+  df <- data_prepped
+  
+    # make sure quantitative columns are read in properly
+    numeric_vars <- c("Latitude", "Longitude", "Course", "Distance", "Altitude", 
+                      "Speed", "EHPE", "nSatellites")
+    df <- df %>% 
+      dplyr::mutate(across(any_of( numeric_vars), as.numeric))
+    
+    # add animal and gps ids
+    df <- df %>% 
+      dplyr::mutate(
+        GPS = gpsid,
+        Animal = aniid,
+        Animal = as.factor(Animal)
+      ) 
+  
+  ## AUGMENT DATE/TIME DATA ----
+  if( "DateTime" %in% colnames(df)){
+    df <- df %>% 
+      dplyr::mutate(
+        Date = strftime(DateTime, format="%Y-%m-%d", tz="UTC"),# reclassify Date as a Date variable
+        Time = strftime(DateTime, format="%H:%M:%OS", tz="UTC"),
+        TimeDiff = as.numeric(DateTime - dplyr::lag(DateTime,1)), # compute sequential time differences (in seconds)
+        TimeDiffMins = as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))
+      )
+  } 
+  ## AUGMENT GPS DATA ----
+  if( all(c("Latitude", "Longitude") %in% colnames(df))){
+    df <- df %>% 
+      dplyr::mutate(
+        DistGeo = geosphere::distGeo(cbind(Longitude, Latitude), 
+                                   cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))), #compute geodesic distance between points
+        DistGeo = ifelse(DistGeo > 10^6, 0, DistGeo)
+      )
+  }
+  if(all(c("DistGeo", "TimeDiffMins") %in% colnames(df) )){
+    df <- df %>% 
+      dplyr::mutate(
+        Rate = DistGeo/TimeDiffMins # compute rate of travel (meters/min)
+      )
+  }
+  if("Course" %in% colnames(df)){
+    df <- df %>% 
+      dplyr::mutate( 
+        CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course)))
+      )
+  }
+    
+  ## AUGMENT ACCELEROMETER DATA ----
+  ## AUGMENT GYROSCOPE DATA ----
+  ## AUGMENT BEHAVIOR DATA ----
+  ## Export prepped data
+  df
+}
+dfs_common <- lapply(list(df_test_igotu, df_test_columbus, df_test_intgag), data_to_commonformat)
+
+#'
 #'Add elevation data from terrain tiles to long/lat coordinates of animal gps data
 #'
 #'@param elev elevation data as raster
@@ -85,52 +383,52 @@ lookup_elevation_aws <- function(anidf, zoom = 11, get_slope = TRUE, get_aspect 
                                           data =  data.frame(elevation = vector("numeric", nrow(locations)))  )
   
   ## DOWNLOAD TILES, EXTRACT ELEVATIONS
-
+  
   message(paste("Downloading DEMs via", nrow(tiles), "tiles at Zoom =", zoom) )
-
+  
   withProgress( message = paste("Downloading & Processing DEMs, Zoom =", zoom), 
                 value = 0, min = 0, max = nrow(tiles), {
-
-    
-    for (i in 1:nrow(tiles)){
-      setProgress(i, detail = paste0(i,"/",nrow(tiles), " tiles processed"))
-      
-      # Download this tile
-      tmpfile <- tempfile()
-      url <- paste0(base_url, zoom, "/", tiles$tilex[i], "/", tiles$tiley[i], ".tif")
-      
-      resp <- httr::GET(url, httr::write_disk(tmpfile, overwrite = TRUE))
-      if (httr::http_type(resp) != "image/tiff") {
-        stop("API did not return tif", call. = FALSE)
-      }
-      
-      tile_this <- raster::raster(tmpfile)
-      raster::projection(tile_this) <- web_merc
-      tile_this <- raster::projectRaster(tile_this, crs = sp::CRS(prj) )
-      
-      ## update elevation for data in this tile
-      data_isthis <- (elev_data$tilex == tiles$tilex[i]) & (elev_data$tiley == tiles$tiley[i])
-      locations_this <- elev_data[data_isthis, c("x","y")]
-      
-      elev_data$elevation[data_isthis] <- raster::extract(tile_this, locations_this)
-      
-      # compute slope and aspect if requested
-      if(get_slope | get_aspect){
-        elev_terr <- raster::terrain( tile_this, opt=c('slope', 'aspect'), unit='degrees')
-      }
-      
-      if(get_slope){
-        elev_data$slope[data_isthis] <-  round(raster::extract(elev_terr$slope, locations_this), 1)
-      }
-      
-      if(get_aspect){
-        elev_data$aspect[data_isthis] <-  round(raster::extract(elev_terr$aspect, locations_this), 1)
-        
-      }
-      
-    }
-    
-  })# end progress wrapper
+                  
+                  
+                  for (i in 1:nrow(tiles)){
+                    setProgress(i, detail = paste0(i,"/",nrow(tiles), " tiles processed"))
+                    
+                    # Download this tile
+                    tmpfile <- tempfile()
+                    url <- paste0(base_url, zoom, "/", tiles$tilex[i], "/", tiles$tiley[i], ".tif")
+                    
+                    resp <- httr::GET(url, httr::write_disk(tmpfile, overwrite = TRUE))
+                    if (httr::http_type(resp) != "image/tiff") {
+                      stop("API did not return tif", call. = FALSE)
+                    }
+                    
+                    tile_this <- raster::raster(tmpfile)
+                    raster::projection(tile_this) <- web_merc
+                    tile_this <- raster::projectRaster(tile_this, crs = sp::CRS(prj) )
+                    
+                    ## update elevation for data in this tile
+                    data_isthis <- (elev_data$tilex == tiles$tilex[i]) & (elev_data$tiley == tiles$tiley[i])
+                    locations_this <- elev_data[data_isthis, c("x","y")]
+                    
+                    elev_data$elevation[data_isthis] <- raster::extract(tile_this, locations_this)
+                    
+                    # compute slope and aspect if requested
+                    if(get_slope | get_aspect){
+                      elev_terr <- raster::terrain( tile_this, opt=c('slope', 'aspect'), unit='degrees')
+                    }
+                    
+                    if(get_slope){
+                      elev_data$slope[data_isthis] <-  round(raster::extract(elev_terr$slope, locations_this), 1)
+                    }
+                    
+                    if(get_aspect){
+                      elev_data$aspect[data_isthis] <-  round(raster::extract(elev_terr$aspect, locations_this), 1)
+                      
+                    }
+                    
+                  }
+                  
+                })# end progress wrapper
   
   # add Elevation column to the animal data
   df_out$Elevation <- elev_data$elevation
@@ -142,7 +440,7 @@ lookup_elevation_aws <- function(anidf, zoom = 11, get_slope = TRUE, get_aspect 
   if(get_aspect){
     df_out$Aspect <- elev_data$aspect
   }
-
+  
   return(df_out)
 }
 
@@ -258,7 +556,7 @@ read_zip_to_rasters <- function(filename, exdir = "inst/extdata/elev"){
   
   ff <- utils::unzip(filename, exdir=dirname(exdir))  
   f <- ff[substr(ff, nchar(ff)-3, nchar(ff)) == '.grd']
-
+  
   rs <- raster::raster(f[[1]])
   
   raster::projection(rs) <- "+proj=longlat +datum=WGS84"
@@ -267,151 +565,7 @@ read_zip_to_rasters <- function(filename, exdir = "inst/extdata/elev"){
   
 }
 
-#'
-#'Read and process a Columbus P-1 data file containing NMEA records into a data frame
-#'
-#'@param filename path of Columbus P-1 data file
-#'@return NMEA records in RMC and GGA formats as a data frame
-#'@export
-#'@examples
-#'
-#'read_columbus(system.file("extdata", "demo_columbus.TXT", package = "animaltracker"))
-read_columbus <- function(filename){
-  
-  gps_raw <- readLines(filename)
-  
-  # parse nmea records, two lines at a time
-  nmea_rmc <- grepl("^\\$GPRMC", gps_raw)
-  nmea_gga <- grepl("^\\$GPGGA", gps_raw)
-  
-  #RMC via specs https://www.gpsinformation.org/dale/nmea.htm#RMC
-  gps_rmc <- utils::read.table(text = gps_raw[nmea_rmc], sep = ",", fill = TRUE, as.is = TRUE)
-  
-  names(gps_rmc) <- c("RMCRecord", "Time", "Status", 
-                      "Latitude", "LatDir","Longitude", "LonDir", 
-                      "GroundSpeed", "TrackAngle","DateMMDDYY", 
-                      "MagVar", "MagVarDir", "ChecksumRMC")
-  
-  #GGA via specs at https://www.gpsinformation.org/dale/nmea.htm#GGA
-  gps_gga <- utils::read.table(text = gps_raw[nmea_gga], sep = ",", fill = TRUE, as.is = TRUE)
-  
-  names(gps_gga) <- c("GGARecord", "TimeFix", 
-                      "LatitudeFix", "LatDirFix", "LongitudeFix", "LonDirFix",
-                      "QualFix", "nSatellites", "hDilution", "Altitude", "AltitudeM", "Height", "HeightM",
-                      "DGPSUpdate", "ChecksumGGA")
-  
-
-  df <- bind_cols(gps_rmc, gps_gga) %>% 
-    dplyr::mutate(
-      DateTimeChar = paste(DateMMDDYY, Time),
-      Status = suppressWarnings(forcats::fct_recode(Status, Active ="A", Void="V")),
-      QualFix = suppressWarnings(forcats::fct_recode(as.character(QualFix), 
-                                    Invalid = '0', GPSFix = '1', DGPSFix = '2', PPSFix = '3',
-                                    RealTimeKine = '4', FloatRTK = '5', EstDeadReck = '6', ManInpMode = '7', SimMode ='8'
-      )) 
-    ) %>% 
-    dplyr::rowwise() %>% 
-    dplyr::mutate(
-      Latitude = deg_to_dec(Latitude, LatDir),
-      Longitude = deg_to_dec(Longitude, LonDir),
-      LatitudeFix = deg_to_dec(LatitudeFix, LatDirFix),
-      LongitudeFix = deg_to_dec(LongitudeFix, LonDirFix),
-      MagVar = deg_to_dec(MagVar, MagVarDir)
-    ) %>% 
-    dplyr::ungroup()
-  return(df)
-}
-
-
-
-#'
-#'Helper function for cleaning Columbus P-1 datasets.
-#'Given lat or long coords in degrees and a direction, convert to decimal. 
-#'
-#'@param x lat or long coords in degrees
-#'@param direction direction of lat/long
-#'@return converted x
-#'@noRd
-#'
-deg_to_dec <- function(x, direction){
-  xparts <- strsplit(as.character(x), "\\.")[[1]]
-  deg <- as.numeric(substr(xparts[1], 1, nchar(xparts[1])-2))
-  min <- as.numeric(substr(xparts[1], nchar(xparts[1])-1, nchar(xparts[1])))
-  sec <- as.numeric(xparts[2])
-    
-  return(ifelse(direction %in% c("W", "S"), -1 , 1)*(deg + min/60 + sec/3600))
-}
-
-#'
-#'Helper function for cleaning Columbus P-1 datasets.
-#'Given lat and long coords in degree decimal, convert to radians and compute bearing.
-#'
-#'@param lat1 latitude of starting point
-#'@param lon1 longitude of starting point
-#'@param lat2 latitude of ending point
-#'@param lon2 longitude of ending point
-#'@return bearing computed from given coordinates
-#'@noRd
-#'
-calc_bearing <- function(lat1, lon1, lat2, lon2){
-  lat1 <- lat1*(pi/180)
-  lon1 <- lon1*(pi/180)
-  lat2 <- lat2*(pi/180)
-  lon2 <- lon2*(pi/180)
-  
-  bearing_radian <- atan2( sin(lon2-lon1)*cos(lat2) , cos(lat1)*sin(lat2) - sin(lat1)*cos(lat2)*cos(lon2-lon1) )
-  
-  return((bearing_radian * 180/pi +360 )%% 360)
-}
-
-#'
-#'Reads a GPS dataset of unknown format at location filename 
-#'
-#'@param filename location of the GPS dataset
-#'@return list containing the dataset as a df and the format
-#'@noRd
-#'
-read_gps <- function(filename){
-  
-  # get first line of data to determine data format
-  data_row1 <- readLines(filename, 1, skipNul = TRUE)
-  
-  # determine data format
-  
-  data_type <- ifelse( grepl("^\\$GPRMC", data_row1), "columbus", "igotu")
-  
-  if(data_type == "columbus"){
-    gps_data <- read_columbus(filename)
-  }
-  else {
-    gps_data <- read.csv(filename, skipNul = TRUE, stringsAsFactors = FALSE)
-  }
-  
-  return(list(df = gps_data, dtype = data_type))
-}
-
-#'
-#'Generate a histogram of the distribution of modeled elevation - measured altitude
-#'
-#'@param datapts GPS data with measured Altitude and computed Elevation data
-#'@return histogram of the distribution of modeled elevation - measured altitude
-#'@examples
-#'# Histogram of elevation - altitude for the demo data
-#'
-#'histogram_animal_elevation(demo)
-#'@export
-histogram_animal_elevation <- function(datapts) {
-  histogram <- ggplot(datapts, aes(x = Elevation - Altitude)) +
-    xlim(-100,100)+
-    geom_histogram(aes(y=..density..), colour="blue", fill="lightblue", binwidth = 2 )+
-    geom_density(alpha=.2, fill="#FF6666") +
-    geom_vline(aes(xintercept = mean((Elevation-Altitude)[abs(Elevation-Altitude) <= 100])),col='blue',size=2)+
-    labs(title = "Distribution of Modeled Elevation - Measured Altitude (meters)")+
-    theme_minimal()
-  return(histogram)
-}
-
-
+####################################
 
 #'
 #'Process and optionally export modeled elevation data from existing animal data file
@@ -465,6 +619,7 @@ kmz_to_sf <- function(kmz_element, shift = c(0,0)){
   }
 }
 
+
 #'
 #'Find distance between n points and water objects
 #'
@@ -510,3 +665,66 @@ dist_points_to_water <- function(points, xlim = c(0,25), ylim = c(0,25), water){
   
   return(dist_to_water)
 }
+
+#'
+#'Helper function for cleaning Columbus P-1 datasets.
+#'Given lat or long coords in degrees and a direction, convert to decimal. 
+#'
+#'@param x lat or long coords in degrees
+#'@param direction direction of lat/long
+#'@return converted x
+#'@noRd
+#'
+deg_to_dec <- function(x, direction){
+  xparts <- strsplit(as.character(x), "\\.")[[1]]
+  deg <- as.numeric(substr(xparts[1], 1, nchar(xparts[1])-2))
+  min <- as.numeric(substr(xparts[1], nchar(xparts[1])-1, nchar(xparts[1])))
+  sec <- as.numeric(xparts[2])
+  
+  return(ifelse(direction %in% c("W", "S"), -1 , 1)*(deg + min/60 + sec/3600))
+}
+
+#'
+#'Helper function for cleaning Columbus P-1 datasets.
+#'Given lat and long coords in degree decimal, convert to radians and compute bearing.
+#'
+#'@param lat1 latitude of starting point
+#'@param lon1 longitude of starting point
+#'@param lat2 latitude of ending point
+#'@param lon2 longitude of ending point
+#'@return bearing computed from given coordinates
+#'@noRd
+#'
+calc_bearing <- function(lat1, lon1, lat2, lon2){
+  lat1 <- lat1*(pi/180)
+  lon1 <- lon1*(pi/180)
+  lat2 <- lat2*(pi/180)
+  lon2 <- lon2*(pi/180)
+  
+  bearing_radian <- atan2( sin(lon2-lon1)*cos(lat2) , cos(lat1)*sin(lat2) - sin(lat1)*cos(lat2)*cos(lon2-lon1) )
+  
+  return((bearing_radian * 180/pi +360 )%% 360)
+}
+
+
+#'
+#'Generate a histogram of the distribution of modeled elevation - measured altitude
+#'
+#'@param datapts GPS data with measured Altitude and computed Elevation data
+#'@return histogram of the distribution of modeled elevation - measured altitude
+#'@examples
+#'# Histogram of elevation - altitude for the demo data
+#'
+#'histogram_animal_elevation(demo)
+#'@export
+histogram_animal_elevation <- function(datapts) {
+  histogram <- ggplot(datapts, aes(x = Elevation - Altitude)) +
+    xlim(-100,100)+
+    geom_histogram(aes(y=..density..), colour="blue", fill="lightblue", binwidth = 2 )+
+    geom_density(alpha=.2, fill="#FF6666") +
+    geom_vline(aes(xintercept = mean((Elevation-Altitude)[abs(Elevation-Altitude) <= 100])),col='blue',size=2)+
+    labs(title = "Distribution of Modeled Elevation - Measured Altitude (meters)")+
+    theme_minimal()
+  return(histogram)
+}
+

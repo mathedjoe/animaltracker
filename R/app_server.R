@@ -310,7 +310,7 @@ app_server <- function(input, output, session) {
       mutate(begin = as.Date(as.character(begin), format = "%Y%m%d"),
              end = as.Date(as.character(end), format = "%Y%m%d")) %>%
       filter(min_datetime > begin, max_datetime < end) %>%
-      slice_head(n = 10)
+      slice_head(n = 10) # keep the n closest stations
     return(station_options)
   })
   
@@ -342,11 +342,10 @@ app_server <- function(input, output, session) {
       }
       
       ani_names <- paste(choose_ani(), collapse = ", ") # convert animal IDs to comma-separated list
-      # convert min date and time to year/month/day_hour/minute/second format in UTC
-      min_datetime <- lubridate::with_tz(lubridate::ymd_hms(paste(choose_dates()[1], min_time()), tz="UTC", quiet = TRUE), tz="UTC")
-      # convert max date and time to year/month/day_hour/minute/second format in UTC
-      max_datetime <- lubridate::with_tz(lubridate::ymd_hms(paste(choose_dates()[2], max_time()), tz="UTC", quiet = TRUE), tz="UTC")
-      
+      # convert min/max date and time to year/month/day_hour/minute/second format in UTC
+      min_datetime <- fix_datetime(choose_dates()[1], min_time())
+      max_datetime <- fix_datetime(choose_dates()[2], max_time())
+
       # cache label format: selected animals, min date/time - max date/time
       cache_name <- paste0(ani_names,", ",min_datetime,"-",max_datetime)
   

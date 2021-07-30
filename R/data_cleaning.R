@@ -22,21 +22,29 @@ if(getRversion() >= '2.5.1') {
 #'get_file_meta(system.file("extdata", "demo_nov19", package = "animaltracker"))
 #'@export
 #'
-get_file_meta <- function(data_dir){
-  file_names <- list.files(data_dir, pattern = "*.(csv|txt|TXT)", recursive = TRUE, full.names = TRUE)
+get_meta <- function(filename, dtype, df_prepped){
+  meta_list <- list( file = filename, 
+                        ani = "aniX", gps = "gpsX", 
+                        site = "siteX", rds_name = "rdsX",
+                        min_lat = 0, max_lat = 180,
+                        min_long = 0, max_long = 180)
+  # extract meta data from filename
+  if (dtype == "igotu"){
+    # igotu file convention = SITENAME_YEAR_GPSID_ANIMALID.csv (year is ignored)
+    igotu_pattern <- "^(.*)\\_20[0-9]{2}\\_{1}(.*)\\_{1}(.*)(\\.(csv|txt|TXT))$"
+    if(grepl(igotu_pattern, filename)){
+      meta_list$site <- gsub(igotu_pattern,"\\1", filename)
+      meta_list$gps <- gsub(igotu_pattern,"\\2", filename)
+      meta_list$ani <- gsub(igotu_pattern,"\\3", filename)
+    }
+    
+  } 
   
-  gps_units <- gsub("(.*)(20)([0-9]{2}\\_)(.*)(\\_{1}.*)(\\.(csv|txt|TXT))","\\4", file_names)
-  
-  ani_ids <- gsub("(.*)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.(csv|txt|TXT))","\\5", file_names)
-  
-  # assign random ids to missing animal ids
-  ani_ids_na <- ani_ids == "anixxxx"
-  ani_ids[ani_ids_na] <- sample(1000:9999, size = sum(ani_ids_na), replace = FALSE)
-  ani_ids[ani_ids_na] <- paste0("R", ani_ids[ani_ids_na])
-  
-  return(list(ani = ani_ids, gps = gps_units))
+  return(meta_list)
 }
+get_meta(filename = "Ranger_2022_gps33_ani22.csv", dtype = "igotu", df_prepped = NA)
 
+###########
 #'
 #'Cleans a raw animal GPS dataset, implementing a standardized procedure to remove impossible values
 #'
@@ -80,113 +88,31 @@ get_file_meta <- function(data_dir){
 #'@export
 #'
 clean_location_data <- function(df, dtype, 
-                                prep = TRUE, filters = TRUE, 
-                                aniid = NA, gpsid = NA, 
+                                prep = TRUE, filters = TRUE, ani_ids = NA, gps_ids = NA,
                                 maxrate = 84, maxcourse = 100, maxdist = 840, maxtime=60*60, tz_in = "UTC", tz_out = "UTC",
-                                dbscan_enable=FALSE, kalman = FALSE, kalman_min_lat=43, kalman_max_lat=44, kalman_min_lon=-117, kalman_max_lon=-116, kalman_max_timestep=300,
-                                dbscan_knn_eps = 0.001, dbscan_knn_k = 5) {
-  if(prep) {
-    # make sure quantitative columns are read in properly
-    df <- df %>% 
-      dplyr::mutate(Latitude = as.numeric(Latitude),
-                    Longitude = as.numeric(Longitude))
-    if(dtype == "columbus" & ("RMCRecord" %in% colnames(df))) {
-      df <- df %>%
-        # exclude unneeded information
-        dplyr::select(-c( RMCRecord, ChecksumRMC, GGARecord, AltitudeM, HeightM, DGPSUpdate, ChecksumGGA) ) %>%
-        dplyr::mutate( 
-          DateTime = lubridate::with_tz(as.POSIXct(DateTimeChar, format = "%d%m%y %H%M%OS", tz = tz_in), tz = tz_out),
-          Date = NA,
-          Time = strftime(DateTime, format="%H:%M:%OS", tz=tz_out),
-          Course = calc_bearing(dplyr::lag(Latitude, 1, default = first(Latitude)), dplyr::lag(Longitude, 1, default = first(Longitude)), Latitude, Longitude),
-          Distance = geosphere::distGeo(cbind(Longitude, Latitude), 
-                                        cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) )))
-        ) %>%
-        dplyr::select(
-          Date, Time, DateTime, Latitude, Longitude, Altitude, nSatellites, GroundSpeed, 
-          TrackAngle, hDilution, Height, Status, LatitudeFix, LongitudeFix, MagVar, Course, Distance
-        ) 
-    }
-    if(dtype == "igotu") {
-      # avoid re-creating columns if a dataset is cleaned multiple times
-      if(!("Order" %in% colnames(df))) {
-        df <- df %>% tibble::add_column(Order = df$Index, .before = "Index")
-      }
-      if(!("Rate" %in% colnames(df))) {
-        df <- df %>% tibble::add_column(Rate = NA, .after = "Distance")
-      }
-      if(!("CourseDiff" %in% colnames(df))) {
-        df <- df %>% tibble::add_column(CourseDiff = NA, .after = "Course")
-      }
-      df <- df %>%
-        dplyr::mutate(
-          nSatellites = nchar(as.character(Satelite)) - nchar(gsub("X", "", as.character(Satelite))),
-          DateTime = lubridate::with_tz(lubridate::ymd_hms(paste(Date, Time), tz=tz_in, quiet = TRUE), tz=tz_out),
-          Time = strftime(DateTime, format="%H:%M:%S", tz=tz_out), # reclassify Date as a Date variable
-          Distance = as.numeric(Distance),
-          Course = as.numeric(Course)
-        )
-    }
+                                dbscan_enable=FALSE, dbscan_knn_eps = 0.001, dbscan_knn_k = 5,
+                                kalman = FALSE, kalman_min_lat=43, kalman_max_lat=44, kalman_min_lon=-117, kalman_max_lon=-116, kalman_max_timestep=300) {
     
-    if(!("TimeDiff" %in% colnames(df))) {
-      df <- df %>% tibble::add_column(TimeDiff = NA, .after = "DateTime")
+    if(prep){
+      # ??apply data_to_commonformat() and/or read_prep_onefile() ?? 
     }
-    if(!("TimeDiffMins" %in% colnames(df))) {
-      df <- df %>% tibble::add_column(TimeDiffMins = NA, .after = "TimeDiff")
-    }
-    
-    df <- df %>% 
-      dplyr::mutate(
-        GPS = gpsid,
-        Animal = aniid,
-        Animal = as.factor(Animal),
-        Date = strftime(DateTime, format="%Y-%m-%d", tz=tz_out)# reclassify Date as a Date variable
-      ) %>% 
-      filter(!is.na(Date))
-  }
-  if(filters) {
-    
-    df <- df %>% 
-      dplyr::filter(!is.na(DateTime), !is.na(Date), !is.na(Time), nSatellites > 0) %>% 
-      dplyr::distinct(DateTime, .keep_all = TRUE) # remove duplicate timestamps
-  }
-
-  ## special function for processing gps data with igotu (protocol from Colt Knight)
-  process_gps_igotu <- function(df_igotu){
-    df_igotu %>%
-      dplyr::mutate(
-        TimeDiff = ifelse((is.na(dplyr::lag(DateTime,1)) | as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="secs")) > maxtime), 0, as.numeric(DateTime - dplyr::lag(DateTime,1))), # compute sequential time differences (in seconds)
-        TimeDiffMins = ifelse(TimeDiff == 0, 0, as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="mins"))),
-        DistGeo = geosphere::distGeo(cbind(Longitude, Latitude), 
-                                     cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))), #compute geodesic distance between points
-        DistGeo = ifelse(DistGeo > 10^6, 0, DistGeo), 
-        Rate = DistGeo/TimeDiffMins, # compute rate of travel (meters/min)
-        CourseDiff = abs(Course - dplyr::lag(Course,1,default=first(Course))),
-        ### implement filtering rules
-        TimeFlag =1*(TimeDiff == 0),
-        RateFlag = 1*(Rate >= maxrate | is.na(Rate)), # flag any data points representing too fast travel
-        MegaRateFlag = 1*(Rate >= 10*maxrate | is.na(Rate)), # flag any data with severe rates
-        CourseFlag = 1*(CourseDiff >= maxcourse), # flag any data with large change in course
-        DistFlag = 1*(DistGeo >= maxdist | ( (TimeDiffMins!=0) & DistGeo/TimeDiffMins > maxrate) ), # flag any large change in distance
-        TotalFlags = RateFlag + CourseFlag + DistFlag,
-        Keep = 1*(TotalFlags < 2 & !DistFlag & !MegaRateFlag & !TimeFlag) # implement key filtering rule
-    ) 
-  }
-  
-  df <- process_gps_igotu(df)
-   
-  
     if(filters) {
-      df <- df %>%
-        dplyr::filter( as.logical(Keep) ) %>%
-        process_gps_igotu(.) %>%
-        dplyr::filter( as.logical(Keep) ) %>%
-        dplyr::select(-contains("Flag"), -Keep) # remove flags after use
-      
-      if(dtype == "columbus") {
-        df <- df %>% 
-          dplyr::mutate(Distance = DistGeo)
+      if(dtype == "igotu"){
+        df <- df %>%
+          # implement flags (per Colt Knight rules)
+          dplyr::mutate(
+            TimeFlag =1*(TimeDiff == 0),
+            RateFlag = 1*(Rate >= maxrate | is.na(Rate)), # flag any data points representing too fast travel
+            MegaRateFlag = 1*(Rate >= 10*maxrate | is.na(Rate)), # flag any data with severe rates
+            CourseFlag = 1*(CourseDiff >= maxcourse), # flag any data with large change in course
+            DistFlag = 1*(DistGeo >= maxdist | ( (TimeDiffMins!=0) & DistGeo/TimeDiffMins > maxrate) ), # flag any large change in distance
+            TotalFlags = RateFlag + CourseFlag + DistFlag,
+            Keep = 1*(TotalFlags < 2 & !DistFlag & !MegaRateFlag & !TimeFlag) # implement key filtering rule
+          )  %>%
+          dplyr::filter( as.logical(Keep) ) %>%
+          dplyr::select(-contains("Flag"), -Keep) # remove flags after use
       }
+      
     }
     else {
       df <- df %>% 
@@ -196,6 +122,12 @@ clean_location_data <- function(df, dtype,
         tibble::add_column(DuplicateDateFlag = 1*duplicated(df$DateTime)) %>%
         dplyr::mutate(TotalFlags = RateFlag + CourseFlag + DistFlag + TimeFlag + DuplicateDateFlag)
     }
+  
+  ### TO DO: APPLY UNIVERSAL FILTERING USING PROVIDED THRESHOLDS
+  df <- df %>%
+    dplyr::filter(Animal %in% ani_ids,
+                  DateTime <= as.Date(max_date),
+                  DateTime >= as.Date(min_date))
   
   # After all other processing has been done, apply new filters
   if(kalman) {
@@ -308,6 +240,25 @@ clean_export_files <- function(data_dir, tz_in = "UTC", tz_out = "UTC", export =
   return(data_sets)
 }
 
+# function to fix time strings
+is_valid_time <- function(txt){
+  # reg exp for valid dates (h = hour, m = min, s = sec)
+  hms_pattern <- "^\\d\\d:\\d\\d:\\d\\d$" 
+  if( grepl(hms_pattern, txt) ) {
+    # format to vector of h, m, and s
+    hms <- strsplit(txt, ":") %>% unlist %>% as.numeric
+    if( hms[1] < 24  && hms[2] < 60 && hms[3] < 60){
+      return(TRUE)
+    }
+  }
+  return(FALSE)
+}
+# function to fix date/time strings
+fix_datetime <- function(datestring, timestring, tzone = "UTC"){
+  time_out <- lubridate::with_tz(lubridate::ymd_hms(paste(datestring, timestring), tz=tzone, quiet = TRUE), tz=tzone)
+  format(as.POSIXct(time_out), format ="%Y-%m-%d %H:%M:%S")
+}
+
 #'
 #'Add big files to a .gitignore file
 #'
@@ -327,13 +278,7 @@ dev_add_to_gitignore <- function(data_dir) {
   close(fileConn)
 }
 
-is_valid_time <- function(txt){
-  if( grepl("\\d\\d:\\d\\d:\\d\\d", txt) ) {
-    hms <- strsplit(txt, ":") %>% unlist %>% as.numeric
-    return( hms[1] < 24  && hms[2] < 60 && hms[3] < 60 )
-  }
-  return(FALSE)
-}
+
 
 
 # Implements Kalman filter for filtering

@@ -19,70 +19,27 @@ store_batch_list <- function(data_dir, max_rate = 84, max_dist = 840, max_course
   
   unlink(file.path("temp"), recursive=TRUE)
   
-  data_files <- utils::unzip(data_dir$datapath, exdir="temp")
+  utils::unzip(data_dir$datapath, exdir="temp")
   data_files <- list.files("temp", pattern = "*.(csv|txt|TXT)", recursive = TRUE, full.names = TRUE)
 
   rds_name <- paste0(dir_name, ".rds")
   
-  data_sets <- lapply(data_files, read_gps)
-    
-  # remove "temp" from file name
-  file_names <- gsub("(temp)(\\/)", "", data_files)
+  data_prepped <- lapply(data_files, read_prep_onefile)
   
-  gps_units <- gsub("(.*)(20)([0-9]{2}\\_)(.*)(\\_{1}.*)(\\.(csv|txt|TXT))","\\4", file_names)
-  ani_ids <- gsub("(.*)(20)([0-9]{2}\\_)(.*\\_)(.*)(\\.(csv|txt|TXT))","\\5", file_names)
-  
-  site_names <- c()
-  # function to compute max/min lat/long from a dirty dataset
-  maxminlatlong <- function(data, dtype){
-    if(dtype == "igotu") {
-      suppressWarnings(  df <-  data[!is.na(as.numeric(data$Index)), ] ) # discard any rows with text in the first column duplicate header rows
-    }
-    else {
-      df <- data
-    }
-    df <- utils::type.convert(df) %>% 
-      dplyr::select( Latitude, Longitude) %>%
-      dplyr::filter(!is.na(Latitude), Latitude !=0, !is.na(Longitude), Longitude !=0)
-    
-   return( c(     max(df$Latitude), 
-                  min(df$Latitude),
-                  max(df$Longitude),
-                  min(df$Longitude)
-            )
-         )
-  }
+  data_sets <- lapply(data_prepped, function(x){x$df})
+  meta_df <- merge_meta(data_prepped)
 
-  # function to update a global max/min lat/long with a new dataset
-  update_maxminlatlong <- function(mmll, newdata, newdtype){
-    new_mmll <- maxminlatlong(newdata, newdtype)
-    c(max(mmll[1], new_mmll[1]),
-      min(mmll[2], new_mmll[2]),
-      max(mmll[3], new_mmll[3]),
-      min(mmll[4], new_mmll[4]))
-    
-  }
-  maxminsll <- maxminlatlong(data_sets[[1]]$df, data_sets[[1]]$dtype)
-  
-  meta_df <- data.frame()
 
   for(i in 1:length(file_names)) {
-    site_names[i] <- ifelse( grepl("\\_", file_names[i]), tolower(sub("\\_.*","", file_names[i])), paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])))
-    ani_ids[i] <- ifelse(ani_ids[i] == file_names[i], paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])), ani_ids[i])
-    gps_units[i] <-  ifelse(gps_units[i] == file_names[i], paste0("Unknown_", gsub("(.*).(csv|txt|TXT)", "\\1", file_names[i])), gps_units[i])
-    df <- data_sets[[i]]$df
-    dtype <- data_sets[[i]]$dtype
-    if(i > 1 ){
-      maxminsll <- update_maxminlatlong(maxminsll, df, dtype)
-    }
-    df <- clean_location_data(df, dtype, filters = FALSE, aniid = ani_ids[i], gpsid = gps_units[i],
-                              maxrate = max_rate, maxdist = max_dist, maxcourse = max_course,
-                              maxtime = max_clean_time)
-    df_clean <- clean_location_data(df, dtype, filters = TRUE, aniid = ani_ids[i], gpsid = gps_units[i],
+
+    df <- clean_location_data(data_sets[i],  filters = FALSE, 
+                              dtype = meta_df$dtype[i], aniid = meta_df$ani_ids[i], gpsid = meta_df$gps_units[i],
+                              maxrate = max_rate, maxdist = max_dist, maxcourse = max_course, maxtime = max_clean_time)
+    df_clean <- clean_location_data(data_sets[i], filters = TRUE, dtype = meta_df$dtype[i], aniid = ani_ids[i], gpsid = gps_units[i],
                                     maxrate = max_rate, maxdist = max_dist, maxcourse = max_course,
                                     maxtime = max_clean_time)
     current_meta <- get_meta(df_clean, i, dtype, file_names[i], site_names[i], ani_ids[i], "temp.rds")
-    meta_df <- save_meta(meta_df, current_meta) 
+    meta_df <- rbind(meta_df, current_meta) 
     data_sets[[i]] <- df
   }
   
@@ -177,8 +134,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_elev = F
                               dbscan_knn_eps = 0.001, dbscan_knn_k = 5) {
   #initialize empty meta
   meta_df <- data.frame(matrix(ncol = 9, nrow = 0))
-  meta_cols <- c("file_id", "file_name", "site", "ani_id", "min_date", "max_date", "min_lat", "max_lat", "storage")
-  colnames(meta_df) <- meta_cols
+  colnames(meta_df) <- c("file_id", "file_name", "site", "ani_id", "min_date", "max_date", "min_lat", "max_lat", "storage")
  
   num_saved_rds <- 0
   
@@ -314,7 +270,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_elev = F
       # get meta from df
       file_meta <- get_meta(df_out, i, data_info$meta$dtype[i], data_info$file[i], data_info$site[i], aniid, data_info$rds_name)
       # save meta to the designated meta df
-      meta_df <- save_meta(meta_df, file_meta)
+      meta_df <- rbind(meta_df, file_meta) 
       # replace df with elevation df
       data_sets[[paste0("ani",aniid)]] <- df_out
     }
@@ -339,7 +295,7 @@ clean_store_batch <- function(data_info, filters = TRUE, zoom = 11, get_elev = F
 #'@param storage_loc .rds storage location of animal data frame
 #'@return df of metadata for animal data frame 
 #'@noRd
-get_meta <- function(df, file_id, dtype, file_name, site, ani_id, storage_loc) {
+meta_to_df <- function(df, file_id, dtype, file_name, site, ani_id, storage_loc) {
    return(data.frame(file_id = file_id,
             dtype = dtype,
             file_name = file_name, 
@@ -355,31 +311,14 @@ get_meta <- function(df, file_id, dtype, file_name, site, ani_id, storage_loc) {
 }
 
 #'
-#'Save metadata to a data frame and return it
-#'
-#'@param meta_df the data frame to store metadata in
-#'@param file_meta meta for a .csv file generated by get_meta
-#'@return df of metadata
-#'@noRd
-#'
-save_meta <- function(meta_df, file_meta) {
-  meta_df <- rbind(meta_df, file_meta)
-  return(meta_df)
-}
-
-#'
 #'Get animal data set from specified meta. 
-#'If date range is invalid, automatically returns all animal data specified by meta_df.
 #'
 #'@param meta_df data frame of specified meta
-#'@param min_date minimum date specified by user
-#'@param max_date maximum date specified by user
 #'@return df of animal data from specified meta
 #'@noRd
 #'
-get_data_from_meta <- function(meta_df, min_date = min(meta_df$min_date), max_date = max(meta_df$max_date)) {
+get_data_from_meta <- function(meta_df) {
   
-  meta_df$storage <- as.character(meta_df$storage)
   rds_files <- list(unique(meta_df$storage))
   current_df <- data.frame()
   for(file_name in rds_files) {
@@ -389,17 +328,9 @@ get_data_from_meta <- function(meta_df, min_date = min(meta_df$min_date), max_da
     }
   }
   
-  current_df <- current_df %>%
-    dplyr::filter(Animal %in% meta_df$ani_id,
-                  DateTime <= as.Date(max_date),
-                  DateTime >= as.Date(min_date))
-  
-  # check if current_df is empty
-  
-  if(nrow(current_df) == 0) {
-    current_df <- current_df %>% 
-      dplyr::filter(Animal %in% meta_df$ani_id)
-  }
-  
   return(current_df)
+}
+
+compile_meta <- function(list_of_meta_dfs){
+  
 }
