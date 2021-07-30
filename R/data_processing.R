@@ -510,3 +510,271 @@ dist_points_to_water <- function(points, xlim = c(0,25), ylim = c(0,25), water){
   
   return(dist_to_water)
 }
+
+#'
+#'Read and process a Gulf Coast Data Concepts accelerometer data file into a data frame
+#'
+#'@param filename path of Gulf Coast Data Concepts data file
+#'@return processed data frame
+#'@export
+#'
+read_prep_gcdc <- function(filename) {
+  sat_line <- colnames(read_csv(filename, skip = 8, n_max = 0)) # jump to the 9th line
+  num_sat <- as.numeric(sat_line[length(sat_line)]) # get number of satellites
+  # there is always 1 extra metadata line after satellite list
+  accel_raw <- read_csv(filename, skip = 10 + num_sat + 1) %>% 
+    dplyr::rename(Time = ";Time") %>% 
+    dplyr::mutate(Time = as.numeric(Time),
+                  real_time = strftime(lubridate::as_datetime(Time, tz = "UTC"), "%Y-%m-%d %H:%M:%OS3", tz = "UTC")) %>% 
+    dplyr::mutate(dplyr::across(starts_with("A"), function(x) x/2048, .names = "{.col}_g"))
+  
+  accel_raw %>% filter(!is.na(Lat))
+  
+  # do linear interpolation on coordinates. rule = 2 means that trailing NAs are filled with the endpoints
+  accel_raw$Lat_fill <- zoo::na.approx(accel_raw$Lat, na.rm = FALSE, rule = 2) 
+  accel_raw$Lon_fill <- zoo::na.approx(accel_raw$Lon, na.rm = FALSE, rule = 2)
+  
+  accel_reformat <- accel_raw %>% 
+    dplyr::rename(Longitude = Lon_fill,
+                  Latitude = Lat_fill,
+                  LonRaw = Lon,
+                  LatRaw = Lat,
+                  DateTime = real_time) %>% 
+    dplyr::mutate(Time = strftime(DateTime, format="%H:%M:%OS3", tz="UTC"),
+                  Date = strftime(DateTime, format="%Y-%m-%d", tz="UTC"),
+                  Course = calc_bearing(dplyr::lag(Latitude, 1, default = first(Latitude)), dplyr::lag(Longitude, 1, default = first(Longitude)), Latitude, Longitude),
+                  Distance = geosphere::distGeo(cbind(Longitude, Latitude), 
+                                                cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) ))))
+  
+  return(accel_reformat)
+}
+
+#'
+#'Read and process an .xlsm data file containing animal behavior codes into a data frame
+#'
+#'@param filename path of .xlsm data file
+#'@param tz data collection timezone
+#'@param timeout upper bound for acceptable number of seconds between observations 
+#'@return processed data frame
+#'@export
+#'
+read_prep_behavior <- function(filename) {
+  behavior_sheets <- readxl::excel_sheets(filename)
+  
+  custom_name_repair <- function(name_text){ifelse(name_text =="", "XX", tolower(gsub("\\ ", "_", name_text)))}
+  
+  behavior_raw <- lapply(behavior_sheets, function(sheet_name){
+    readxl::read_excel(test_behavior_file, 
+                       sheet = sheet_name,
+                       range = readxl::cell_cols(c(1:31)),
+                       col_types = "text", 
+                       .name_repair = custom_name_repair) %>% 
+      dplyr::select(-XX) %>%
+      # drop any rows that are all NA (except cowid)
+      filter(if_any(setdiff(everything(),one_of("cowid")) , ~ !is.na(.)))
+  }) %>% 
+    dplyr::bind_rows() %>% 
+    type_convert()
+  
+  reformat_behavior<- function(data_raw, tz = "Etc/GMT-6", timeout = 300){
+    data_raw %>% 
+      select(-contains("elapsed"), -contains("bites")) %>%
+      tidyr::pivot_longer(drinking:walking, names_to = "behavior") %>% 
+      dplyr::filter(!is.na(value)) %>% 
+      dplyr::select(-value) %>%
+      dplyr::rename(DateTime = timestamp) %>%
+      dplyr::mutate(
+        DateTime = lubridate::as_datetime((DateTime - 25569)*86400),
+        DateTime = lubridate::force_tz(DateTime, tz),
+        Date = format(strptime(DateTime, format="%Y-%m-%d %H:%M:%S"), format="%Y-%m-%d"),
+        Time = format(strptime(DateTime, format="%Y-%m-%d %H:%M:%S"), format="%H:%M:%S")
+      ) %>%
+      dplyr::arrange(DateTime) %>%
+      dplyr::group_by(cowid, DateTime) %>%
+      dplyr::mutate(timediff_hs = 1/(n()) ) %>%
+      dplyr::ungroup() %>%
+      dplyr::group_by(cowid) %>%
+      dplyr::mutate(
+        timediff = ifelse(DateTime != dplyr::lag(DateTime),
+                          as.numeric(difftime(DateTime, dplyr::lag(DateTime,1), units="secs")),
+                          timediff_hs),
+        timediff = ifelse(is.na(timediff), 0, timediff),
+        behavior_id = (behavior != lag(behavior, 1, default = "") | timediff > timeout ),
+        behavior_id = cumsum(behavior_id)) %>%
+      dplyr::ungroup() %>%
+      dplyr::group_by(cowid, behavior_id) %>%
+      dplyr::mutate(
+        behavior_time = cumsum(timediff ) - first(timediff) + first(timediff_hs) ) %>%
+      dplyr::ungroup() %>%
+      dplyr::arrange(cowid, DateTime)
+  }
+  behavior_formatted <- reformat_behavior(behavior_raw)
+  
+  return(behavior_formatted)
+}
+#'
+#'Read and process a Columbus P-1 data file containing NMEA records into a data frame
+#'
+#'@param filename path of Columbus P-1 data file
+#'@return NMEA records in RMC and GGA formats as a data frame
+#'@export
+#'@examples
+#'
+#'read_prep_columbus(system.file("extdata", "demo_columbus.TXT", package = "animaltracker"))
+read_prep_columbus <- function(filename){
+  
+  gps_raw <- readLines(filename)
+  
+  # parse nmea records, two lines at a time
+  nmea_rmc <- grepl("^\\$GPRMC", gps_raw)
+  nmea_gga <- grepl("^\\$GPGGA", gps_raw)
+  
+  #RMC via specs https://www.gpsinformation.org/dale/nmea.htm#RMC
+  gps_rmc <- utils::read.table(text = gps_raw[nmea_rmc], sep = ",", fill = TRUE, as.is = TRUE)
+  
+  names(gps_rmc) <- c("RMCRecord", "Time", "Status",
+                      "Latitude", "LatDir","Longitude", "LonDir",
+                      "GroundSpeed", "TrackAngle","DateMMDDYY",
+                      "MagVar", "MagVarDir", "ChecksumRMC")
+  
+  #GGA via specs at https://www.gpsinformation.org/dale/nmea.htm#GGA
+  gps_gga <- utils::read.table(text = gps_raw[nmea_gga], sep = ",", fill = TRUE, as.is = TRUE)
+  
+  names(gps_gga) <- c("GGARecord", "TimeFix",
+                      "LatitudeFix", "LatDirFix", "LongitudeFix", "LonDirFix",
+                      "QualFix", "nSatellites", "hDilution", "Altitude", "AltitudeM", "Height", "HeightM",
+                      "DGPSUpdate", "ChecksumGGA")
+  
+  
+  df <- bind_cols(gps_rmc, gps_gga) %>%
+    dplyr::mutate(
+      DateTimeChar = paste(DateMMDDYY, Time),
+      Status = suppressWarnings(forcats::fct_recode(Status, Active ="A", Void="V")),
+      QualFix = suppressWarnings(forcats::fct_recode(as.character(QualFix),
+                                                     Invalid = '0', GPSFix = '1', DGPSFix = '2', PPSFix = '3',
+                                                     RealTimeKine = '4', FloatRTK = '5', EstDeadReck = '6', ManInpMode = '7', SimMode ='8'
+      ))
+    ) %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(
+      Latitude = deg_to_dec(Latitude, LatDir),
+      Longitude = deg_to_dec(Longitude, LonDir),
+      LatitudeFix = deg_to_dec(LatitudeFix, LatDirFix),
+      LongitudeFix = deg_to_dec(LongitudeFix, LonDirFix),
+      MagVar = deg_to_dec(MagVar, MagVarDir)
+    ) %>%
+    dplyr::ungroup()
+  
+  
+  df <- df %>%
+    # exclude unneeded information
+    dplyr::select(-any_of(c( "RMCRecord", "ChecksumRMC", "GGARecord",
+                             "AltitudeM", "HeightM", "DGPSUpdate", "ChecksumGGA") ) ) %>%
+    dplyr::mutate(
+      DateTime = as.POSIXct(DateTimeChar, format = "%d%m%y %H%M%OS", tz = "UTC"),
+      Course = calc_bearing(dplyr::lag(Latitude, 1, default = first(Latitude)), dplyr::lag(Longitude, 1, default = first(Longitude)), Latitude, Longitude),
+      Distance = geosphere::distGeo(cbind(Longitude, Latitude),
+                                    cbind(dplyr::lag(Longitude,1,default=first(Longitude)), dplyr::lag(Latitude,1,default=first(Latitude) )))
+    ) %>%
+    dplyr::select(
+      any_of(c("DateTime", "Latitude", "Longitude", "Altitude", "nSatellites", "GroundSpeed",
+               "TrackAngle", "hDilution", "Height", "Status", "LatitudeFix", "LongitudeFix", "MagVar",
+               "Course", "Distance"))
+    )
+  return(df)
+}
+# df_test_columbus <- read_prep_onefile("R/scratch/common_formatting/sample_columbus.txt")$df
+
+#'
+#'Read and process a Integrated Gyroscope / Accelerometer / GPS data file
+#'
+#'@param filename path the integrated data file
+#'@return prepped data frame
+#'@export
+#'@examples
+#'
+#'read_prep_intgag(system.file("extdata", "demo_intgag.txt", package = "animaltracker"))
+
+read_prep_intgag <- function(filename){
+  
+  # read the data set, starting with the list of fields in line 3
+  df <- read.csv(filename, skipNul = TRUE, skip = 2)
+  
+  # rename variables to the common name convention
+  df <- df %>%
+    dplyr::rename(Latitude = lat,
+                  Longitude = lon,
+                  nSatellites = satellites,
+                  hDilution = HDOP,
+                  AccX = acc_x,
+                  AccY = acc_y,
+                  AccZ = acc_z,
+                  GyrX = gyr_x,
+                  GyrY = gyr_y,
+                  GyrZ = gyr_z,
+                  TempC = temp_degC,
+                  BattV = batt_voltage) %>%
+    dplyr::filter(!is.na(millis), !duplicated(millis))
+  
+  # gps variables
+  vars_gps <- c("Latitude", "Longitude", "nSatellites", "hDilution")
+  
+  # realign the gps rows using fix_millis (runtime of GPS) and millis (runtime of gyro/accel)
+  # custom function for this purpose
+  realign_gps_to_main <- function( df, ... ){
+    
+    # get gps records to remap  
+    df_remap <- df %>%
+      dplyr::filter(!is.na(fix_millis), !duplicated(millis) ) %>%
+      dplyr::select(fix_millis, all_of(vars_gps) )
+    
+    # find closest main device records
+    closest_main_millis <- sapply( seq(nrow(df_remap)), function(i, ...){
+      which_main <- which.min(abs(df$millis - df_remap$fix_millis[i]) )
+      df$millis[which_main]
+    })
+    
+    # move the remapped gps data to the closest main data
+    df[df$millis %in% closest_main_millis, names(df_remap)] <- df_remap
+    df[!is.na(df$fix_millis) &  !df$millis %in% closest_main_millis, names(df_remap)] <- NA
+    df
+  }
+  
+  df <- realign_gps_to_main(df)
+  
+  # recover date/time by aligning gps dates with device runtime data
+  if(any(!is.na(df$fix_millis - df$millis)) ){
+    
+    # get closest match between gps fix (date/time) and device measurement (runtime)
+    dcali <- which.min(abs(df$fix_millis - df$millis))[1]
+    
+    # convert to a calibration date
+    date_cali <- paste0(df$year[dcali], "-", df$month[dcali], "-", df$date[dcali],
+                        " ", df$hour[dcali], ":", df$min[dcali], ":", df$sec[dcali])
+    date_cali <- as.POSIXct(date_cali, format = "%Y-%m-%d %H:%M:%OS", tz = "UTC")
+    
+    # use calibration date to estimate dates corresponding to shifted runtimes
+    df <- df %>%
+      dplyr::mutate(
+        secs_shifted = (millis - fix_millis[dcali])/1000,
+        DateTime = date_cali + secs_shifted,
+        TimeElapsed = as.numeric(DateTime),
+        TimeElapsed = round(TimeElapsed - first(TimeElapsed),3) # millisecond precision
+      )
+  }
+  
+  # "fill" missing GPS data with nearest recorded values
+  df <- df %>%
+    dplyr::mutate(
+      newGPS = 1* (!is.na(Latitude) & !is.na(Longitude) ), # mark new GPS records
+      across(.cols = all_of(vars_gps), .fns = fill_na_downup) # fill missing DOWN then UP
+    )
+  
+  # select variables to export
+  df %>%
+    dplyr::select(
+      DateTime, TimeElapsed, newGPS,
+      any_of(vars_gps),
+      AccX:BattV
+    )
+}
