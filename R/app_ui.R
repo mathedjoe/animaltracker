@@ -9,7 +9,6 @@
 #'
 
 app_ui <- function(){
-  
   jsCode <- 'shinyjs.removePolygon = function() {
     var event = document.createEvent("Event");
     event.initEvent("click", true, true);
@@ -26,7 +25,7 @@ app_ui <- function(){
              ## DATA PANEL
              tabPanel("Data", 
                       sidebarLayout(
-                        sidebarPanel( 
+                        sidebarPanel(
                           h4("1. Upload Data"),
                           helpText("Select a zip folder on your computer containing .csv files. Please upload data from one
                                    area at a time."),
@@ -38,25 +37,68 @@ app_ui <- function(){
                           h4("2. Select Data"),
                           reactivePickerOutput("choose_site") %>% shinycssloaders::withSpinner(),
                           reactivePickerOutput("choose_ani"),
-                          datePickerOutput("choose_dates"),
-                          timeOutput("min_time"),
-                          timeOutput("max_time"),
-                          
+                          shinyBS::bsCollapse(id = "restrictOptions", 
+                                              shinyBS::bsCollapsePanel("Restrict Date/Time/Location",
+                                                                       datePickerOutput("choose_dates"),
+                                                                       timeOutput("min_time"),
+                                                                       timeOutput("max_time"),
+                                                                       reactiveRangeOutput("lat_bounds"),
+                                                                       reactiveRangeOutput("long_bounds")
+                                                                       , value = "restrict_options"),
+                                              open = "restrict_options"
+                          ),
                           hr(),
                           
                           h4("3. Data Processing"),
-                          shinyBS::bsCollapse(id = "uploadOptions", open = "Elevation Options",
-                                     shinyBS::bsCollapsePanel("Cleaning Options",
-                                                     checkboxInput("filterBox", label = "Filter bad data points", value = TRUE)
+                          shinyBS::bsCollapse(id = "uploadOptions", open = "General Options",
+                                     shinyBS::bsCollapsePanel("General Options",
+                                                     checkboxInput("filterBox", label = "Filter bad data points", value = TRUE),
+                                                     checkboxInput("kalman_enable", label = "Cluster data with Kalman filtering", value = FALSE),
+                                                     checkboxInput("dbscan_enable", label = "Cluster data with DBSCAN filtering", value = FALSE),
+                                                     checkboxInput("elevBox", label = "Append USGS Elevation data"),
+                                                     checkboxInput("weatherBox", label = "Append NOAA Hourly Weather data")
+                                     )),
+                                     shinyBS::bsCollapse(id = "filterOptions",
+                                                         shinyBS::bsCollapsePanel("Filter Options",
+                                                                                  uiOutput("max_rate"),
+                                                                                  uiOutput("max_course"),
+                                                                                  uiOutput("max_dist"),
+                                                                                  uiOutput("max_clean_time")
+                                                                                  ), open = "Filter Options"),
+                                    
+                                     shinyBS::bsCollapse(id = "kalmanOptions",
+                                                         shinyBS::bsCollapsePanel("Kalman Configuration Options",
+                                                                                  uiOutput("kalman_max_timestep")
+                                                         ), open = "Kalman Configuration Options"),
+                                     shinyBS::bsCollapse(id = "dbscanOptions",
+                                                         shinyBS::bsCollapsePanel("DBSCAN Configuration Options",
+                                                                                  uiOutput("knn_eps"),
+                                                                                  uiOutput("knn_k"),
+                                                                                  uiOutput("interp")
+                                                         ), open = "DBSCAN Configuration Options"),
+                                     shinyBS::bsCollapse(id = "elevOptions", 
+                                       shinyBS::bsCollapsePanel("Elevation Options",
+                                                       
+                                                       uiOutput("zoom"),
+                                                       checkboxInput("slopeBox", label = "Include slope", value = TRUE),
+                                                       checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
+                                     ), open = "Elevation Options"),
+                                     shinyBS::bsCollapse(id = "weatherOptions", 
+                                       shinyBS::bsCollapsePanel("Weather Options",
+                                                                reactivePickerOutput("choose_station"),
+                                                                shinyWidgets::pickerInput("selected_weather",
+                                                                                          label = "Select weather variables",
+                                                                                          choices = c("wind direction", "wind speed", "ceiling height",
+                                                                                                      "visibility distance", "temperature", "dewpoint temperature",
+                                                                                                      "air pressure", "precipitation depth"),
+                                                                                          selected = c("wind direction", "wind speed", "temperature",
+                                                                                                       "dewpoint temperature", "air pressure"),
+                                                                                          multiple = TRUE,
+                                                                                          options = list(`actions-box` = TRUE)
+                                                                )), open = "Weather Options"
+
                                      ),
-                                     shinyBS::bsCollapsePanel("Elevation Options",
-                                                     reactiveRangeOutput("lat_bounds"),
-                                                     reactiveRangeOutput("long_bounds"),
-                                                     uiOutput("zoom"),
-                                                     checkboxInput("slopeBox", label = "Include slope", value = TRUE),
-                                                     checkboxInput("aspectBox", label = "Include aspect", value = TRUE)
-                                     )
-                          ),
+          
                           actionButton("processButton", "Process All"),
                           actionButton("processSelectedButton", "Process Selected"),
                           
@@ -78,6 +120,8 @@ app_ui <- function(){
                           
                           leafletOutput("mainmap", height = 640) %>% shinycssloaders::withSpinner(),
                           htmlOutput("mapinfo"),
+                          br(),
+                          br(),
                           h4("Display Geographic Features"),
                           fileInput("kmzInput", "Upload kmz file to display fences, etc.", accept=c(".kmz")),
                           h4("Add Water Sources"),
@@ -94,11 +138,12 @@ app_ui <- function(){
              
              ## PLOTS PANEL
              tabPanel("Plots",
+                      actionButton("generateGif", "Create movement animation"),
+                      imageOutput("animatedPlot"),
                       reactivePlotOutput("plot_elevation_line"),
                       reactivePlotOutput("plot_samplerate_hist"),
                       reactivePlotOutput("plot_rate_violin"),
                       reactivePlotOutput("plot_time_heatmap")
-                        
                          
              ),# end plots panel
              ## ANALYSIS PANEL
@@ -164,7 +209,10 @@ app_ui <- function(){
                                   tags$li("Joe Champion (lead developer), Boise State University,", a("joechampion@boisestate.edu", href='mailto:joechampion@boisestate.edu'), 
                                      HTML(",&nbsp;"), a("website",href = 'https://math.boisestate.edu/jchampion/', target="_blank" )),
                                   tags$li("Thea Sukianto (student assistant), Boise State University,", a("TheophiliaSukian@u.boisestate.edu", href='mailto:TheophiliaSukian@u.boisestate.edu')),
-                                  tags$li("Chithkala Dhulipati (student assistant), Boise State University,", a("chithkaladhulipa@u.boisestate.edu ", href='mailto:chithkaladhulipa@u.boisestate.edu ')),
+                                  tags$li("Chithkala Dhulipati (student assistant), Boise State University,", a("chithkaladhulipa@u.boisestate.edu ", href='mailto:chithkaladhulipa@u.boisestate.edu')),
+                                  tags$li("Joseph Goodwin (student assistant), Oregon State University,", a("jgoodwin9628@gmail.com", href='mailto:jgoodwin9628@gmail.com')),
+                                  tags$li("Sebastian Benjamin (student assistant), Oregon State University,", a("sebastiancbenjamin@gmail.com", href='mailto:sebastiancbenjamin@gmail.com')),
+                                  tags$li("Connor Wilson (student assistant), Oregon State University,", a("connor.wilson48@gmail.com", href='mailto:connor.wilson48@gmail.com')),
                                   tags$li("Dylan Mikesell (researcher), Boise State University,", a("dylanmikesell@boisestate.edu", href='mailto:dylanmikesell@boisestate.edu'))
                                   
                                 )

@@ -210,11 +210,16 @@ plot_water_sources <- function(proxy, pts, water_geoms, custom_icon_list) {
                         popup = ~ paste(
                           paste("<h4>", paste("Animal ID:", ani), "</h4>"),
                           paste("Date/Time:", pts$DateTime),
+                          paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
+                                                    ", ")),
                           paste("Elevation:", pts$Elevation),
                           paste("Slope:", pts$Slope),
                           paste("Aspect:", pts$Aspect),
-                          paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
-                                                    ", ")),
+                          paste("Wind Direction:", pts$wind_direction),
+                          paste("Wind Speed:", pts$wind_speed),
+                          paste("Temperature:", pts$temperature),
+                          paste("Dewpoint Temp:", pts$temperature_dewpoint),
+                          paste("Air Pressure:", pts$air_pressure),
                           paste("Closest Water:", pts$closest_water),
                           paste("LocationID:", pts$LocationID),
                           
@@ -241,11 +246,16 @@ plot_animal_points <- function(proxy, pts) {
                         popup = ~ paste(
                           paste("<h4>", paste("Animal ID:", ani), "</h4>"),
                           paste("Date/Time:", pts$DateTime),
+                          paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
+                                                    ", ")),
                           paste("Elevation:", pts$Elevation),
                           paste("Slope:", pts$Slope),
                           paste("Aspect:", pts$Aspect),
-                          paste("Lat/Lon:", paste(pts$Latitude, pts$Longitude, sep =
-                                                    ", ")),
+                          paste("Wind Direction:", pts$wind_direction),
+                          paste("Wind Speed:", pts$wind_speed),
+                          paste("Temperature:", pts$temperature),
+                          paste("Dewpoint Temp:", pts$temperature_dewpoint),
+                          paste("Air Pressure:", pts$air_pressure),
                           paste("Closest Water:", pts$closest_water),
                           paste("LocationID:", pts$LocationID),
                           

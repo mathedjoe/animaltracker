@@ -96,7 +96,7 @@ reactivePicker <- function(input, output, session, type, req_list, text, min_sel
     else if(type == "recent") {
       if(is.null(req_list$selected_ani()) || is.null(req_list$cache()) || 
          is.null(req_list$dates()) || is.null(req_list$min_time()) ||
-         is.null(req_list$max_time())) {
+         is.null(req_list$max_time()) || !req_list$valid_times()) {
         
         return()
       }
@@ -108,6 +108,15 @@ reactivePicker <- function(input, output, session, type, req_list, text, min_sel
         selected <- paste(selected, "(processed)")
       }
     
+    }
+    else if(type == "station") {
+      if(is.null(req_list$stations())) {
+        return()
+      }
+      stations <- req_list$stations() %>% 
+        dplyr::mutate(station_name = paste0(station_name, " (", round(distance, 2), " km)"))
+      choices <- as.list(stations$station_name)
+      selected <- choices[1]
     }
     shinyWidgets::pickerInput(ns("reactive_picker"), text,
                               choices = choices,
